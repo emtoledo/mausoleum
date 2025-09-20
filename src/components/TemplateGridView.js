@@ -30,6 +30,13 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   }, []);
 
   React.useEffect(() => {
+    // Reload templates when currentProject changes
+    if (currentProject) {
+      loadSelectedTemplates();
+    }
+  }, [currentProject]);
+
+  React.useEffect(() => {
     // Set canvas layout to true when this component mounts
     console.log('TemplateGridView - Setting canvas layout to true');
     setCanvasLayout(true);
@@ -41,12 +48,12 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   const loadSelectedTemplates = async () => {
     try {
       setLoading(true);
-      console.log('TemplateGridView - Loading templates from project:', project);
+      console.log('TemplateGridView - Loading templates from project:', currentProject);
       
-      // Always use project.selectedTemplates if it exists, otherwise fall back to selectedTemplateIds prop
-      if (project.selectedTemplates && project.selectedTemplates.length > 0) {
-        console.log('TemplateGridView - Project has selectedTemplates:', project.selectedTemplates);
-        setTemplates(project.selectedTemplates);
+      // Always use currentProject.selectedTemplates if it exists, otherwise fall back to selectedTemplateIds prop
+      if (currentProject.selectedTemplates && currentProject.selectedTemplates.length > 0) {
+        console.log('TemplateGridView - Project has selectedTemplates:', currentProject.selectedTemplates);
+        setTemplates(currentProject.selectedTemplates);
       } else {
         console.log('TemplateGridView - No selectedTemplates in project, using selectedTemplateIds prop');
         const allTemplates = await templateService.getAvailableTemplates();
@@ -285,7 +292,7 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   return (
     <div className="canvas-layout">
       <AppHeader
-        projectTitle={project.title}
+        projectTitle={currentProject.title}
         currentPage="All Options"
         onSave={handleSave}
         onShare={handleShare}

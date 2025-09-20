@@ -1561,7 +1561,7 @@ body:has(.canvas-layout) .footer-branding {
 }
 
 .projects-title {
-    font-family: 'Times New Roman', serif;
+    font-family: "Cormorant Infant", 'Times New Roman', serif;
     font-size: 32px;
     color: #333;
     margin: 0;
@@ -1569,7 +1569,7 @@ body:has(.canvas-layout) .footer-branding {
 }
 
 .create-new-project-btn {
-    background: #007bff;
+    background: #000000;
     color: white;
     border: none;
     padding: 12px 24px;
@@ -1581,7 +1581,7 @@ body:has(.canvas-layout) .footer-branding {
 }
 
 .create-new-project-btn:hover {
-    background: #0056b3;
+    background: #616161;
 }
 
 .projects-list {
@@ -1599,6 +1599,7 @@ body:has(.canvas-layout) .footer-branding {
     gap: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: box-shadow 0.2s ease;
+    cursor: pointer;
 }
 
 .project-card:hover {
@@ -1610,7 +1611,6 @@ body:has(.canvas-layout) .footer-branding {
     height: 50px;
     border-radius: 6px;
     overflow: hidden;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1633,7 +1633,6 @@ body:has(.canvas-layout) .footer-branding {
     font-size: 18px;
     font-weight: 600;
     color: #333;
-    cursor: pointer;
     transition: color 0.2s ease;
 }
 
