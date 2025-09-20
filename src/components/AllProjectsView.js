@@ -1,5 +1,6 @@
 import React from 'react';
 import AppHeader from './AppHeader';
+import AccountSettingsView from './AccountSettingsView';
 import dataService from '../services/dataService';
 import templateService from '../services/templateService';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
@@ -7,6 +8,7 @@ import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
   const [projects, setProjects] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [showAccountSettings, setShowAccountSettings] = React.useState(false);
   const { setCanvasLayout } = useCanvasLayout();
 
   React.useEffect(() => {
@@ -79,7 +81,12 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
   };
 
   const handleAccountSettings = () => {
-    console.log('Account Settings clicked');
+    console.log('AllProjectsView - Account Settings clicked, navigating to AccountSettingsView');
+    setShowAccountSettings(true);
+  };
+
+  const handleBackFromAccountSettings = () => {
+    setShowAccountSettings(false);
   };
 
   const handleLogOut = () => {
@@ -109,6 +116,17 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     }
     return '/images/templates/template_1.png'; // Default thumbnail
   };
+
+  // Show Account Settings view if requested
+  if (showAccountSettings) {
+    return (
+      <AccountSettingsView
+        onBack={handleBackFromAccountSettings}
+        onLogOut={handleLogOut}
+        onProjectClick={onProjectClick}
+      />
+    );
+  }
 
   if (loading) {
     return (

@@ -109,6 +109,7 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
       <AccountSettingsView
         onBack={handleBackFromAccountSettings}
         onLogOut={handleLogOut}
+        onProjectClick={handleProjectClick}
       />
     );
   }

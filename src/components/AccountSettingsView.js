@@ -1,9 +1,11 @@
 import React from 'react';
 import AppHeader from './AppHeader';
+import AllProjectsView from './AllProjectsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
-const AccountSettingsView = ({ onBack, onLogOut }) => {
+const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
   const { setCanvasLayout } = useCanvasLayout();
+  const [showAllProjects, setShowAllProjects] = React.useState(false);
 
   React.useEffect(() => {
     setCanvasLayout(true);
@@ -19,7 +21,25 @@ const AccountSettingsView = ({ onBack, onLogOut }) => {
   };
 
   const handleMenuClick = () => {
-    console.log('Menu clicked');
+    console.log('AccountSettingsView - Menu clicked, navigating to All Projects');
+    setShowAllProjects(true);
+  };
+
+  const handleBackFromAllProjects = () => {
+    setShowAllProjects(false);
+  };
+
+  const handleCreateNewProject = () => {
+    console.log('Create New Project clicked from AccountSettingsView');
+    onBack(); // Navigate back to login form to start new project
+  };
+
+  const handleProjectClick = (project) => {
+    console.log('AccountSettingsView - Project clicked, delegating to parent:', project);
+    setShowAllProjects(false);
+    if (onProjectClick) {
+      onProjectClick(project);
+    }
   };
 
   const handleMoreOptions = () => {
@@ -37,6 +57,17 @@ const AccountSettingsView = ({ onBack, onLogOut }) => {
   const handleProjectTitleClick = () => {
     onBack();
   };
+
+  // Show All Projects view if requested
+  if (showAllProjects) {
+    return (
+      <AllProjectsView
+        onBack={handleBackFromAllProjects}
+        onCreateNewProject={handleCreateNewProject}
+        onProjectClick={handleProjectClick}
+      />
+    );
+  }
 
   return (
     <div className="account-settings-container">

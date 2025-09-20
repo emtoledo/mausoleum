@@ -301,6 +301,7 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
       <AccountSettingsView
         onBack={handleBackFromAccountSettings}
         onLogOut={handleLogOut}
+        onProjectClick={handleProjectClick}
       />
     );
   }
