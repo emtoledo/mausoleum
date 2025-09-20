@@ -6,6 +6,7 @@ import EditModeView from './EditModeView';
 import MemorialTypeForm from './MemorialTypeForm';
 import MemorialStyleForm from './MemorialStyleForm';
 import TemplateSelectionForm from './TemplateSelectionForm';
+import AccountSettingsView from './AccountSettingsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
 const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
@@ -18,6 +19,7 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   const [overlayStep, setOverlayStep] = React.useState('type'); // 'type', 'style', 'selection'
   const [overlayData, setOverlayData] = React.useState({});
   const [currentProject, setCurrentProject] = React.useState(project);
+  const [showAccountSettings, setShowAccountSettings] = React.useState(false);
   const { setCanvasLayout } = useCanvasLayout();
 
   React.useEffect(() => {
@@ -84,7 +86,24 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
 
   const handleProfileClick = () => {
     console.log('Profile clicked');
-    // Implement profile functionality
+    // Profile dropdown is handled by AppHeader component
+  };
+
+  const handleAccountSettings = () => {
+    console.log('Account Settings clicked');
+    setShowAccountSettings(true);
+  };
+
+  const handleLogOut = () => {
+    console.log('Log Out clicked');
+    // Clear any stored data and return to login
+    localStorage.removeItem('currentProject');
+    localStorage.removeItem('isLoggedIn');
+    onBack(); // This should take us back to the login form
+  };
+
+  const handleBackFromAccountSettings = () => {
+    setShowAccountSettings(false);
   };
 
   const handleMemorialOptionClick = (template, index) => {
@@ -221,6 +240,16 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
     );
   }
 
+  // Show Account Settings view if requested
+  if (showAccountSettings) {
+    return (
+      <AccountSettingsView
+        onBack={handleBackFromAccountSettings}
+        onLogOut={handleLogOut}
+      />
+    );
+  }
+
   return (
     <div className="canvas-layout">
       <AppHeader
@@ -231,6 +260,8 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         onMenuClick={handleMenuClick}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
+        onAccountSettings={handleAccountSettings}
+        onLogOut={handleLogOut}
         showFullBreadcrumb={false}
         showSaveButton={false}
       />

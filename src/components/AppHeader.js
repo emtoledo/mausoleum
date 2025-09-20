@@ -1,6 +1,33 @@
 import React from 'react';
+import ProfileDropdown from './ProfileDropdown';
 
-const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton }) => {
+const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true, onAccountSettings, onLogOut }) => {
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
+
+  const handleProfileClick = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+    if (onProfileClick) {
+      onProfileClick();
+    }
+  };
+
+  const handleCloseDropdown = () => {
+    setIsProfileDropdownOpen(false);
+  };
+
+  const handleAccountSettings = () => {
+    setIsProfileDropdownOpen(false);
+    if (onAccountSettings) {
+      onAccountSettings();
+    }
+  };
+
+  const handleLogOut = () => {
+    setIsProfileDropdownOpen(false);
+    if (onLogOut) {
+      onLogOut();
+    }
+  };
   return (
     <div className="app-header">
       <div className="header-left">
@@ -63,7 +90,9 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
         {showSaveButton && (
           <button className="save-button" onClick={onSave}>Save</button>
         )}
-        <button className="share-button" onClick={onShare}>Share</button>
+        {showShareButton && (
+          <button className="share-button" onClick={onShare}>Share</button>
+        )}
         <div className="more-options" onClick={onMoreOptions}>
           <div className="more-dots">
             <div className="dot"></div>
@@ -71,8 +100,14 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
             <div className="dot"></div>
           </div>
         </div>
-        <div className="user-profile" onClick={onProfileClick}>
+        <div className="user-profile" onClick={handleProfileClick}>
           <div className="profile-avatar"></div>
+          <ProfileDropdown
+            isOpen={isProfileDropdownOpen}
+            onClose={handleCloseDropdown}
+            onAccountSettings={handleAccountSettings}
+            onLogOut={handleLogOut}
+          />
         </div>
       </div>
     </div>

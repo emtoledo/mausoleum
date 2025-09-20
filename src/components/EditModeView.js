@@ -1,10 +1,12 @@
 import React from 'react';
 import templateService from '../services/templateService';
 import AppHeader from './AppHeader';
+import AccountSettingsView from './AccountSettingsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
 const EditModeView = ({ project, selectedTemplate, onBack }) => {
   const { setCanvasLayout } = useCanvasLayout();
+  const [showAccountSettings, setShowAccountSettings] = React.useState(false);
 
   React.useEffect(() => {
     console.log('EditModeView - Component rendering');
@@ -34,7 +36,24 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
 
   const handleProfileClick = () => {
     console.log('Profile clicked');
-    // Implement profile functionality
+    // Profile dropdown is handled by AppHeader component
+  };
+
+  const handleAccountSettings = () => {
+    console.log('Account Settings clicked');
+    setShowAccountSettings(true);
+  };
+
+  const handleLogOut = () => {
+    console.log('Log Out clicked');
+    // Clear any stored data and return to login
+    localStorage.removeItem('currentProject');
+    localStorage.removeItem('isLoggedIn');
+    onBack(); // This should take us back to the login form
+  };
+
+  const handleBackFromAccountSettings = () => {
+    setShowAccountSettings(false);
   };
 
   const handleProjectTitleClick = () => {
@@ -52,6 +71,16 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     // Implement toolbar functionality
   };
 
+  // Show Account Settings view if requested
+  if (showAccountSettings) {
+    return (
+      <AccountSettingsView
+        onBack={handleBackFromAccountSettings}
+        onLogOut={handleLogOut}
+      />
+    );
+  }
+
   return (
     <div className="canvas-layout">
       <AppHeader
@@ -62,6 +91,8 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
         onMenuClick={handleMenuClick}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
+        onAccountSettings={handleAccountSettings}
+        onLogOut={handleLogOut}
         showCanvasControls={true}
         onCanvasControl={handleCanvasControl}
         onProjectTitleClick={handleProjectTitleClick}
