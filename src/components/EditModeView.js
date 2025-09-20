@@ -2,11 +2,13 @@ import React from 'react';
 import templateService from '../services/templateService';
 import AppHeader from './AppHeader';
 import AccountSettingsView from './AccountSettingsView';
+import AllProjectsView from './AllProjectsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
 const EditModeView = ({ project, selectedTemplate, onBack }) => {
   const { setCanvasLayout } = useCanvasLayout();
   const [showAccountSettings, setShowAccountSettings] = React.useState(false);
+  const [showAllProjects, setShowAllProjects] = React.useState(false);
 
   React.useEffect(() => {
     console.log('EditModeView - Component rendering');
@@ -25,8 +27,27 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
   };
 
   const handleMenuClick = () => {
-    console.log('Menu clicked');
-    // Implement menu functionality
+    console.log('Menu clicked - navigating to All Projects');
+    setShowAllProjects(true);
+  };
+
+  const handleBackFromAllProjects = () => {
+    setShowAllProjects(false);
+  };
+
+  const handleCreateNewProject = () => {
+    console.log('Create New Project clicked');
+    // Navigate back to login form to start new project
+    onBack();
+  };
+
+  const handleProjectClick = (project) => {
+    console.log('Project clicked:', project);
+    // Navigate to the selected project's template grid
+    setShowAllProjects(false);
+    // This would need to be handled by parent component
+    // For now, just go back to template grid
+    onBack();
   };
 
   const handleMoreOptions = () => {
@@ -70,6 +91,17 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     console.log('Toolbar tool clicked:', tool);
     // Implement toolbar functionality
   };
+
+  // Show All Projects view if requested
+  if (showAllProjects) {
+    return (
+      <AllProjectsView
+        onBack={handleBackFromAllProjects}
+        onCreateNewProject={handleCreateNewProject}
+        onProjectClick={handleProjectClick}
+      />
+    );
+  }
 
   // Show Account Settings view if requested
   if (showAccountSettings) {

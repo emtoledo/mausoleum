@@ -7,6 +7,7 @@ import MemorialTypeForm from './MemorialTypeForm';
 import MemorialStyleForm from './MemorialStyleForm';
 import TemplateSelectionForm from './TemplateSelectionForm';
 import AccountSettingsView from './AccountSettingsView';
+import AllProjectsView from './AllProjectsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
 const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
@@ -20,6 +21,7 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   const [overlayData, setOverlayData] = React.useState({});
   const [currentProject, setCurrentProject] = React.useState(project);
   const [showAccountSettings, setShowAccountSettings] = React.useState(false);
+  const [showAllProjects, setShowAllProjects] = React.useState(false);
   const { setCanvasLayout } = useCanvasLayout();
 
   React.useEffect(() => {
@@ -75,8 +77,27 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   };
 
   const handleMenuClick = () => {
-    console.log('Menu clicked');
-    // Implement menu functionality
+    console.log('Menu clicked - navigating to All Projects');
+    setShowAllProjects(true);
+  };
+
+  const handleBackFromAllProjects = () => {
+    setShowAllProjects(false);
+  };
+
+  const handleCreateNewProject = () => {
+    console.log('Create New Project clicked');
+    // Navigate back to login form to start new project
+    onBack();
+  };
+
+  const handleProjectClick = (project) => {
+    console.log('Project clicked:', project);
+    // Navigate to the selected project's template grid
+    setShowAllProjects(false);
+    // Update current project and reload templates
+    setCurrentProject(project);
+    loadSelectedTemplates();
   };
 
   const handleMoreOptions = () => {
@@ -236,6 +257,17 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         project={project}
         selectedTemplate={selectedTemplate}
         onBack={handleBackFromEdit}
+      />
+    );
+  }
+
+  // Show All Projects view if requested
+  if (showAllProjects) {
+    return (
+      <AllProjectsView
+        onBack={handleBackFromAllProjects}
+        onCreateNewProject={handleCreateNewProject}
+        onProjectClick={handleProjectClick}
       />
     );
   }
