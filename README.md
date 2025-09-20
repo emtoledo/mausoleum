@@ -1,6 +1,6 @@
 # Memorial App Documentation
 
-A dynamic React application for the Valhalla Memorial login page with video background and form validation.
+A Dynamic React application for Funeral and Cemetary Sales reps.
 
 ## Features
 
