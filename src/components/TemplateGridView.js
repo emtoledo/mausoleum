@@ -24,17 +24,50 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   const [showAllProjects, setShowAllProjects] = React.useState(false);
   const { setCanvasLayout } = useCanvasLayout();
 
+  const loadSelectedTemplates = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('TemplateGridView - loadSelectedTemplates called');
+      console.log('TemplateGridView - Loading templates from project:', currentProject);
+      console.log('TemplateGridView - Project ID:', currentProject?.id);
+      console.log('TemplateGridView - Project Title:', currentProject?.title);
+      
+      // Always use currentProject.selectedTemplates if it exists, otherwise fall back to selectedTemplateIds prop
+      if (currentProject.selectedTemplates && currentProject.selectedTemplates.length > 0) {
+        console.log('TemplateGridView - Project has selectedTemplates:', currentProject.selectedTemplates);
+        console.log('TemplateGridView - Setting templates to:', currentProject.selectedTemplates);
+        setTemplates(currentProject.selectedTemplates);
+      } else {
+        console.log('TemplateGridView - No selectedTemplates in project, using selectedTemplateIds prop');
+        const allTemplates = await templateService.getAvailableTemplates();
+        const selectedTemplates = allTemplates.filter(template => 
+          selectedTemplateIds.includes(template.id)
+        );
+        console.log('TemplateGridView - Setting templates to:', selectedTemplates);
+        setTemplates(selectedTemplates);
+      }
+    } catch (error) {
+      console.error('Error loading selected templates:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentProject, selectedTemplateIds]);
+
   React.useEffect(() => {
     console.log('TemplateGridView - Component mounted');
     loadSelectedTemplates();
-  }, []);
+  }, [loadSelectedTemplates]);
 
   React.useEffect(() => {
     // Reload templates when currentProject changes
+    console.log('TemplateGridView - useEffect triggered, currentProject:', currentProject);
+    console.log('TemplateGridView - currentProject.id:', currentProject?.id);
+    console.log('TemplateGridView - currentProject.title:', currentProject?.title);
     if (currentProject) {
+      console.log('TemplateGridView - Calling loadSelectedTemplates');
       loadSelectedTemplates();
     }
-  }, [currentProject]);
+  }, [currentProject, loadSelectedTemplates]);
 
   React.useEffect(() => {
     // Set canvas layout to true when this component mounts
@@ -45,29 +78,9 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
     // This prevents the component from being unmounted due to canvas layout changes
   }, [setCanvasLayout]);
 
-  const loadSelectedTemplates = async () => {
-    try {
-      setLoading(true);
-      console.log('TemplateGridView - Loading templates from project:', currentProject);
-      
-      // Always use currentProject.selectedTemplates if it exists, otherwise fall back to selectedTemplateIds prop
-      if (currentProject.selectedTemplates && currentProject.selectedTemplates.length > 0) {
-        console.log('TemplateGridView - Project has selectedTemplates:', currentProject.selectedTemplates);
-        setTemplates(currentProject.selectedTemplates);
-      } else {
-        console.log('TemplateGridView - No selectedTemplates in project, using selectedTemplateIds prop');
-        const allTemplates = await templateService.getAvailableTemplates();
-        const selectedTemplates = allTemplates.filter(template => 
-          selectedTemplateIds.includes(template.id)
-        );
-        setTemplates(selectedTemplates);
-      }
-    } catch (error) {
-      console.error('Error loading selected templates:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  React.useEffect(() => {
+    console.log('TemplateGridView - showAllProjects state changed to:', showAllProjects);
+  }, [showAllProjects]);
 
   const handleBack = () => {
     onBack();
@@ -99,12 +112,15 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   };
 
   const handleProjectClick = (project) => {
-    console.log('Project clicked:', project);
+    console.log('TemplateGridView - handleProjectClick called with project:', project);
+    console.log('TemplateGridView - Current showAllProjects state:', showAllProjects);
+    console.log('TemplateGridView - Current project before change:', currentProject);
+    
     // Navigate to the selected project's template grid
     setShowAllProjects(false);
     // Update current project and reload templates
     setCurrentProject(project);
-    loadSelectedTemplates();
+    console.log('TemplateGridView - Project set, should trigger useEffect');
   };
 
   const handleMoreOptions = () => {
@@ -308,27 +324,30 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
       {/* Template Grid */}
       <div className="memorial-grid-container">
         <div className="memorial-grid">
-          {templates.map((template, index) => (
-            <div key={template.id} className="memorial-option" onClick={() => handleMemorialOptionClick(template, index)}>
-              <div className="memorial-card">
-                <div className="memorial-image-container">
-                  <img 
-                    src={templateService.getTemplateImagePath(template.baseImage)} 
-                    alt={template.name}
-                    className="memorial-base-image"
-                  />
-                  <div className="memorial-text-overlay">
-                    <div className="marker-headline">{project.markerHeadline}</div>
-                    <div className="marker-year">{project.year}</div>
-                    {project.epitaph && (
-                      <div className="marker-epitaph">{project.epitaph}</div>
-                    )}
+          {templates.map((template, index) => {
+            console.log('TemplateGridView - Rendering template:', template.id, template.name);
+            return (
+              <div key={template.id || `template-${index}`} className="memorial-option" onClick={() => handleMemorialOptionClick(template, index)}>
+                <div className="memorial-card">
+                  <div className="memorial-image-container">
+                    <img 
+                      src={templateService.getTemplateImagePath(template.baseImage)} 
+                      alt={template.name}
+                      className="memorial-base-image"
+                    />
+                    <div className="memorial-text-overlay">
+                      <div className="marker-headline">{currentProject.markerHeadline}</div>
+                      <div className="marker-year">{currentProject.year}</div>
+                      {currentProject.epitaph && (
+                        <div className="marker-epitaph">{currentProject.epitaph}</div>
+                      )}
+                    </div>
                   </div>
+                  <div className="option-label">OPTION {index + 1}</div>
                 </div>
-                <div className="option-label">OPTION {index + 1}</div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {/* Add Option Card */}
           <div className="memorial-option" onClick={handleAddOptionClick}>

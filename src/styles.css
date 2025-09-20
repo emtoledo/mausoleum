@@ -1697,8 +1697,6 @@ body:has(.canvas-layout) .footer-branding {
 .footer-branding {
     text-align: center;
     padding: 20px;
-    background: white;
-    border-top: 1px solid #e0e0e0;
 }
 
 .footer-branding p {

@@ -24,8 +24,8 @@ function AppContent() {
   console.log('AppContent - Canvas layout inactive, rendering BackgroundVideo');
   return (
     <div className="App">
-      <BackgroundVideo key="background-video" />
       <FooterBranding key="footer-branding" />
+      <BackgroundVideo key="background-video" />
       <LoginForm />
     </div>
   );

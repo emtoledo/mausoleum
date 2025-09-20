@@ -12,7 +12,7 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
   React.useEffect(() => {
     setCanvasLayout(true);
     loadProjects();
-    return () => setCanvasLayout(false);
+    // Don't set canvas layout to false on unmount - let parent handle it
   }, [setCanvasLayout]);
 
   const loadProjects = async () => {
@@ -42,8 +42,13 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
   };
 
   const handleProjectClick = (project) => {
+    console.log('AllProjectsView - handleProjectClick called with project:', project);
+    console.log('AllProjectsView - onProjectClick prop:', onProjectClick);
     if (onProjectClick) {
+      console.log('AllProjectsView - Calling onProjectClick');
       onProjectClick(project);
+    } else {
+      console.log('AllProjectsView - No onProjectClick prop provided');
     }
   };
 
@@ -199,11 +204,17 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
           )}
         </div>
       </div>
-      
+
       <div className="footer-branding">
-        <p>POWERED BY MAUSOLEUM</p>
+      <div className="mausoleum-logo">
+        <img src="/images/poweredby_dark.png" alt="MAUSOLEUM" className="mausoleum-img" />
       </div>
     </div>
+
+    </div>
+
+
+
   );
 };
 
