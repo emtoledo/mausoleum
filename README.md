@@ -4,12 +4,13 @@ A Dynamic React application for Funeral and Cemetary Sales reps.
 
 ## Features
 
-- **Video Background**: Auto-playing, looping video background
-- **Form Validation**: Real-time email and password validation
-- **Responsive Design**: Works on desktop, tablet, and mobile
-- **Loading States**: Visual feedback during form submission
-- **Error Handling**: Clear error messages for invalid inputs
-- **Modern UI**: Clean, professional design with backdrop blur effects
+- **Login & New Memorial Creation Flow**: Users can log in and quickly drop into a new memorial creation flow
+- **Memorial Quick Preview**: With a few short clicks, we're showing customers options
+- **Add New Option**: Add new options to the list of designs
+- **Preset Memorial Template**: Memorial templates configured from a templates.json file
+- **Edit View**: Rough view for editing a memorial option
+- **Account Settings**: Placeholder View for future account settings
+- **All Projects**: Placeholder view for displaying all projects.
 
 ## Getting Started
 
