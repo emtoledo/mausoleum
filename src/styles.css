@@ -1,0 +1,1432 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Inter", 'Arial', sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    margin: 0;
+    padding: 0;
+}
+
+.App {
+    height: 100vh;
+    position: relative;
+}
+
+.background-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+}
+
+.background-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+}
+
+.background-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+}
+
+.login-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 440px;
+    padding: 0 20px;
+    z-index: 1;
+}
+
+.brand-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: #ffffff;
+    margin-bottom: 20px;
+    font-family: "Cormorant Infant",'Times New Roman', serif;
+    font-optical-sizing: auto;
+    font-weight: 300;
+    font-style: normal;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.login-form {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: #ffffff;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #4bbdfa;
+    box-shadow: 0 0 5px 0 rgba(35, 155, 248, 0.409);
+}
+
+.form-group input.error {
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.1);
+}
+
+.error-message {
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+}
+
+.form-group input::placeholder {
+    color: #999;
+}
+
+.login-button {
+    width: 100%;
+    padding: 14px;
+    background-color: #000000;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.login-button:hover:not(:disabled) {
+    background-color: #333333;
+}
+
+.login-button:disabled {
+    background-color: #666666;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.forgot-password {
+    text-align: center;
+}
+
+.forgot-link {
+    color: #666;
+    text-decoration: none;
+    font-size: 12px;
+    text-decoration: underline;
+    transition: color 0.3s ease;
+}
+
+.forgot-link:hover {
+    color: #333;
+    text-decoration: underline;
+}
+
+.footer-branding {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 1;
+}
+
+.powered-by {
+    color: #ccc;
+    font-size: 12px;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+}
+
+.mausoleum-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.mausoleum-img {
+    height: 30px;
+    width: auto;
+    filter: brightness(0) invert(1);
+}
+
+/* Selection Buttons */
+.selection-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 40px;
+}
+
+.selection-button {
+    background-color: rgba(200, 200, 200, 0.9);
+    border: none;
+    border-radius: 12px;
+    padding: 30px 25px;
+    width: 340px;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.selection-button:hover {
+    background-color: rgba(220, 220, 220, 0.95);
+    transform: translateY(-2px);
+    box-shadow: 0 0 5px 0 rgba(35, 155, 248, 0.409);
+}
+
+.selection-button:active {
+    transform: translateY(0);
+    border-color: #4bbdfa;
+    box-shadow: 0 0 5px 0 rgba(35, 155, 248, 0.409);
+}
+
+.button-icon {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-image {
+    width: 40px;
+    height: 40px;
+    filter: brightness(0) saturate(100%) invert(20%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(0%) contrast(80%);
+}
+
+.button-text {
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* New Memorial Form Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.new-memorial-form {
+    background-color: #f8f8f8;
+    border-radius: 12px;
+    padding: 30px;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.form-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 25px;
+    font-family: 'Arial', sans-serif;
+}
+
+.customer-name-input {
+    width: 100%;
+    padding: 15px 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: #ffffff;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.customer-name-input:focus {
+    outline: none;
+    border-color: #666;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.customer-name-input::placeholder {
+    color: #999;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+}
+
+.cancel-button {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    transition: color 0.3s ease;
+}
+
+.cancel-button:hover {
+    color: #333;
+}
+
+.next-button {
+    background-color: #000000;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.next-button:hover:not(:disabled) {
+    background-color: #333333;
+}
+
+.next-button:disabled {
+    background-color: #666666;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.arrow-icon {
+    width: 5px;
+    height: 9px;
+    margin-left: 4px;
+    filter: brightness(0) invert(1);
+}
+
+/* Memorial Details Form */
+.memorial-details-form {
+    background-color: #f8f8f8;
+    border-radius: 12px;
+    padding: 30px;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.memorial-input {
+    width: 100%;
+    padding: 15px 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: #ffffff;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+
+.memorial-input:focus {
+    outline: none;
+    border-color: #666;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.memorial-input::placeholder {
+    color: #999;
+}
+
+.memorial-textarea {
+    width: 100%;
+    padding: 15px 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: #ffffff;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 100px;
+    font-family: inherit;
+}
+
+.memorial-textarea:focus {
+    outline: none;
+    border-color: #4bbdfa;
+    box-shadow: 0 0 5px 0 rgba(35, 155, 248, 0.409);
+}
+
+.memorial-textarea::placeholder {
+    color: #999;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    color: #000;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+}
+
+.back-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.back-icon {
+    width: 18px;
+    height: 12px;
+    filter: brightness(0) saturate(100%) invert(0%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(0%) contrast(100%);
+}
+
+/* Memorial Type Form */
+.memorial-type-form {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 30px;
+    width: 500px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+    border: 1px solid #ddd;
+}
+
+.type-selection-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    align-items: center;
+    margin: 40px 0;
+}
+
+/* Abstract Selection Button Styles */
+.selection-button {
+    background-color: #f0f0f0;
+    border: none;
+    border-radius: 12px;
+    padding: 30px 25px;
+    width: 180px;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    /* box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); */
+}
+
+.selection-button:hover {
+    background-color: #e8e8e8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.selection-button.selected {
+    border: 2px solid #008DD9;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.selection-button:active {
+    transform: translateY(0);
+    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Legacy type-selection-button for backward compatibility */
+.type-selection-button {
+    background-color: #f0f0f0;
+    border: none;
+    border-radius: 12px;
+    padding: 30px 25px;
+    width: 180px;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    /* box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); */
+}
+
+.type-selection-button:hover {
+    background-color: #e8e8e8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.type-selection-button.selected {
+    border: 2px solid #008DD9;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.type-selection-button:active {
+    transform: translateY(0);
+    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Abstract Selection Icon and Text Styles */
+.selection-icon {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.selection-icon-image {
+    width: 47px;
+    height: auto;
+    filter: brightness(0) saturate(100%) invert(20%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(0%) contrast(80%);
+}
+
+.selection-text {
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* Legacy type-icon and type-text for backward compatibility */
+.type-icon {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.type-icon-image {
+    width: 47px;
+    height: auto;
+    filter: brightness(0) saturate(100%) invert(20%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(0%) contrast(80%);
+}
+
+.type-text {
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* Memorial Style Form */
+.memorial-style-form {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 30px;
+    width: 500px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+    border: 1px solid #ddd;
+}
+
+.style-selection-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    align-items: center;
+    margin: 40px 0;
+}
+
+/* Template Selection Form */
+.template-selection-form {
+    background-color: #f0f0f0;
+    border-radius: 12px;
+    padding: 30px;
+    width: 600px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+    border: 1px solid #ddd;
+}
+
+.template-grid-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+}
+
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 10px;
+}
+
+.template-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #fafafa;
+    position: relative;
+}
+
+.template-item:hover {
+    border-color: #ddd;
+    background-color: #f5f5f5;
+}
+
+.template-item.selected {
+    border-color: #008DD9;
+    background-color: #f0f8ff;
+}
+
+
+.template-checkbox-input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #008DD9;
+}
+
+.template-preview {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+.template-preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: grayscale(0.3);
+    transition: filter 0.3s ease;
+}
+
+.template-item.selected .template-preview-image {
+    filter: grayscale(0);
+}
+
+.template-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #333;
+    text-align: center;
+    margin-top: 5px;
+}
+
+.loading-message {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-size: 16px;
+}
+
+.done-button {
+    background-color: #000000;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.done-button:hover:not(:disabled) {
+    background-color: #333333;
+}
+
+.done-button:disabled {
+    background-color: #666666;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+    .login-container {
+        max-width: 350px;
+        padding: 0 15px;
+    }
+    
+    .brand-title {
+        font-size: 2rem;
+        margin-bottom: 30px;
+    }
+    
+    .login-form {
+        padding: 30px 25px;
+    }
+    
+    .footer-branding {
+        bottom: 20px;
+    }
+    
+    .selection-container {
+        flex-direction: column;
+        gap: 20px;
+        margin-top: 30px;
+    }
+    
+    .selection-button {
+        width: 280px;
+        height: 140px;
+        padding: 25px 20px;
+    }
+    
+    .button-text {
+        font-size: 13px;
+    }
+    
+    .memorial-type-form {
+        width: 350px;
+        padding: 25px;
+    }
+    
+    .type-selection-container {
+        flex-direction: column;
+        gap: 20px;
+        margin: 30px 0;
+    }
+    
+    .type-selection-button {
+        width: 160px;
+        height: 140px;
+        padding: 25px 20px;
+    }
+    
+    .type-icon-image {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .type-text {
+        font-size: 13px;
+    }
+    
+    .memorial-style-form {
+        width: 350px;
+        padding: 25px;
+    }
+    
+    .style-selection-container {
+        flex-direction: column;
+        gap: 20px;
+        margin: 30px 0;
+    }
+    
+    .selection-button {
+        width: 160px;
+        height: 140px;
+        padding: 25px 20px;
+    }
+    
+    .selection-icon-image {
+        width: 40px;
+        height: auto;
+    }
+    
+    .selection-text {
+        font-size: 13px;
+    }
+    
+    .template-selection-form {
+        width: 400px;
+        padding: 25px;
+    }
+    
+    .template-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .template-preview {
+        height: 100px;
+    }
+    
+    .template-name {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 320px) {
+    .brand-title {
+        font-size: 1.8rem;
+    }
+    
+    .login-form {
+        padding: 25px 20px;
+    }
+}
+
+/* Canvas Layout - Full page layout without containers */
+.canvas-layout {
+    min-height: 100vh;
+    background: white;
+    padding: 0;
+    margin: 0;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+/* Override parent containers when canvas layout is active */
+.canvas-layout ~ * {
+    display: none;
+}
+
+/* Ensure background elements are completely hidden when canvas layout is active */
+body:has(.canvas-layout) .background-container,
+body:has(.canvas-layout) .footer-branding {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Ensure canvas layout breaks out of any modal or container */
+.modal-overlay .canvas-layout,
+.login-container .canvas-layout,
+.background-container .canvas-layout {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: white;
+}
+
+/* App Header */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.menu-icon {
+    cursor: pointer;
+}
+
+.menu-icon-image {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #666;
+}
+
+.breadcrumb-item {
+    color: #666;
+}
+
+.breadcrumb-item.active {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.breadcrumb-item.clickable {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.breadcrumb-item.clickable:hover {
+    background: #f5f5f5;
+    color: #1976d2;
+}
+
+.breadcrumb-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.breadcrumb-icon {
+    width: 6px;
+    height: 10px;
+    display: block;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.save-button {
+    background: #000;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.share-button {
+    background: white;
+    color: #000;
+    border: 1px solid #000;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.more-options {
+    cursor: pointer;
+}
+
+.more-dots {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dot {
+    width: 4px;
+    height: 4px;
+    background: #666;
+    border-radius: 50%;
+}
+
+.user-profile {
+    cursor: pointer;
+}
+
+.profile-avatar {
+    width: 32px;
+    height: 32px;
+    background: #ddd;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+}
+
+/* Memorial Grid Container */
+.memorial-grid-container {
+    padding: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.memorial-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.memorial-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.memorial-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.memorial-image-container {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 16px;
+}
+
+.memorial-base-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.memorial-text-overlay {
+    position: absolute;
+    top: -28px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    color: #333;
+    font-family: 'Times New Roman', serif;
+}
+
+.marker-headline {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.marker-year {
+    font-size: 14px;
+    margin-bottom: 4px;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.marker-epitaph {
+    font-size: 12px;
+    font-style: italic;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.option-label {
+    background: white;
+    border: 1px solid #d2d2d2;
+    color: #666;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    border-radius: 4px;
+    margin-top:-30px;
+    z-index: 5;
+}
+
+/* Add Option Card */
+.add-option-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 300px;
+    height: 180px;
+    border: 1px dashed #ccc;
+    border-radius: 8px;
+    background: #f9f9f9;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.add-option-card:hover {
+    border-color: #999;
+    background: #f0f0f0;
+}
+
+.add-icon {
+    font-size: 48px;
+    color: #c4c2c2;
+    margin-bottom: 8px;
+}
+
+.add-text {
+    font-size: 14px;
+    color: #666;
+    font-weight: bold;
+}
+
+/* Back to Selection */
+.back-to-selection {
+    padding: 20px 40px;
+    text-align: center;
+}
+
+.back-to-selection .back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.back-to-selection .back-button:hover {
+    background: #e9e9e9;
+}
+
+/* Edit Mode Layout */
+.edit-mode-container {
+    display: flex;
+    height: calc(100vh - 60px); /* Subtract header height */
+    background: white;
+}
+
+/* Sidebar Toolbar */
+.sidebar-toolbar {
+    width: 80px;
+    background: white;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    gap: 30px;
+}
+
+.toolbar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.toolbar-item:hover {
+    background: #f5f5f5;
+}
+
+.toolbar-item.active {
+    background: #e3f2fd;
+    border: 2px solid #1976d2;
+}
+
+.toolbar-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.toolbar-icon-image.vase {
+    width: 21px;
+    height: 28px;
+}
+
+.toolbar-icon-image.swap {
+    width: 20px;
+    height: 20px;
+}
+
+.toolbar-icon-image {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+.toolbar-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #333;
+    text-align: center;
+}
+
+/* Canvas Area */
+.canvas-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    padding: 40px;
+}
+
+.memorial-canvas {
+    max-width: 750px;
+    width: 100%;
+}
+
+.memorial-canvas .memorial-card {
+    width: 100%;
+    margin: 0 auto;
+}
+
+.memorial-canvas .memorial-image-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0;
+    max-width: 750px;
+}
+
+.memorial-canvas .memorial-base-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.memorial-canvas .memorial-text-overlay {
+    position: absolute;
+    top: -70px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 30px;
+    color: #333;
+    font-family: 'Times New Roman', serif;
+}
+
+.memorial-canvas .marker-headline {
+    font-size: 44px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.memorial-canvas .marker-year {
+    font-size: 28px;
+    margin-bottom: 6px;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.memorial-canvas .marker-epitaph {
+    font-size: 24px;
+    font-style: italic;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+/* App Header Canvas Controls */
+.header-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.canvas-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.control-item:hover {
+    background: #f5f5f5;
+}
+
+.control-item.active {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 30px;
+    margin: 0 10px;
+    height: auto;
+}
+
+.control-icon {
+    width: 19px;
+    height: 19px;
+    display: block;
+}
+
+.control-icon.cloud {
+    width: 24px;
+    height: 18px;
+}
+
+.control-icon.undo {
+    width: 20px;
+    height: 20px;
+}
+
+.control-text {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 0 8px;
+}
+
+.control-separator {
+    color: #ccc;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Make memorial options clickable */
+.memorial-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.memorial-option:hover {
+    transform: translateY(-2px);
+}
+
+/* Add Option Overlay */
+.add-option-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+/* Responsive Design for Edit Mode */
+@media (max-width: 768px) {
+    .edit-mode-container {
+        flex-direction: column;
+        height: calc(100vh - 50px);
+    }
+    
+    .sidebar-toolbar {
+        width: 100%;
+        height: 80px;
+        flex-direction: row;
+        justify-content: space-around;
+        padding: 10px 0;
+        gap: 20px;
+    }
+    
+    .toolbar-item {
+        padding: 5px;
+    }
+    
+    .toolbar-icon {
+        width: 30px;
+        height: 30px;
+        margin-bottom: 4px;
+    }
+    
+    .toolbar-icon-image {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .toolbar-label {
+        font-size: 10px;
+    }
+    
+    .canvas-area {
+        padding: 20px;
+    }
+    
+    .canvas-controls {
+        gap: 10px;
+    }
+    
+    .control-item {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .control-icon {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .control-text {
+        font-size: 12px;
+        padding: 0 4px;
+    }
+}
