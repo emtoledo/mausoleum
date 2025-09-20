@@ -35,10 +35,7 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
           <img src="/images/allprojects_icon.png" alt="All Projects" className="menu-icon-image" />
         </div>
         <div className="breadcrumb">
-          <span className="breadcrumb-item">All Projects</span>
-          <span className="breadcrumb-separator">
-                <img src="/images/breadcrumb_icon.png" alt=">" className="breadcrumb-icon" />
-              </span>
+
               <span className="breadcrumb-item clickable" onClick={onProjectTitleClick}>{projectTitle}</span>
           {showFullBreadcrumb && (
             <>
