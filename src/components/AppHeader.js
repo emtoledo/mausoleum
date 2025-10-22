@@ -1,7 +1,7 @@
 import React from 'react';
 import ProfileDropdown from './ProfileDropdown';
 
-const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true, onAccountSettings, onLogOut }) => {
+const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true, onAccountSettings }) => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
 
   const handleProfileClick = () => {
@@ -23,10 +23,12 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
   };
 
   const handleLogOut = () => {
-    setIsProfileDropdownOpen(false);
-    if (onLogOut) {
-      onLogOut();
-    }
+    console.log('AppHeader - Global Log Out clicked');
+    localStorage.removeItem('currentProject');
+    localStorage.removeItem('isLoggedIn');
+    // Force navigation back to login form by reloading the page
+    // This ensures we always go back to LoginForm regardless of navigation context
+    window.location.reload();
   };
   return (
     <div className="app-header">

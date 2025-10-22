@@ -89,12 +89,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     setShowAccountSettings(false);
   };
 
-  const handleLogOut = () => {
-    console.log('Log Out clicked');
-    localStorage.removeItem('currentProject');
-    localStorage.removeItem('isLoggedIn');
-    onBack();
-  };
 
   const formatLastEdited = (lastEdited) => {
     if (!lastEdited) return 'Never edited';
@@ -122,7 +116,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     return (
       <AccountSettingsView
         onBack={handleBackFromAccountSettings}
-        onLogOut={handleLogOut}
         onProjectClick={onProjectClick}
       />
     );
@@ -140,7 +133,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
           onMoreOptions={handleMoreOptions}
           onProfileClick={handleProfileClick}
           onAccountSettings={handleAccountSettings}
-          onLogOut={handleLogOut}
           showCanvasControls={false}
           showFullBreadcrumb={false}
           showSaveButton={false}
@@ -164,7 +156,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={handleAccountSettings}
-        onLogOut={handleLogOut}
         showCanvasControls={false}
         showFullBreadcrumb={false}
         showSaveButton={false}

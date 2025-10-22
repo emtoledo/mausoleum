@@ -65,13 +65,6 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     setShowAccountSettings(true);
   };
 
-  const handleLogOut = () => {
-    console.log('Log Out clicked');
-    // Clear any stored data and return to login
-    localStorage.removeItem('currentProject');
-    localStorage.removeItem('isLoggedIn');
-    onBack(); // This should take us back to the login form
-  };
 
   const handleBackFromAccountSettings = () => {
     setShowAccountSettings(false);
@@ -108,7 +101,6 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     return (
       <AccountSettingsView
         onBack={handleBackFromAccountSettings}
-        onLogOut={handleLogOut}
         onProjectClick={handleProjectClick}
       />
     );
@@ -125,7 +117,6 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={handleAccountSettings}
-        onLogOut={handleLogOut}
         showCanvasControls={true}
         onCanvasControl={handleCanvasControl}
         onProjectTitleClick={handleProjectTitleClick}

@@ -3,7 +3,7 @@ import AppHeader from './AppHeader';
 import AllProjectsView from './AllProjectsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
-const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
+const AccountSettingsView = ({ onBack, onProjectClick }) => {
   const { setCanvasLayout } = useCanvasLayout();
   const [showAllProjects, setShowAllProjects] = React.useState(false);
 
@@ -28,6 +28,7 @@ const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
   const handleBackFromAllProjects = () => {
     setShowAllProjects(false);
   };
+
 
   const handleCreateNewProject = () => {
     console.log('Create New Project clicked from AccountSettingsView');
@@ -81,7 +82,6 @@ const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={() => console.log('Already in Account Settings')}
-        onLogOut={onLogOut}
         showCanvasControls={false}
         onCanvasControl={handleCanvasControl}
         onProjectTitleClick={null}

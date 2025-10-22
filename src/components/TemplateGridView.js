@@ -138,13 +138,6 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
     setShowAccountSettings(true);
   };
 
-  const handleLogOut = () => {
-    console.log('Log Out clicked');
-    // Clear any stored data and return to login
-    localStorage.removeItem('currentProject');
-    localStorage.removeItem('isLoggedIn');
-    onBack(); // This should take us back to the login form
-  };
 
   const handleBackFromAccountSettings = () => {
     setShowAccountSettings(false);
@@ -300,7 +293,6 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
     return (
       <AccountSettingsView
         onBack={handleBackFromAccountSettings}
-        onLogOut={handleLogOut}
         onProjectClick={handleProjectClick}
       />
     );
@@ -317,7 +309,6 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={handleAccountSettings}
-        onLogOut={handleLogOut}
         showFullBreadcrumb={false}
         showSaveButton={false}
       />
