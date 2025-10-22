@@ -35,9 +35,9 @@ const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
   };
 
   const handleProjectClickFromAccountSettings = (project) => {
-    console.log('AccountSettingsView - Project clicked from nested AllProjectsView:', project);
+    console.log('AccountSettingsView - Project clicked, navigating to TemplateGridView:', project);
     setShowAllProjects(false);
-    // Delegate to parent's onProjectClick to navigate to TemplateGridView
+    // Navigate to TemplateGridView by calling the parent's onProjectClick
     if (onProjectClick) {
       onProjectClick(project);
     }
