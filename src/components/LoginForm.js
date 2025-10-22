@@ -12,6 +12,7 @@ const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showNewMemorialForm, setShowNewMemorialForm] = useState(false);
+  const [showSelectionButtons, setShowSelectionButtons] = useState(false);
   const { navigateToAllProjects } = useNavigation();
 
   const handleChange = (e) => {
@@ -67,6 +68,7 @@ const LoginForm = () => {
       
       // Set logged in state to show selection buttons
       setIsLoggedIn(true);
+      setShowSelectionButtons(true);
       
     } catch (error) {
       console.error('Login error:', error);
@@ -82,11 +84,13 @@ const LoginForm = () => {
   };
 
   const handleCreateNew = () => {
+    setShowSelectionButtons(false);
     setShowNewMemorialForm(true);
   };
 
   const handleCancelNewMemorial = () => {
     setShowNewMemorialForm(false);
+    setShowSelectionButtons(true);
   };
 
   const handleNextNewMemorial = (project) => {
@@ -98,6 +102,7 @@ const LoginForm = () => {
 
   const handleOpenExisting = () => {
     console.log('Open existing memorial clicked');
+    setShowSelectionButtons(false);
     navigateToAllProjects();
   };
 
@@ -111,6 +116,33 @@ const LoginForm = () => {
   };
 
   if (isLoggedIn) {
+    // Show selection buttons after successful login
+    if (showSelectionButtons) {
+      return (
+        <div className="modal-overlay"> 
+          <div className="login-container">
+            <div className="brand-title">VALHALLA MEMORIAL</div>
+            
+            <div className="selection-container">
+              <button className="selection-button" onClick={handleCreateNew}>
+                <div className="button-icon">
+                  <img src="/images/new_icon.png" alt="Create new" className="icon-image" />
+                </div>
+                <div className="button-text">Create New Memorial</div>
+              </button>
+              
+              <button className="selection-button" onClick={handleOpenExisting}>
+                <div className="button-icon">
+                  <img src="/images/existing_icon.png" alt="Open existing" className="icon-image" />
+                </div>
+                <div className="button-text">Open Existing Memorial</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     // Use NavigationManager to handle all navigation
     return (
       <NavigationManager
@@ -136,85 +168,60 @@ const LoginForm = () => {
       );
     }
     
-    // Only use login-container for the selection buttons
+    // Only use login-container for the login form
     return (
-    <div className="modal-overlay"> 
-      <div className="login-container">
-        <div className="brand-title">VALHALLA MEMORIAL</div>
-        
-        <div className="selection-container">
-          <button className="selection-button" onClick={handleCreateNew}>
-            <div className="button-icon">
-              <img src="/images/new_icon.png" alt="Create new" className="icon-image" />
-            </div>
-            <div className="button-text">Create New Memorial</div>
-          </button>
+      <div className="modal-overlay"> 
+        <div className="login-container">
+          <div className="brand-title">VALHALLA MEMORIAL</div>
           
-          <button className="selection-button" onClick={handleOpenExisting}>
-            <div className="button-icon">
-              <img src="/images/existing_icon.png" alt="Open existing" className="icon-image" />
+          <form className="login-form" onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter email"
+                className={errors.email ? 'error' : ''}
+                required
+              />
+              {errors.email && <span className="error-message">{errors.email}</span>}
             </div>
-            <div className="button-text">Open Existing Memorial</div>
-          </button>
+            
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter password"
+                className={errors.password ? 'error' : ''}
+                required
+              />
+              {errors.password && <span className="error-message">{errors.password}</span>}
+            </div>
+            
+            <button 
+              type="submit" 
+              className="login-button"
+              disabled={isLoading}
+            >
+              {isLoading ? 'LOGGING IN...' : 'LOGIN'}
+            </button>
+            
+            <div className="forgot-password">
+              <a href="#" className="forgot-link" onClick={handleForgotPassword}>
+                Forgot your password?
+              </a>
+            </div>
+          </form>
         </div>
       </div>
-    </div>
     );
-  }
-
-  return (
-    <div className="modal-overlay">
-    <div className="login-container">
-      <div className="brand-title">VALHALLA MEMORIAL</div>
-      
-      <form className="login-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter email"
-            className={errors.email ? 'error' : ''}
-            required
-          />
-          {errors.email && <span className="error-message">{errors.email}</span>}
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Enter password"
-            className={errors.password ? 'error' : ''}
-            required
-          />
-          {errors.password && <span className="error-message">{errors.password}</span>}
-        </div>
-        
-        <button 
-          type="submit" 
-          className="login-button"
-          disabled={isLoading}
-        >
-          {isLoading ? 'LOGGING IN...' : 'LOGIN'}
-        </button>
-        
-        <div className="forgot-password">
-          <a href="#" className="forgot-link" onClick={handleForgotPassword}>
-            Forgot your password?
-          </a>
-        </div>
-      </form>
-    </div>
-    </div>
-  );
 };
 
 export default LoginForm;
