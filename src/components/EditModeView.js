@@ -26,10 +26,6 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     // Implement share functionality
   };
 
-  const handleAllProjectsNavigation = () => {
-    console.log('EditModeView - All Projects navigation requested');
-    setShowAllProjects(true);
-  };
 
   const handleBackFromAllProjects = () => {
     setShowAllProjects(false);
@@ -60,10 +56,6 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     // Profile dropdown is handled by AppHeader component
   };
 
-  const handleAccountSettingsNavigation = () => {
-    console.log('EditModeView - Account Settings navigation requested');
-    setShowAccountSettings(true);
-  };
 
 
   const handleBackFromAccountSettings = () => {
@@ -113,10 +105,8 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
         currentPage={`Option ${selectedTemplate.optionNumber}`}
         onSave={handleSave}
         onShare={handleShare}
-        onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
-        onAccountSettings={handleAccountSettingsNavigation}
         showCanvasControls={true}
         onCanvasControl={handleCanvasControl}
         onProjectTitleClick={handleProjectTitleClick}

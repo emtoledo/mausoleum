@@ -68,10 +68,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     console.log('Share clicked');
   };
 
-  const handleAllProjectsNavigation = () => {
-    console.log('AllProjectsView - All Projects navigation requested (already in AllProjectsView)');
-    // Already in AllProjectsView, so no action needed
-  };
 
   const handleMoreOptions = () => {
     console.log('More options clicked');
@@ -81,10 +77,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     console.log('Profile clicked');
   };
 
-  const handleAccountSettingsNavigation = () => {
-    console.log('AllProjectsView - Account Settings navigation requested');
-    setShowAccountSettings(true);
-  };
 
   const handleBackFromAccountSettings = () => {
     setShowAccountSettings(false);
@@ -130,10 +122,8 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
           currentPage=""
           onSave={handleSave}
           onShare={handleShare}
-          onMenuClick={handleAllProjectsNavigation}
           onMoreOptions={handleMoreOptions}
           onProfileClick={handleProfileClick}
-          onAccountSettings={handleAccountSettingsNavigation}
           showCanvasControls={false}
           showFullBreadcrumb={false}
           showSaveButton={false}
@@ -153,10 +143,8 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
         currentPage=""
         onSave={handleSave}
         onShare={handleShare}
-        onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
-        onAccountSettings={handleAccountSettingsNavigation}
         showCanvasControls={false}
         showFullBreadcrumb={false}
         showSaveButton={false}

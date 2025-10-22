@@ -1,7 +1,7 @@
 import React from 'react';
 import ProfileDropdown from './ProfileDropdown';
 
-const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true, onAccountSettings }) => {
+const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true }) => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
 
   const handleProfileClick = () => {
@@ -18,20 +18,18 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
   const handleAccountSettings = () => {
     console.log('AppHeader - Global Account Settings clicked');
     setIsProfileDropdownOpen(false);
-    // This will be handled by each view component's state management
-    // The view components will listen for this and show AccountSettingsView
-    if (onAccountSettings) {
-      onAccountSettings();
-    }
+    // Account Settings navigation is now handled globally
+    // We'll use a simple approach - store navigation intent and reload
+    localStorage.setItem('navigateToAccountSettings', 'true');
+    window.location.reload();
   };
 
   const handleAllProjects = () => {
     console.log('AppHeader - Global All Projects clicked');
-    // This will be handled by each view component's state management
-    // The view components will listen for this and show AllProjectsView
-    if (onMenuClick) {
-      onMenuClick();
-    }
+    // All Projects navigation is now handled globally
+    // We'll use a simple approach - store navigation intent and reload
+    localStorage.setItem('navigateToAllProjects', 'true');
+    window.location.reload();
   };
 
   const handleLogOut = () => {

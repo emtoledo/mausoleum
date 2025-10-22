@@ -97,10 +97,6 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   };
 
 
-  const handleAllProjectsNavigation = () => {
-    console.log('TemplateGridView - All Projects navigation requested');
-    setShowAllProjects(true);
-  };
 
   const handleBackFromAllProjects = () => {
     setShowAllProjects(false);
@@ -134,10 +130,6 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
     // Profile dropdown is handled by AppHeader component
   };
 
-  const handleAccountSettingsNavigation = () => {
-    console.log('TemplateGridView - Account Settings navigation requested');
-    setShowAccountSettings(true);
-  };
 
 
   const handleBackFromAccountSettings = () => {
@@ -306,10 +298,8 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         currentPage="All Options"
         onSave={handleSave}
         onShare={handleShare}
-        onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
-        onAccountSettings={handleAccountSettingsNavigation}
         showFullBreadcrumb={false}
         showSaveButton={false}
       />
