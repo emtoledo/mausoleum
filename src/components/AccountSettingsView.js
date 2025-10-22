@@ -34,9 +34,10 @@ const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
     onBack(); // Navigate back to login form to start new project
   };
 
-  const handleProjectClick = (project) => {
-    console.log('AccountSettingsView - Project clicked, delegating to parent:', project);
+  const handleProjectClickFromAccountSettings = (project) => {
+    console.log('AccountSettingsView - Project clicked from nested AllProjectsView:', project);
     setShowAllProjects(false);
+    // Delegate to parent's onProjectClick to navigate to TemplateGridView
     if (onProjectClick) {
       onProjectClick(project);
     }
@@ -64,7 +65,7 @@ const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
       <AllProjectsView
         onBack={handleBackFromAllProjects}
         onCreateNewProject={handleCreateNewProject}
-        onProjectClick={handleProjectClick}
+        onProjectClick={handleProjectClickFromAccountSettings}
       />
     );
   }
@@ -79,9 +80,11 @@ const AccountSettingsView = ({ onBack, onLogOut, onProjectClick }) => {
         onMenuClick={handleMenuClick}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
+        onAccountSettings={() => console.log('Already in Account Settings')}
+        onLogOut={onLogOut}
         showCanvasControls={false}
         onCanvasControl={handleCanvasControl}
-        onProjectTitleClick={handleProjectTitleClick}
+        onProjectTitleClick={null}
         showFullBreadcrumb={true}
         showSaveButton={false}
         showShareButton={false}
