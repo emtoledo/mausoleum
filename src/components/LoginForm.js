@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import NewMemorialForm from './NewMemorialForm';
-import AllProjectsView from './AllProjectsView';
-import TemplateGridView from './TemplateGridView';
+import NavigationManager from './NavigationManager';
+import { useNavigation } from '../contexts/NavigationContext';
 
 const LoginForm = () => {
   const [formData, setFormData] = useState({
@@ -12,9 +12,7 @@ const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showNewMemorialForm, setShowNewMemorialForm] = useState(false);
-  const [showAllProjects, setShowAllProjects] = useState(false);
-  const [showTemplateGrid, setShowTemplateGrid] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
+  const { navigateToAllProjects } = useNavigation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -100,54 +98,31 @@ const LoginForm = () => {
 
   const handleOpenExisting = () => {
     console.log('Open existing memorial clicked');
-    setShowAllProjects(true);
-  };
-
-  const handleBackFromAllProjects = () => {
-    setShowAllProjects(false);
+    navigateToAllProjects();
   };
 
   const handleCreateNewProjectFromAllProjects = () => {
-    setShowAllProjects(false);
     setShowNewMemorialForm(true);
   };
 
   const handleProjectClickFromAllProjects = (project) => {
     console.log('Project selected from AllProjectsView:', project);
-    setSelectedProject(project);
-    setShowAllProjects(false);
-    setShowTemplateGrid(true);
-  };
-
-  const handleBackFromTemplateGrid = () => {
-    setShowTemplateGrid(false);
-    setSelectedProject(null);
-    // Return to AllProjectsView
-    setShowAllProjects(true);
+    // Navigation will be handled by NavigationManager
   };
 
   if (isLoggedIn) {
-    // Check if we're showing TemplateGridView
-    if (showTemplateGrid && selectedProject) {
-      return (
-        <TemplateGridView
-          project={selectedProject}
-          selectedTemplateIds={selectedProject.selectedTemplates?.map(t => t.id) || []}
-          onBack={handleBackFromTemplateGrid}
-        />
-      );
-    }
-    
-    // Check if we're showing AllProjectsView
-    if (showAllProjects) {
-      return (
-        <AllProjectsView
-          onBack={handleBackFromAllProjects}
-          onCreateNewProject={handleCreateNewProjectFromAllProjects}
-          onProjectClick={handleProjectClickFromAllProjects}
-        />
-      );
-    }
+    // Use NavigationManager to handle all navigation
+    return (
+      <NavigationManager
+        onBack={() => {
+          // Handle back navigation - could go to login or previous view
+          console.log('Back navigation requested');
+        }}
+        onCreateNewProject={handleCreateNewProjectFromAllProjects}
+        onProjectClick={handleProjectClickFromAllProjects}
+      />
+    );
+  }
     
     // Check if we're showing a canvas layout component
     if (showNewMemorialForm) {

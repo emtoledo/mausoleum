@@ -4,28 +4,17 @@ import AccountSettingsView from './AccountSettingsView';
 import dataService from '../services/dataService';
 import templateService from '../services/templateService';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
+import { useNavigation } from '../contexts/NavigationContext';
 
 const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
   const [projects, setProjects] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
-  const [showAccountSettings, setShowAccountSettings] = React.useState(false);
   const { setCanvasLayout } = useCanvasLayout();
+  const { currentView, navigateToTemplateGrid } = useNavigation();
 
   React.useEffect(() => {
     setCanvasLayout(true);
     loadProjects();
-    
-    // Listen for global Account Settings navigation
-    const handleNavigateToAccountSettings = () => {
-      console.log('AllProjectsView - Received navigateToAccountSettings event');
-      setShowAccountSettings(true);
-    };
-    
-    window.addEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
-    
-    return () => {
-      window.removeEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
-    };
   }, [setCanvasLayout]);
 
   const loadProjects = async () => {
@@ -56,12 +45,14 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - handleProjectClick called with project:', project);
-    console.log('AllProjectsView - onProjectClick prop:', onProjectClick);
+    console.log('AllProjectsView - Navigating to Template Grid for project:', project.title);
+    
+    // Use global navigation to go to Template Grid
+    navigateToTemplateGrid(project);
+    
+    // Also call the original onProjectClick if provided (for backward compatibility)
     if (onProjectClick) {
-      console.log('AllProjectsView - Calling onProjectClick');
       onProjectClick(project);
-    } else {
-      console.log('AllProjectsView - No onProjectClick prop provided');
     }
   };
 
@@ -89,9 +80,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
   };
 
 
-  const handleBackFromAccountSettings = () => {
-    setShowAccountSettings(false);
-  };
 
 
   const formatLastEdited = (lastEdited) => {
@@ -115,15 +103,6 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     return '/images/templates/template_1.png'; // Default thumbnail
   };
 
-  // Show Account Settings view if requested
-  if (showAccountSettings) {
-    return (
-      <AccountSettingsView
-        onBack={handleBackFromAccountSettings}
-        onProjectClick={onProjectClick}
-      />
-    );
-  }
 
   if (loading) {
     return (

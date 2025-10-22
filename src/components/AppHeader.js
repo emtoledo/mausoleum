@@ -1,8 +1,10 @@
 import React from 'react';
 import ProfileDropdown from './ProfileDropdown';
+import { useNavigation } from '../contexts/NavigationContext';
 
 const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true }) => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
+  const { navigateToAllProjects, navigateToAccountSettings } = useNavigation();
 
   const handleProfileClick = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
@@ -18,20 +20,12 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMoreOptions, 
   const handleAccountSettings = () => {
     console.log('AppHeader - Global Account Settings clicked');
     setIsProfileDropdownOpen(false);
-    // Account Settings navigation is now handled globally
-    // We'll use a different approach - dispatch a custom event
-    // that components can listen to for navigation
-    const event = new CustomEvent('navigateToAccountSettings');
-    window.dispatchEvent(event);
+    navigateToAccountSettings();
   };
 
   const handleAllProjects = () => {
     console.log('AppHeader - Global All Projects clicked');
-    // All Projects navigation is now handled globally
-    // We'll use a different approach - dispatch a custom event
-    // that components can listen to for navigation
-    const event = new CustomEvent('navigateToAllProjects');
-    window.dispatchEvent(event);
+    navigateToAllProjects();
   };
 
   const handleLogOut = () => {
