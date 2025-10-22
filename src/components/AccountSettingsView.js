@@ -9,7 +9,19 @@ const AccountSettingsView = ({ onBack, onProjectClick }) => {
 
   React.useEffect(() => {
     setCanvasLayout(true);
-    return () => setCanvasLayout(false);
+    
+    // Listen for global All Projects navigation
+    const handleNavigateToAllProjects = () => {
+      console.log('AccountSettingsView - Received navigateToAllProjects event');
+      setShowAllProjects(true);
+    };
+    
+    window.addEventListener('navigateToAllProjects', handleNavigateToAllProjects);
+    
+    return () => {
+      setCanvasLayout(false);
+      window.removeEventListener('navigateToAllProjects', handleNavigateToAllProjects);
+    };
   }, [setCanvasLayout]);
 
   const handleSave = () => {

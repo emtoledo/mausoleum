@@ -19,17 +19,19 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMoreOptions, 
     console.log('AppHeader - Global Account Settings clicked');
     setIsProfileDropdownOpen(false);
     // Account Settings navigation is now handled globally
-    // We'll use a simple approach - store navigation intent and reload
-    localStorage.setItem('navigateToAccountSettings', 'true');
-    window.location.reload();
+    // We'll use a different approach - dispatch a custom event
+    // that components can listen to for navigation
+    const event = new CustomEvent('navigateToAccountSettings');
+    window.dispatchEvent(event);
   };
 
   const handleAllProjects = () => {
     console.log('AppHeader - Global All Projects clicked');
     // All Projects navigation is now handled globally
-    // We'll use a simple approach - store navigation intent and reload
-    localStorage.setItem('navigateToAllProjects', 'true');
-    window.location.reload();
+    // We'll use a different approach - dispatch a custom event
+    // that components can listen to for navigation
+    const event = new CustomEvent('navigateToAllProjects');
+    window.dispatchEvent(event);
   };
 
   const handleLogOut = () => {

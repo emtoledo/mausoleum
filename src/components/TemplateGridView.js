@@ -56,6 +56,26 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
   React.useEffect(() => {
     console.log('TemplateGridView - Component mounted');
     loadSelectedTemplates();
+    
+    // Listen for global All Projects navigation
+    const handleNavigateToAllProjects = () => {
+      console.log('TemplateGridView - Received navigateToAllProjects event');
+      setShowAllProjects(true);
+    };
+    
+    // Listen for global Account Settings navigation
+    const handleNavigateToAccountSettings = () => {
+      console.log('TemplateGridView - Received navigateToAccountSettings event');
+      setShowAccountSettings(true);
+    };
+    
+    window.addEventListener('navigateToAllProjects', handleNavigateToAllProjects);
+    window.addEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
+    
+    return () => {
+      window.removeEventListener('navigateToAllProjects', handleNavigateToAllProjects);
+      window.removeEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
+    };
   }, [loadSelectedTemplates]);
 
   React.useEffect(() => {

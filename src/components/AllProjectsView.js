@@ -14,7 +14,18 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
   React.useEffect(() => {
     setCanvasLayout(true);
     loadProjects();
-    // Don't set canvas layout to false on unmount - let parent handle it
+    
+    // Listen for global Account Settings navigation
+    const handleNavigateToAccountSettings = () => {
+      console.log('AllProjectsView - Received navigateToAccountSettings event');
+      setShowAccountSettings(true);
+    };
+    
+    window.addEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
+    
+    return () => {
+      window.removeEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
+    };
   }, [setCanvasLayout]);
 
   const loadProjects = async () => {

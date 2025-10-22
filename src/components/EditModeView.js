@@ -14,6 +14,26 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     console.log('EditModeView - Component rendering');
     console.log('EditModeView - Setting canvas layout to true');
     setCanvasLayout(true);
+    
+    // Listen for global All Projects navigation
+    const handleNavigateToAllProjects = () => {
+      console.log('EditModeView - Received navigateToAllProjects event');
+      setShowAllProjects(true);
+    };
+    
+    // Listen for global Account Settings navigation
+    const handleNavigateToAccountSettings = () => {
+      console.log('EditModeView - Received navigateToAccountSettings event');
+      setShowAccountSettings(true);
+    };
+    
+    window.addEventListener('navigateToAllProjects', handleNavigateToAllProjects);
+    window.addEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
+    
+    return () => {
+      window.removeEventListener('navigateToAllProjects', handleNavigateToAllProjects);
+      window.removeEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
+    };
   }, [setCanvasLayout]);
 
   const handleSave = () => {
