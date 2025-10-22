@@ -134,8 +134,8 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
     // Profile dropdown is handled by AppHeader component
   };
 
-  const handleAccountSettings = () => {
-    console.log('Account Settings clicked');
+  const handleAccountSettingsNavigation = () => {
+    console.log('TemplateGridView - Account Settings navigation requested');
     setShowAccountSettings(true);
   };
 
@@ -309,7 +309,7 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
-        onAccountSettings={handleAccountSettings}
+        onAccountSettings={handleAccountSettingsNavigation}
         showFullBreadcrumb={false}
         showSaveButton={false}
       />

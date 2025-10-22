@@ -60,8 +60,8 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     // Profile dropdown is handled by AppHeader component
   };
 
-  const handleAccountSettings = () => {
-    console.log('Account Settings clicked');
+  const handleAccountSettingsNavigation = () => {
+    console.log('EditModeView - Account Settings navigation requested');
     setShowAccountSettings(true);
   };
 
@@ -116,7 +116,7 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
         onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
-        onAccountSettings={handleAccountSettings}
+        onAccountSettings={handleAccountSettingsNavigation}
         showCanvasControls={true}
         onCanvasControl={handleCanvasControl}
         onProjectTitleClick={handleProjectTitleClick}

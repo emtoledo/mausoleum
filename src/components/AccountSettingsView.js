@@ -25,6 +25,11 @@ const AccountSettingsView = ({ onBack, onProjectClick }) => {
     setShowAllProjects(true);
   };
 
+  const handleAccountSettingsNavigation = () => {
+    console.log('AccountSettingsView - Account Settings navigation requested (already in Account Settings)');
+    // Already in Account Settings, so no action needed
+  };
+
   const handleBackFromAllProjects = () => {
     setShowAllProjects(false);
   };
@@ -81,7 +86,7 @@ const AccountSettingsView = ({ onBack, onProjectClick }) => {
         onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
-        onAccountSettings={() => console.log('Already in Account Settings')}
+        onAccountSettings={handleAccountSettingsNavigation}
         showCanvasControls={false}
         onCanvasControl={handleCanvasControl}
         onProjectTitleClick={null}

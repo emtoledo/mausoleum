@@ -81,8 +81,8 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     console.log('Profile clicked');
   };
 
-  const handleAccountSettings = () => {
-    console.log('AllProjectsView - Account Settings clicked, navigating to AccountSettingsView');
+  const handleAccountSettingsNavigation = () => {
+    console.log('AllProjectsView - Account Settings navigation requested');
     setShowAccountSettings(true);
   };
 
@@ -133,7 +133,7 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
           onMenuClick={handleAllProjectsNavigation}
           onMoreOptions={handleMoreOptions}
           onProfileClick={handleProfileClick}
-          onAccountSettings={handleAccountSettings}
+          onAccountSettings={handleAccountSettingsNavigation}
           showCanvasControls={false}
           showFullBreadcrumb={false}
           showSaveButton={false}
@@ -156,7 +156,7 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
         onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
-        onAccountSettings={handleAccountSettings}
+        onAccountSettings={handleAccountSettingsNavigation}
         showCanvasControls={false}
         showFullBreadcrumb={false}
         showSaveButton={false}

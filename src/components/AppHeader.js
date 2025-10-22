@@ -16,7 +16,10 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
   };
 
   const handleAccountSettings = () => {
+    console.log('AppHeader - Global Account Settings clicked');
     setIsProfileDropdownOpen(false);
+    // This will be handled by each view component's state management
+    // The view components will listen for this and show AccountSettingsView
     if (onAccountSettings) {
       onAccountSettings();
     }
