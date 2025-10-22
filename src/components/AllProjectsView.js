@@ -68,8 +68,9 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
     console.log('Share clicked');
   };
 
-  const handleMenuClick = () => {
-    console.log('Menu clicked');
+  const handleAllProjectsNavigation = () => {
+    console.log('AllProjectsView - All Projects navigation requested (already in AllProjectsView)');
+    // Already in AllProjectsView, so no action needed
   };
 
   const handleMoreOptions = () => {
@@ -129,7 +130,7 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
           currentPage=""
           onSave={handleSave}
           onShare={handleShare}
-          onMenuClick={handleMenuClick}
+          onMenuClick={handleAllProjectsNavigation}
           onMoreOptions={handleMoreOptions}
           onProfileClick={handleProfileClick}
           onAccountSettings={handleAccountSettings}
@@ -152,7 +153,7 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
         currentPage=""
         onSave={handleSave}
         onShare={handleShare}
-        onMenuClick={handleMenuClick}
+        onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={handleAccountSettings}

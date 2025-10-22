@@ -22,6 +22,15 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
     }
   };
 
+  const handleAllProjects = () => {
+    console.log('AppHeader - Global All Projects clicked');
+    // This will be handled by each view component's state management
+    // The view components will listen for this and show AllProjectsView
+    if (onMenuClick) {
+      onMenuClick();
+    }
+  };
+
   const handleLogOut = () => {
     console.log('AppHeader - Global Log Out clicked');
     localStorage.removeItem('currentProject');
@@ -33,7 +42,7 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMenuClick, on
   return (
     <div className="app-header">
       <div className="header-left">
-        <div className="menu-icon" onClick={onMenuClick}>
+        <div className="menu-icon" onClick={handleAllProjects}>
           <img src="/images/allprojects_icon.png" alt="All Projects" className="menu-icon-image" />
         </div>
         <div className="breadcrumb">

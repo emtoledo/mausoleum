@@ -20,8 +20,8 @@ const AccountSettingsView = ({ onBack, onProjectClick }) => {
     console.log('Account settings shared');
   };
 
-  const handleMenuClick = () => {
-    console.log('AccountSettingsView - Menu clicked, navigating to All Projects');
+  const handleAllProjectsNavigation = () => {
+    console.log('AccountSettingsView - All Projects navigation requested');
     setShowAllProjects(true);
   };
 
@@ -78,7 +78,7 @@ const AccountSettingsView = ({ onBack, onProjectClick }) => {
         currentPage="Settings"
         onSave={handleSave}
         onShare={handleShare}
-        onMenuClick={handleMenuClick}
+        onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={() => console.log('Already in Account Settings')}

@@ -26,8 +26,8 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     // Implement share functionality
   };
 
-  const handleMenuClick = () => {
-    console.log('Menu clicked - navigating to All Projects');
+  const handleAllProjectsNavigation = () => {
+    console.log('EditModeView - All Projects navigation requested');
     setShowAllProjects(true);
   };
 
@@ -113,7 +113,7 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
         currentPage={`Option ${selectedTemplate.optionNumber}`}
         onSave={handleSave}
         onShare={handleShare}
-        onMenuClick={handleMenuClick}
+        onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={handleAccountSettings}

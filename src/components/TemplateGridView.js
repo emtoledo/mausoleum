@@ -96,8 +96,9 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
     // Implement share functionality
   };
 
-  const handleMenuClick = () => {
-    console.log('Menu clicked - navigating to All Projects');
+
+  const handleAllProjectsNavigation = () => {
+    console.log('TemplateGridView - All Projects navigation requested');
     setShowAllProjects(true);
   };
 
@@ -305,7 +306,7 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         currentPage="All Options"
         onSave={handleSave}
         onShare={handleShare}
-        onMenuClick={handleMenuClick}
+        onMenuClick={handleAllProjectsNavigation}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
         onAccountSettings={handleAccountSettings}
