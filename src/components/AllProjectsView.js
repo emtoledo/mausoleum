@@ -4,13 +4,11 @@ import AccountSettingsView from './AccountSettingsView';
 import dataService from '../services/dataService';
 import templateService from '../services/templateService';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
-import { useNavigation } from '../contexts/NavigationContext';
 
 const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick, onAllProjectsNavigation, onAccountSettingsNavigation }) => {
   const [projects, setProjects] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const { setCanvasLayout } = useCanvasLayout();
-  const { currentView, navigateToTemplateGrid } = useNavigation();
 
   React.useEffect(() => {
     setCanvasLayout(true);
@@ -47,10 +45,7 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick, onAllProj
     console.log('AllProjectsView - handleProjectClick called with project:', project);
     console.log('AllProjectsView - Navigating to Template Grid for project:', project.title);
     
-    // Use global navigation to go to Template Grid
-    navigateToTemplateGrid(project);
-    
-    // Also call the original onProjectClick if provided (for backward compatibility)
+    // Call the onProjectClick prop to navigate to Template Grid
     if (onProjectClick) {
       onProjectClick(project);
     }

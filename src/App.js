@@ -3,7 +3,6 @@ import BackgroundVideo from './components/BackgroundVideo';
 import LoginForm from './components/LoginForm';
 import FooterBranding from './components/FooterBranding';
 import { CanvasLayoutProvider, useCanvasLayout } from './contexts/CanvasLayoutContext';
-import { NavigationProvider } from './contexts/NavigationContext';
 import './utils/debugHelper'; // Import debug helper
 
 function AppContent() {
@@ -34,11 +33,9 @@ function AppContent() {
 
 function App() {
   return (
-    <NavigationProvider>
-      <CanvasLayoutProvider>
-        <AppContent />
-      </CanvasLayoutProvider>
-    </NavigationProvider>
+    <CanvasLayoutProvider>
+      <AppContent />
+    </CanvasLayoutProvider>
   );
 }
 
