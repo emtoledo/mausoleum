@@ -84,6 +84,7 @@ const LoginForm = () => {
   };
 
   const handleCreateNew = () => {
+    console.log('Create New Memorial clicked - navigating to MemorialDetailsForm');
     setShowSelectionButtons(false);
     setShowNewMemorialForm(true);
   };
@@ -116,6 +117,18 @@ const LoginForm = () => {
   };
 
   if (isLoggedIn) {
+    // Check if we're showing a canvas layout component
+    if (showNewMemorialForm) {
+      // Render NewMemorialForm directly without login-container wrapper
+      // This allows canvas layout components to take full control
+      return (
+        <NewMemorialForm 
+          onCancel={handleCancelNewMemorial}
+          onNext={handleNextNewMemorial}
+        />
+      );
+    }
+    
     // Show selection buttons after successful login
     if (showSelectionButtons) {
       return (
@@ -155,18 +168,6 @@ const LoginForm = () => {
       />
     );
   }
-    
-    // Check if we're showing a canvas layout component
-    if (showNewMemorialForm) {
-      // Render NewMemorialForm directly without login-container wrapper
-      // This allows canvas layout components to take full control
-      return (
-        <NewMemorialForm 
-          onCancel={handleCancelNewMemorial}
-          onNext={handleNextNewMemorial}
-        />
-      );
-    }
     
     // Only use login-container for the login form
     return (
