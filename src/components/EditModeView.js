@@ -5,7 +5,7 @@ import AccountSettingsView from './AccountSettingsView';
 import AllProjectsView from './AllProjectsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
-const EditModeView = ({ project, selectedTemplate, onBack }) => {
+const EditModeView = ({ project, selectedTemplate, onBack, onAllProjectsNavigation, onAccountSettingsNavigation }) => {
   const { setCanvasLayout } = useCanvasLayout();
   const [showAccountSettings, setShowAccountSettings] = React.useState(false);
   const [showAllProjects, setShowAllProjects] = React.useState(false);
@@ -14,26 +14,6 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     console.log('EditModeView - Component rendering');
     console.log('EditModeView - Setting canvas layout to true');
     setCanvasLayout(true);
-    
-    // Listen for global All Projects navigation
-    const handleNavigateToAllProjects = () => {
-      console.log('EditModeView - Received navigateToAllProjects event');
-      setShowAllProjects(true);
-    };
-    
-    // Listen for global Account Settings navigation
-    const handleNavigateToAccountSettings = () => {
-      console.log('EditModeView - Received navigateToAccountSettings event');
-      setShowAccountSettings(true);
-    };
-    
-    window.addEventListener('navigateToAllProjects', handleNavigateToAllProjects);
-    window.addEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
-    
-    return () => {
-      window.removeEventListener('navigateToAllProjects', handleNavigateToAllProjects);
-      window.removeEventListener('navigateToAccountSettings', handleNavigateToAccountSettings);
-    };
   }, [setCanvasLayout]);
 
   const handleSave = () => {
@@ -46,6 +26,16 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
     // Implement share functionality
   };
 
+
+  const handleAllProjectsNavigation = () => {
+    console.log('EditModeView - All Projects navigation requested');
+    setShowAllProjects(true);
+  };
+
+  const handleAccountSettingsNavigation = () => {
+    console.log('EditModeView - Account Settings navigation requested');
+    setShowAccountSettings(true);
+  };
 
   const handleBackFromAllProjects = () => {
     setShowAllProjects(false);
@@ -104,6 +94,8 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
         onBack={handleBackFromAllProjects}
         onCreateNewProject={handleCreateNewProject}
         onProjectClick={handleProjectClick}
+        onAllProjectsNavigation={handleAllProjectsNavigation}
+        onAccountSettingsNavigation={handleAccountSettingsNavigation}
       />
     );
   }
@@ -114,6 +106,8 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
       <AccountSettingsView
         onBack={handleBackFromAccountSettings}
         onProjectClick={handleProjectClick}
+        onAllProjectsNavigation={handleAllProjectsNavigation}
+        onAccountSettingsNavigation={handleAccountSettingsNavigation}
       />
     );
   }
@@ -132,6 +126,8 @@ const EditModeView = ({ project, selectedTemplate, onBack }) => {
         onProjectTitleClick={handleProjectTitleClick}
         showFullBreadcrumb={true}
         showSaveButton={true}
+        onAllProjectsNavigation={handleAllProjectsNavigation}
+        onAccountSettingsNavigation={handleAccountSettingsNavigation}
       />
 
       <div className="edit-mode-container">

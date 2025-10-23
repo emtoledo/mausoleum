@@ -3,7 +3,7 @@ import AppHeader from './AppHeader';
 import AllProjectsView from './AllProjectsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
-const AccountSettingsView = ({ onBack, onProjectClick }) => {
+const AccountSettingsView = ({ onBack, onProjectClick, onAllProjectsNavigation, onAccountSettingsNavigation }) => {
   const { setCanvasLayout } = useCanvasLayout();
   const [showAllProjects, setShowAllProjects] = React.useState(false);
 
@@ -89,6 +89,8 @@ const AccountSettingsView = ({ onBack, onProjectClick }) => {
         onShare={handleShare}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
+        onAllProjectsNavigation={onAllProjectsNavigation}
+        onAccountSettingsNavigation={onAccountSettingsNavigation}
         showCanvasControls={false}
         onCanvasControl={handleCanvasControl}
         onProjectTitleClick={null}

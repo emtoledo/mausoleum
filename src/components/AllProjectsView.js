@@ -6,7 +6,7 @@ import templateService from '../services/templateService';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 import { useNavigation } from '../contexts/NavigationContext';
 
-const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
+const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick, onAllProjectsNavigation, onAccountSettingsNavigation }) => {
   const [projects, setProjects] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const { setCanvasLayout } = useCanvasLayout();
@@ -114,6 +114,8 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
           onShare={handleShare}
           onMoreOptions={handleMoreOptions}
           onProfileClick={handleProfileClick}
+          onAllProjectsNavigation={onAllProjectsNavigation}
+          onAccountSettingsNavigation={onAccountSettingsNavigation}
           showCanvasControls={false}
           showFullBreadcrumb={false}
           showSaveButton={false}
@@ -135,6 +137,8 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick }) => {
         onShare={handleShare}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
+        onAllProjectsNavigation={onAllProjectsNavigation}
+        onAccountSettingsNavigation={onAccountSettingsNavigation}
         showCanvasControls={false}
         showFullBreadcrumb={false}
         showSaveButton={false}

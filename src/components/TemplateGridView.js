@@ -10,7 +10,7 @@ import AccountSettingsView from './AccountSettingsView';
 import AllProjectsView from './AllProjectsView';
 import { useCanvasLayout } from '../contexts/CanvasLayoutContext';
 
-const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
+const TemplateGridView = ({ project, selectedTemplateIds, onBack, onAllProjectsNavigation, onAccountSettingsNavigation }) => {
   console.log('TemplateGridView - Component rendering');
   const [templates, setTemplates] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
@@ -286,6 +286,8 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         project={project}
         selectedTemplate={selectedTemplate}
         onBack={handleBackFromEdit}
+        onAllProjectsNavigation={onAllProjectsNavigation}
+        onAccountSettingsNavigation={onAccountSettingsNavigation}
       />
     );
   }
@@ -320,6 +322,8 @@ const TemplateGridView = ({ project, selectedTemplateIds, onBack }) => {
         onShare={handleShare}
         onMoreOptions={handleMoreOptions}
         onProfileClick={handleProfileClick}
+        onAllProjectsNavigation={onAllProjectsNavigation}
+        onAccountSettingsNavigation={onAccountSettingsNavigation}
         showFullBreadcrumb={false}
         showSaveButton={false}
       />

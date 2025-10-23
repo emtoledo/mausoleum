@@ -1,10 +1,8 @@
 import React from 'react';
 import ProfileDropdown from './ProfileDropdown';
-import { useNavigation } from '../contexts/NavigationContext';
 
-const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true }) => {
+const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMoreOptions, onProfileClick, showCanvasControls, onCanvasControl, onProjectTitleClick, showFullBreadcrumb, showSaveButton, showShareButton = true, onAllProjectsNavigation, onAccountSettingsNavigation }) => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
-  const { navigateToAllProjects, navigateToAccountSettings } = useNavigation();
 
   const handleProfileClick = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
@@ -17,15 +15,28 @@ const AppHeader = ({ projectTitle, currentPage, onSave, onShare, onMoreOptions, 
     setIsProfileDropdownOpen(false);
   };
 
-  const handleAccountSettings = () => {
-    console.log('AppHeader - Global Account Settings clicked');
-    setIsProfileDropdownOpen(false);
-    navigateToAccountSettings();
-  };
 
   const handleAllProjects = () => {
-    console.log('AppHeader - Global All Projects clicked');
-    navigateToAllProjects();
+    console.log('AppHeader - All Projects clicked');
+    console.log('AppHeader - onAllProjectsNavigation prop:', onAllProjectsNavigation);
+    if (onAllProjectsNavigation) {
+      console.log('AppHeader - Calling onAllProjectsNavigation');
+      onAllProjectsNavigation();
+    } else {
+      console.log('AppHeader - No onAllProjectsNavigation prop provided');
+    }
+  };
+
+  const handleAccountSettings = () => {
+    console.log('AppHeader - Account Settings clicked');
+    console.log('AppHeader - onAccountSettingsNavigation prop:', onAccountSettingsNavigation);
+    setIsProfileDropdownOpen(false);
+    if (onAccountSettingsNavigation) {
+      console.log('AppHeader - Calling onAccountSettingsNavigation');
+      onAccountSettingsNavigation();
+    } else {
+      console.log('AppHeader - No onAccountSettingsNavigation prop provided');
+    }
   };
 
   const handleLogOut = () => {
