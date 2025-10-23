@@ -122,7 +122,11 @@ const LoginForm = () => {
   };
 
   const handleCreateNewProjectFromAllProjects = () => {
+    console.log('LoginForm - Create New Project from All Projects requested');
+    console.log('LoginForm - Clearing other states and setting up New Memorial Form');
     setShowAllProjects(false);
+    setShowAccountSettings(false);
+    setShowTemplateGrid(false);
     setShowNewMemorialForm(true);
   };
 

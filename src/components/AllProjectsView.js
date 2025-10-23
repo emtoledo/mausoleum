@@ -52,8 +52,13 @@ const AllProjectsView = ({ onBack, onCreateNewProject, onProjectClick, onAllProj
   };
 
   const handleCreateNewProject = () => {
+    console.log('AllProjectsView - Create New Project button clicked');
+    console.log('AllProjectsView - onCreateNewProject prop:', onCreateNewProject);
     if (onCreateNewProject) {
+      console.log('AllProjectsView - Calling onCreateNewProject');
       onCreateNewProject();
+    } else {
+      console.log('AllProjectsView - No onCreateNewProject prop provided');
     }
   };
 
