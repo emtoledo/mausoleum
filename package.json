@@ -1,7 +1,7 @@
 {
-  "name": "valhalla-memorial-login",
-  "version": "1.0.0",
-  "description": "Valhalla Memorial Login Page",
+  "name": "valhalla-memorial-app",
+  "version": "2.0.0",
+  "description": "Valhalla Memorial Application - Complete Memorial Management System",
   "main": "index.js",
   "scripts": {
     "start": "react-scripts start",
@@ -12,6 +12,7 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^7.9.4",
     "react-scripts": "5.0.1"
   },
   "browserslist": {
