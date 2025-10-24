@@ -1,24 +1,55 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileDropdown from '../ui/ProfileDropdown';
 import { useAuth } from '../../hooks/useAuth';
 import { useProjectFlow } from '../../context/ProjectFlowContext';
 
 const AppHeader = ({ 
-  projectTitle, 
+  pageTitle, 
   currentPage, 
   onSave, 
   onShare, 
   onMoreOptions, 
   showCanvasControls, 
   onCanvasControl, 
-  onProjectTitleClick, 
+  onPageTitleClick, 
   showFullBreadcrumb, 
   showSaveButton, 
   showShareButton = true 
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
   const { openWizard } = useProjectFlow();
+
+  // Function to get page title based on current route
+  const getPageTitle = () => {
+    if (pageTitle) return pageTitle; // Use provided pageTitle if available
+    
+    const path = location.pathname;
+    switch (path) {
+      case '/projects':
+        return 'All Projects';
+      case '/account-settings':
+        return 'Account Settings';
+      case '/selection':
+        return 'Valhalla Memorial';
+      case '/login':
+        return 'Login';
+      default:
+        if (path.startsWith('/projects/') && path.includes('/templates')) {
+          return 'Template Selection';
+        }
+        if (path.startsWith('/projects/') && path.includes('/edit')) {
+          return 'Edit Memorial';
+        }
+        if (path.startsWith('/projects/')) {
+          return 'Project Details';
+        }
+        return 'Valhalla Memorial';
+    }
+  };
 
   const handleProfileClick = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
@@ -30,14 +61,18 @@ const AppHeader = ({
 
   const handleAllProjects = () => {
     console.log('AppHeader - All Projects clicked');
-    // This will be handled by routing in the new architecture
-    window.location.href = '/projects';
+    navigate('/projects');
+  };
+
+  const handleCreateNewProject = () => {
+    console.log('AppHeader - Create New Project clicked');
+    openWizard();
   };
 
   const handleAccountSettings = () => {
     console.log('AppHeader - Account Settings clicked');
     setIsProfileDropdownOpen(false);
-    window.location.href = '/account-settings';
+    navigate('/account-settings');
   };
 
   const handleLogOut = () => {
@@ -52,10 +87,10 @@ const AppHeader = ({
           <img src="/images/allprojects_icon.png" alt="All Projects" className="menu-icon-image" />
         </div>
         <div className="breadcrumb">
-          <span className={`breadcrumb-item ${onProjectTitleClick ? 'clickable' : ''}`} onClick={onProjectTitleClick}>
-            {projectTitle}
+          <span className={`breadcrumb-item ${onPageTitleClick ? 'clickable' : ''}`} onClick={onPageTitleClick}>
+            {getPageTitle()}
           </span>
-          {showFullBreadcrumb && onProjectTitleClick && (
+          {showFullBreadcrumb && onPageTitleClick && (
             <>
               <span className="breadcrumb-separator">
                 <img src="/images/breadcrumb_icon.png" alt=">" className="breadcrumb-icon" />
@@ -65,6 +100,7 @@ const AppHeader = ({
           )}
         </div>
       </div>
+      
       
       {showCanvasControls && (
         <div className="header-center">

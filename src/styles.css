@@ -1535,6 +1535,76 @@ body:has(.canvas-layout) .footer-branding {
     content: 'U';
 }
 
+/* App Header Styles */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e1e5e9;
+    min-height: 64px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex: 1;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.nav-left, .nav-right {
+    display: flex;
+    gap: 12px;
+}
+
+.nav-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-button--primary {
+    background: #007bff;
+    color: white;
+}
+
+.nav-button--primary:hover {
+    background: #0056b3;
+}
+
+.nav-button--secondary {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+.nav-button--secondary:hover {
+    background: #e9ecef;
+}
+
+.nav-button--danger {
+    background: #dc3545;
+    color: white;
+}
+
+.nav-button--danger:hover {
+    background: #c82333;
+}
+
 /* Base Screen Layout Styles */
 .base-screen-layout {
     width: 100%;
