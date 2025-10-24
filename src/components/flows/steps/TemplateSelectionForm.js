@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import templateService from '../../../services/templateService';
 import Button from '../../ui/Button';
 
-const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep }) => {
+const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, isCreating }) => {
   const [availableTemplates, setAvailableTemplates] = useState([]);
   const [selectedTemplates, setSelectedTemplates] = useState(data.selectedTemplates || []);
   const [loading, setLoading] = useState(true);
@@ -121,9 +121,9 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep }
         <Button 
           variant="primary"
           onClick={handleNext}
-          disabled={selectedTemplates.length === 0}
+          disabled={selectedTemplates.length === 0 || isCreating}
         >
-          Complete
+          {isCreating ? 'Creating Project...' : 'Complete'}
         </Button>
       </div>
     </div>

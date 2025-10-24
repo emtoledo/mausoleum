@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import IntroFlowLayout from '../components/layout/IntroFlowLayout';
 import Input from '../components/ui/Input';
@@ -8,7 +8,7 @@ import { useProjectFlow } from '../context/ProjectFlowContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, logout } = useAuth();
   const { openWizard } = useProjectFlow();
   
   const [formData, setFormData] = useState({
@@ -17,6 +17,14 @@ const LoginPage = () => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showSelectionButtons, setShowSelectionButtons] = useState(false);
+
+  // Check if user is already authenticated on component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      setShowSelectionButtons(true);
+    }
+  }, [isAuthenticated]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -66,8 +74,8 @@ const LoginPage = () => {
       const result = await login(formData.email, formData.password);
       
       if (result.success) {
-        // Navigate to selection page after successful login
-        navigate('/selection');
+        // Show selection buttons after successful login
+        setShowSelectionButtons(true);
       } else {
         setErrors({ general: result.error || 'Login failed' });
       }
@@ -86,72 +94,83 @@ const LoginPage = () => {
     navigate('/projects');
   };
 
+  const handleLogout = () => {
+    logout();
+    setShowSelectionButtons(false);
+    setFormData({ email: '', password: '' });
+    setErrors({});
+  };
+
   return (
     <IntroFlowLayout>
       <div className="login-container">
         <div className="brand-title">VALHALLA MEMORIAL</div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <Input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleInputChange}
-            placeholder="Email"
-            label="Email"
-            error={errors.email}
-            required
-            autoFocus
-          />
+        {!showSelectionButtons ? (
+          <form className="login-form" onSubmit={handleSubmit}>
+            <Input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              placeholder="Email"
+              label="Email"
+              error={errors.email}
+              required
+              autoFocus
+            />
 
-          <Input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleInputChange}
-            placeholder="Password"
-            label="Password"
-            error={errors.password}
-            required
-          />
+            <Input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              placeholder="Password"
+              label="Password"
+              error={errors.password}
+              required
+            />
 
-          {errors.general && (
-            <div className="error-message">{errors.general}</div>
-          )}
+            {errors.general && (
+              <div className="error-message">{errors.general}</div>
+            )}
 
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={loading}
-            className="login-button"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={loading}
+              className="login-button"
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </Button>
+          </form>
+        ) : (
+          <div className="selection-container">
+            <Button 
+              variant="primary"
+              onClick={handleCreateNew}
+              className="selection-button"
+            >
+              <div className="button-icon">
+                <img src="/images/new_icon.png" alt="Create new" className="icon-image" />
+              </div>
+              <div className="button-text">Create New Memorial</div>
+            </Button>
 
-        <div className="selection-container">
-          <Button 
-            variant="primary"
-            onClick={handleCreateNew}
-            className="selection-button"
-          >
-            <div className="button-icon">
-              <img src="/images/new_icon.png" alt="Create new" className="icon-image" />
-            </div>
-            <div className="button-text">Create New Memorial</div>
-          </Button>
+            <Button 
+              variant="secondary"
+              onClick={handleOpenExisting}
+              className="selection-button"
+            >
+              <div className="button-icon">
+                <img src="/images/existing_icon.png" alt="Open existing" className="icon-image" />
+              </div>
+              <div className="button-text">Open Existing Memorial</div>
+            </Button>
 
-          <Button 
-            variant="secondary"
-            onClick={handleOpenExisting}
-            className="selection-button"
-          >
-            <div className="button-icon">
-              <img src="/images/existing_icon.png" alt="Open existing" className="icon-image" />
-            </div>
-            <div className="button-text">Open Existing Memorial</div>
-          </Button>
-        </div>
+
+          </div>
+        )}
       </div>
     </IntroFlowLayout>
   );

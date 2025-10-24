@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Modal from '../ui/Modal';
 import { useProjectFlow } from '../../context/ProjectFlowContext';
+import { useProjectMutations } from '../../hooks/useProjectMutations';
 
 // Import step components
 import NewMemorialForm from './steps/NewMemorialForm';
@@ -10,9 +12,12 @@ import MemorialStyleForm from './steps/MemorialStyleForm';
 import TemplateSelectionForm from './steps/TemplateSelectionForm';
 
 const ProjectCreationWizard = () => {
+  const navigate = useNavigate();
   const { isWizardOpen, closeWizard } = useProjectFlow();
+  const { createProject } = useProjectMutations();
   const [currentStep, setCurrentStep] = useState(1);
   const [wizardData, setWizardData] = useState({});
+  const [isCreating, setIsCreating] = useState(false);
 
   const steps = [
     { component: NewMemorialForm, title: 'New Memorial' },
@@ -44,12 +49,48 @@ const ProjectCreationWizard = () => {
     closeWizard();
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     console.log('Wizard completed with data:', wizardData);
-    // Here you would save the project and navigate to the template grid
-    setCurrentStep(1);
-    setWizardData({});
-    closeWizard();
+    
+    setIsCreating(true);
+    
+    try {
+      // Prepare project data for creation
+      const projectData = {
+        title: wizardData.customerName,
+        markerHeadline: wizardData.markerHeadline,
+        year: wizardData.year,
+        epitaph: wizardData.epitaph,
+        memorialType: wizardData.memorialType,
+        memorialStyle: wizardData.memorialStyle,
+        selectedTemplates: wizardData.selectedTemplates || []
+      };
+
+      console.log('Creating project with data:', projectData);
+      
+      // Create the project
+      const result = await createProject(projectData);
+      
+      if (result.success) {
+        console.log('Project created successfully:', result.data);
+        
+        // Reset wizard state
+        setCurrentStep(1);
+        setWizardData({});
+        closeWizard();
+        
+        // Navigate to the template grid for the new project
+        navigate(`/projects/${result.data.id}/templates`);
+      } else {
+        console.error('Failed to create project:', result.error);
+        alert('Failed to create project. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('An error occurred while creating the project. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const CurrentStepComponent = steps[currentStep - 1]?.component;
@@ -69,6 +110,7 @@ const ProjectCreationWizard = () => {
           onCancel={handleCancel}
           isFirstStep={currentStep === 1}
           isLastStep={currentStep === steps.length}
+          isCreating={isCreating}
         />
       )}
     </Modal>

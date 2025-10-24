@@ -6,12 +6,14 @@ export const ProjectFlowProvider = ({ children }) => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [wizardData, setWizardData] = useState({});
+  const [onWizardClose, setOnWizardClose] = useState(null);
 
-  const openWizard = () => {
+  const openWizard = (onCloseCallback = null) => {
     console.log('ProjectFlowContext - Opening wizard');
     setIsWizardOpen(true);
     setCurrentStep(1);
     setWizardData({});
+    setOnWizardClose(() => onCloseCallback);
   };
 
   const closeWizard = () => {
@@ -19,6 +21,12 @@ export const ProjectFlowProvider = ({ children }) => {
     setIsWizardOpen(false);
     setCurrentStep(1);
     setWizardData({});
+    
+    // Call the callback if it exists
+    if (onWizardClose) {
+      onWizardClose();
+      setOnWizardClose(null);
+    }
   };
 
   const nextStep = (stepData) => {

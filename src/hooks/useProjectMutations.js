@@ -51,7 +51,10 @@ export const useProjectMutations = () => {
     try {
       setLoading(true);
       setError(null);
-      const project = await dataService.getProject(projectId);
+      const project = dataService.getProjectById(projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
       return { success: true, data: project };
     } catch (err) {
       setError(err.message);

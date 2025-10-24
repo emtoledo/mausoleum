@@ -21,12 +21,13 @@ class DataService {
   async saveProject(project) {
     try {
       const projects = this.getAllProjects();
+      const projectId = this.generateId();
       const newProject = {
-        id: this.generateId(),
+        id: projectId,
         title: project.title,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        templates: await templateService.initializeProjectTemplates(),
+        templates: await templateService.initializeProjectTemplates(projectId),
         ...project
       };
       

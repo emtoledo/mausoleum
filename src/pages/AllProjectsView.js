@@ -20,7 +20,7 @@ const AllProjectsView = () => {
 
   const handleCreateNewProject = () => {
     console.log('AllProjectsView - Create New Project clicked');
-    openWizard();
+    openWizard(refreshProjects);
   };
 
   const handleDeleteProject = async (projectId, e) => {

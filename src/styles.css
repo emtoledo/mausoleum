@@ -1535,6 +1535,20 @@ body:has(.canvas-layout) .footer-branding {
     content: 'U';
 }
 
+/* Base Screen Layout Styles */
+.base-screen-layout {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+}
+
 /* All Projects View Styles */
 .all-projects-container {
     width: 100%;
