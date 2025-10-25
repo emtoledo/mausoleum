@@ -2,13 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { useProjectMutations } from '../hooks/useProjectMutations';
+import dataService from '../services/dataService';
 import templateService from '../services/templateService';
 
 const TemplateGridView = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { getProject } = useProjectMutations();
   
   const [project, setProject] = useState(null);
   const [templates, setTemplates] = useState([]);
@@ -20,31 +19,38 @@ const TemplateGridView = () => {
       setLoading(true);
       setError(null);
       
-      const result = await getProject(projectId);
-      if (result.success) {
-        setProject(result.data);
+      const project = dataService.getProjectById(projectId);
+      
+      if (project) {
+        setProject(project);
       } else {
-        setError(result.error);
+        setError('Project not found');
       }
     } catch (err) {
-      setError('Failed to load project');
       console.error('Error loading project:', err);
+      setError('Failed to load project');
     } finally {
       setLoading(false);
     }
-  }, [projectId, getProject]);
+  }, [projectId]);
 
   const loadSelectedTemplates = useCallback(async () => {
     if (!project) return;
 
     try {
-      console.log('TemplateGridView - Loading templates from project:', project);
-      
       if (project.selectedTemplates && project.selectedTemplates.length > 0) {
-        console.log('TemplateGridView - Project has selectedTemplates:', project.selectedTemplates);
         setTemplates(project.selectedTemplates);
+      } else if (project.templates && project.templates.length > 0) {
+        // Filter templates that are selected
+        const selectedTemplates = project.templates.filter(template => template.selected);
+        
+        if (selectedTemplates.length > 0) {
+          setTemplates(selectedTemplates);
+        } else {
+          // Show all templates if none are selected
+          setTemplates(project.templates);
+        }
       } else {
-        console.log('TemplateGridView - No selected templates found');
         setTemplates([]);
       }
     } catch (error) {
@@ -92,6 +98,8 @@ const TemplateGridView = () => {
     navigate('/projects');
   };
 
+  console.log('TemplateGridView - Render state:', { loading, error, project, templates, projectId });
+
   if (loading) {
     return (
       <div className="canvas-layout">
@@ -120,62 +128,35 @@ const TemplateGridView = () => {
 
   return (
     <div className="canvas-layout">
-      <div className="app-header">
-        <div className="header-left">
-          <div className="menu-icon" onClick={handleBack}>
-            <img src="/images/allprojects_icon.png" alt="All Projects" className="menu-icon-image" />
-          </div>
-          <div className="breadcrumb">
-            <span className="breadcrumb-item clickable" onClick={handleProjectTitleClick}>
-              {project.title}
-            </span>
-            <span className="breadcrumb-separator">
-              <img src="/images/breadcrumb_icon.png" alt=">" className="breadcrumb-icon" />
-            </span>
-            <span className="breadcrumb-item active">All Options</span>
-          </div>
-        </div>
-        
-        <div className="header-right">
-          <button className="save-button" onClick={handleSave}>Save</button>
-          <button className="share-button" onClick={handleShare}>Share</button>
-          <div className="more-options" onClick={handleMoreOptions}>
-            <div className="more-dots">
-              <div className="dot"></div>
-              <div className="dot"></div>
-              <div className="dot"></div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div className="template-grid-container">
-        <div className="memorial-text-overlay">
-          <div className="memorial-headline">{project.markerHeadline}</div>
-          <div className="memorial-year">{project.year}</div>
-          <div className="memorial-epitaph">{project.epitaph}</div>
-        </div>
-        
-        <div className="template-grid">
+      <div className="memorial-grid-container">        
+        <div className="memorial-grid">
           {templates.map((template, index) => (
             <Card 
               key={template.id || `template-${index}`}
-              className="template-card" 
+              className="memorial-option" 
               onClick={() => handleTemplateClick(template)}
               hoverable
             >
-              <div className="template-preview">
-                <img 
-                  src={templateService.getTemplateImagePath(template.baseImage)} 
-                  alt={template.templateName || `Template ${index + 1}`}
-                  className="template-image"
-                />
-              </div>
-              <div className="template-info">
-                <div className="template-name">
-                  {template.templateName || `Option ${index + 1}`}
+              <div className="memorial-card>">
+
+                <div className="memorial-image-container">
+                  <img 
+                    src={templateService.getTemplateImagePath(template.baseImage)} 
+                    alt={template.templateName || `Template ${index + 1}`}
+                    className="memorial-base-image"
+                  />
+                  <div className="memorial-text-overlay">
+                    <div className="marker-headline">{project.markerHeadline}</div>
+                    <div className="marker-year">{project.year}</div>
+                    <div className="marker-epitaph">{project.epitaph}</div>
+                  </div>
                 </div>
+
+                <div className="option-label">OPTION {index + 1}</div>
+
               </div>
+
             </Card>
           ))}
         </div>
