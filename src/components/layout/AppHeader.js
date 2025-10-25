@@ -25,6 +25,38 @@ const AppHeader = ({
   const { logout, isAuthenticated } = useAuth();
   const { openWizard } = useProjectFlow();
 
+  // Auto-detect if we're in EditModeView
+  const isEditMode = location.pathname.includes('/edit/');
+  
+  // Get current template info for EditMode
+  const getCurrentTemplateInfo = () => {
+    if (isEditMode && params.projectId && params.templateId) {
+      try {
+        const project = dataService.getProjectById(params.projectId);
+        if (project && project.templates) {
+          const template = project.templates.find(t => t.templateId === params.templateId);
+          if (template) {
+            const templateIndex = project.templates.findIndex(t => t.templateId === params.templateId);
+            return {
+              template,
+              optionNumber: templateIndex + 1
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error loading template info:', error);
+      }
+    }
+    return null;
+  };
+
+  const templateInfo = getCurrentTemplateInfo();
+  
+  // Use provided props or auto-detect for EditMode
+  const shouldShowCanvasControls = showCanvasControls !== undefined ? showCanvasControls : isEditMode;
+  const shouldShowSaveButton = showSaveButton !== undefined ? showSaveButton : isEditMode;
+  const shouldShowShareButton = showShareButton !== undefined ? showShareButton : isEditMode;
+
   // Function to get page title based on current route
   const getPageTitle = () => {
     if (pageTitle) return pageTitle; // Use provided pageTitle if available
@@ -92,6 +124,32 @@ const AppHeader = ({
     logout();
   };
 
+  // Default handlers for EditMode
+  const defaultCanvasControl = (action) => {
+    console.log('Canvas control:', action);
+  };
+
+  const defaultSave = () => {
+    console.log('Save clicked');
+  };
+
+  const defaultShare = () => {
+    console.log('Share clicked');
+  };
+
+  const defaultMoreOptions = () => {
+    console.log('More options clicked');
+  };
+
+  // Handler for page title click in EditMode
+  const handlePageTitleClick = () => {
+    if (isEditMode && params.projectId) {
+      navigate(`/projects/${params.projectId}/templates`);
+    } else if (onPageTitleClick) {
+      onPageTitleClick();
+    }
+  };
+
   return (
     <div className="app-header">
       <div className="header-left">
@@ -99,32 +157,34 @@ const AppHeader = ({
           <img src="/images/allprojects_icon.png" alt="All Projects" className="menu-icon-image" />
         </div>
         <div className="breadcrumb">
-          <span className={`breadcrumb-item ${onPageTitleClick ? 'clickable' : ''}`} onClick={onPageTitleClick}>
+          <span className={`breadcrumb-item ${(onPageTitleClick || isEditMode) ? 'clickable' : ''}`} onClick={handlePageTitleClick}>
             {getPageTitle()}
           </span>
-          {showFullBreadcrumb && onPageTitleClick && (
+          {(showFullBreadcrumb || isEditMode) && (onPageTitleClick || isEditMode) && (
             <>
               <span className="breadcrumb-separator">
                 <img src="/images/breadcrumb_icon.png" alt=">" className="breadcrumb-icon" />
               </span>
-              <span className="breadcrumb-item active">{currentPage}</span>
+              <span className="breadcrumb-item active">
+                {isEditMode && templateInfo ? `Option ${templateInfo.optionNumber}` : currentPage}
+              </span>
             </>
           )}
         </div>
       </div>
       
       
-      {showCanvasControls && (
+      {shouldShowCanvasControls && (
         <div className="header-center">
           <div className="canvas-controls">
             <div className="control-group">
-              <div className="control-item" onClick={() => onCanvasControl('cloud')}>
+              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('cloud')}>
                 <img src="/images/cloud_icon.png" alt="Cloud" className="control-icon cloud" />
               </div>
-              <div className="control-item" onClick={() => onCanvasControl('undo')}>
+              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('undo')}>
                 <img src="/images/undo_icon.png" alt="Undo" className="control-icon undo" />
               </div>
-              <div className="control-item" onClick={() => onCanvasControl('redo')}>
+              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('redo')}>
                 <img src="/images/redo_icon.png" alt="Redo" className="control-icon redo" />
               </div>
             </div>
@@ -138,10 +198,10 @@ const AppHeader = ({
             </div>
             
             <div className="control-group">
-              <div className="control-item" onClick={() => onCanvasControl('zoom-in')}>
+              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-in')}>
                 <img src="/images/zoom_icon.png" alt="Zoom In" className="control-icon" />
               </div>
-              <div className="control-item" onClick={() => onCanvasControl('zoom-out')}>
+              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-out')}>
                 <img src="/images/background_icon.png" alt="Zoom Out" className="control-icon" />
               </div>
             </div>
@@ -149,14 +209,14 @@ const AppHeader = ({
         </div>
       )}
       
-      <div className="header-right">
-        {showSaveButton && (
-          <button className="save-button" onClick={onSave}>Save</button>
-        )}
-        {showShareButton && (
-          <button className="share-button" onClick={onShare}>Share</button>
-        )}
-        <div className="more-options" onClick={onMoreOptions}>
+              <div className="header-right">
+                {shouldShowSaveButton && (
+                  <button className="save-button" onClick={onSave || defaultSave}>Save</button>
+                )}
+                {shouldShowShareButton && (
+                  <button className="share-button" onClick={onShare || defaultShare}>Share</button>
+                )}
+        <div className="more-options" onClick={onMoreOptions || defaultMoreOptions}>
           <div className="more-dots">
             <div className="dot"></div>
             <div className="dot"></div>

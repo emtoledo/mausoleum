@@ -8,12 +8,15 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('TemplateSelectionForm - useEffect triggered with data:', data);
     loadTemplates();
-  }, []);
+  }, [data.memorialType, data.memorialStyle]);
 
   const loadTemplates = async () => {
     try {
       setLoading(true);
+      
+      console.log('TemplateSelectionForm - Loading templates with data:', data);
       
       // Validate that we have the required data
       if (!data.memorialType || !data.memorialStyle) {
@@ -25,18 +28,21 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
         return;
       }
 
+      console.log('Calling getTemplatesForMemorial with:', data.memorialType, data.memorialStyle);
       const templates = await templateService.getTemplatesForMemorial(
         data.memorialType, 
         data.memorialStyle
       );
       
-      console.log('Available templates:', templates);
+      console.log('Available templates returned:', templates);
       
       if (templates && templates.length > 0) {
         setAvailableTemplates(templates);
       } else {
-        console.log('No templates found for the specified type and style');
-        setAvailableTemplates([]);
+        console.log('No templates found for the specified type and style, loading all templates as fallback');
+        // Fallback: load all available templates
+        const allTemplates = await templateService.getAllTemplates();
+        setAvailableTemplates(allTemplates);
       }
     } catch (error) {
       console.error('Error loading templates:', error);

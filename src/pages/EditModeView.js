@@ -27,11 +27,13 @@ const EditModeView = () => {
         setProject(result.data);
         
         // Find the selected template
-        if (result.data.selectedTemplates) {
-          const template = result.data.selectedTemplates.find(t => t.id === templateId);
+        if (result.data.templates) {
+          const template = result.data.templates.find(t => t.templateId === templateId);
           if (template) {
             setSelectedTemplate(template);
           } else {
+            console.log('Template not found. Available templates:', result.data.templates);
+            console.log('Looking for templateId:', templateId);
             setError('Template not found');
           }
         } else {
@@ -100,70 +102,6 @@ const EditModeView = () => {
 
   return (
     <div className="canvas-layout">
-      <div className="app-header">
-        <div className="header-left">
-          <div className="menu-icon" onClick={() => navigate('/projects')}>
-            <img src="/images/allprojects_icon.png" alt="All Projects" className="menu-icon-image" />
-          </div>
-          <div className="breadcrumb">
-            <span className="breadcrumb-item clickable" onClick={handleProjectTitleClick}>
-              {project.title}
-            </span>
-            <span className="breadcrumb-separator">
-              <img src="/images/breadcrumb_icon.png" alt=">" className="breadcrumb-icon" />
-            </span>
-            <span className="breadcrumb-item active">
-              Option {selectedTemplate.optionNumber || '1'}
-            </span>
-          </div>
-        </div>
-        
-        <div className="header-center">
-          <div className="canvas-controls">
-            <div className="control-group">
-              <div className="control-item" onClick={() => handleCanvasControl('cloud')}>
-                <img src="/images/cloud_icon.png" alt="Cloud" className="control-icon cloud" />
-              </div>
-              <div className="control-item" onClick={() => handleCanvasControl('undo')}>
-                <img src="/images/undo_icon.png" alt="Undo" className="control-icon undo" />
-              </div>
-              <div className="control-item" onClick={() => handleCanvasControl('redo')}>
-                <img src="/images/redo_icon.png" alt="Redo" className="control-icon redo" />
-              </div>
-            </div>
-            
-            <div className="control-group">
-              <div className="control-separator">|</div>
-              <div className="control-item active">
-                <span className="control-text">Front</span>
-              </div>
-              <div className="control-separator">|</div>
-            </div>
-            
-            <div className="control-group">
-              <div className="control-item" onClick={() => handleCanvasControl('zoom-in')}>
-                <img src="/images/zoom_icon.png" alt="Zoom In" className="control-icon" />
-              </div>
-              <div className="control-item" onClick={() => handleCanvasControl('zoom-out')}>
-                <img src="/images/background_icon.png" alt="Zoom Out" className="control-icon" />
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="header-right">
-          <button className="save-button" onClick={handleSave}>Save</button>
-          <button className="share-button" onClick={handleShare}>Share</button>
-          <div className="more-options" onClick={handleMoreOptions}>
-            <div className="more-dots">
-              <div className="dot"></div>
-              <div className="dot"></div>
-              <div className="dot"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="canvas-area">
         <div className="canvas-container">
           <div className="memorial-preview">

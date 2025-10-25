@@ -5,6 +5,11 @@ import Button from '../components/ui/Button';
 import dataService from '../services/dataService';
 import templateService from '../services/templateService';
 
+// Import step components
+import MemorialTypeForm from '../components/flows/steps/MemorialTypeForm';
+import MemorialStyleForm from '../components/flows/steps/MemorialStyleForm';
+import TemplateSelectionForm from '../components/flows/steps/TemplateSelectionForm';
+
 const TemplateGridView = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -13,6 +18,9 @@ const TemplateGridView = () => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAddOptionOverlay, setShowAddOptionOverlay] = useState(false);
+  const [overlayStep, setOverlayStep] = useState('type'); // 'type', 'style', 'selection'
+  const [overlayData, setOverlayData] = useState({});
 
   const loadProject = useCallback(async () => {
     try {
@@ -71,7 +79,7 @@ const TemplateGridView = () => {
 
   const handleTemplateClick = (template) => {
     console.log('TemplateGridView - Template clicked:', template);
-    navigate(`/projects/${projectId}/edit/${template.id}`);
+    navigate(`/projects/${projectId}/edit/${template.templateId}`);
   };
 
   const handleBack = () => {
@@ -96,6 +104,79 @@ const TemplateGridView = () => {
 
   const handleProjectTitleClick = () => {
     navigate('/projects');
+  };
+
+  const handleAddOptionClick = () => {
+    console.log('Add option clicked');
+    setShowAddOptionOverlay(true);
+    setOverlayStep('type');
+    setOverlayData({});
+  };
+
+  const handleOverlayCancel = () => {
+    console.log('Overlay cancelled');
+    setShowAddOptionOverlay(false);
+    setOverlayStep('type');
+    setOverlayData({});
+  };
+
+  const handleTypeFormNext = (memorialType) => {
+    console.log('Type form next:', memorialType);
+    setOverlayData(prev => ({ ...prev, memorialType }));
+    setOverlayStep('style');
+  };
+
+  const handleStyleFormNext = (memorialStyle) => {
+    console.log('Style form next:', memorialStyle);
+    console.log('Current overlay data:', overlayData);
+    setOverlayData(prev => ({ ...prev, memorialStyle }));
+    setOverlayStep('selection');
+  };
+
+  const handleTemplateSelectionDone = async (templateData) => {
+    console.log('Template selection done:', templateData);
+    
+    try {
+      if (templateData.selectedTemplates && templateData.selectedTemplates.length > 0) {
+        // Convert selected templates to the format expected by the project
+        const newTemplates = templateData.selectedTemplates.map(template => ({
+          templateId: template.id,
+          templateName: template.name,
+          baseImage: template.baseImage,
+          previewImage: template.previewImage,
+          text: template.text,
+          type: template.type,
+          style: template.style,
+          category: template.category || template.type,
+          selected: false,
+          configured: false,
+          customizations: {
+            text: template.text,
+            colors: {},
+            fonts: {},
+            layout: {}
+          }
+        }));
+
+        // Add new templates to the existing project templates
+        const updatedTemplates = [...project.templates, ...newTemplates];
+        
+        // Update the project with new templates
+        await dataService.updateProjectTemplates(projectId, updatedTemplates);
+        
+        // Refresh the templates display
+        setTemplates(updatedTemplates);
+        
+        console.log('Templates added successfully:', newTemplates);
+      }
+    } catch (error) {
+      console.error('Error adding templates to project:', error);
+    } finally {
+      // Close the overlay
+      setShowAddOptionOverlay(false);
+      setOverlayStep('type');
+      setOverlayData({});
+    }
   };
 
   console.log('TemplateGridView - Render state:', { loading, error, project, templates, projectId });
@@ -133,7 +214,7 @@ const TemplateGridView = () => {
         <div className="memorial-grid">
           {templates.map((template, index) => (
             <Card 
-              key={template.id || `template-${index}`}
+              key={template.templateId || `template-${index}`}
               className="memorial-option" 
               onClick={() => handleTemplateClick(template)}
               hoverable
@@ -159,8 +240,58 @@ const TemplateGridView = () => {
 
             </Card>
           ))}
+
+          {/* Add Option Card */}
+          <div className="memorial-option" onClick={handleAddOptionClick}>
+            <div className="add-option-card">
+              <div className="add-icon">+</div>
+            </div>
+          </div>
+
         </div>
       </div>
+
+      {/* Add Option Overlay */}
+      {showAddOptionOverlay && (
+        <div className="add-option-overlay">
+          <div className="overlay-content">
+            <div className="overlay-header">
+              <h2>Add New Memorial Option</h2>
+              <button className="close-button" onClick={handleOverlayCancel}>×</button>
+            </div>
+            <div className="overlay-body">
+              {overlayStep === 'type' && (
+                <MemorialTypeForm
+                  data={overlayData}
+                  onNext={handleTypeFormNext}
+                  onBack={handleOverlayCancel}
+                  isFirstStep={true}
+                  isLastStep={false}
+                />
+              )}
+              {overlayStep === 'style' && (
+                <MemorialStyleForm
+                  data={overlayData}
+                  onNext={handleStyleFormNext}
+                  onBack={() => setOverlayStep('type')}
+                  isFirstStep={false}
+                  isLastStep={false}
+                />
+              )}
+              {overlayStep === 'selection' && (
+                <TemplateSelectionForm
+                  data={overlayData}
+                  onNext={handleTemplateSelectionDone}
+                  onBack={() => setOverlayStep('style')}
+                  isFirstStep={false}
+                  isLastStep={true}
+                  isCreating={false}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
