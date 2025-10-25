@@ -5,7 +5,7 @@ const IntroFlowLayout = ({ children }) => {
   return (
     <div className="intro-flow-layout">
       <BackgroundVideo />
-      <div className="intro-content">
+      <div className="intro-content modal-overlay">
         {children}
       </div>
     </div>

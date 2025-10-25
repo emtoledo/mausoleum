@@ -21,7 +21,7 @@ const Input = ({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="input-group">
+    <div className="form-group">
       {label && (
         <label htmlFor={inputId} className="input-label">
           {label}
