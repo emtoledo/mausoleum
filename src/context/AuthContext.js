@@ -44,9 +44,21 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setIsAuthenticated(false);
     setUser(null);
+    
+    // Clear all authentication and project data from localStorage
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('user');
     localStorage.removeItem('currentProject');
+    localStorage.removeItem('valhalla_memorial_projects'); // Clear all project data
+    
+    // Clear any other potential cache/localStorage items
+    localStorage.removeItem('projectFlowData');
+    localStorage.removeItem('wizardData');
+    localStorage.removeItem('selectedTemplates');
+    
+    // Clear sessionStorage as well
+    sessionStorage.clear();
+    
     // Reload page to reset all state
     window.location.reload();
   };
