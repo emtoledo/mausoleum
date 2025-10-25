@@ -1,6 +1,5 @@
 import React from 'react';
 import BackgroundVideo from '../ui/BackgroundVideo';
-import FooterBranding from './FooterBranding';
 
 const IntroFlowLayout = ({ children }) => {
   return (
@@ -9,7 +8,13 @@ const IntroFlowLayout = ({ children }) => {
       <div className="intro-content modal-overlay">
         {children}
       </div>
-      <FooterBranding />
+      
+      <div className="footer-branding">
+      <div className="mausoleum-logo">
+        <img src="/images/poweredby.png" alt="MAUSOLEUM" className="mausoleum-img" />
+      </div>
+    </div>
+
     </div>
   );
 };
