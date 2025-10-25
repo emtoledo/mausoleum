@@ -122,12 +122,12 @@ const EditModeView = () => {
             <div className="toolbar-label">Text</div>
           </div>
           
-          <div className="toolbar-item" onClick={() => handleToolbarClick('vase')}>
+          {/* <div className="toolbar-item" onClick={() => handleToolbarClick('vase')}>
             <div className="toolbar-icon">
               <img src="/images/vase_icon.png" alt="Vase" className="toolbar-icon-image vase" />
             </div>
             <div className="toolbar-label">Vase</div>
-          </div>
+          </div> */}
           
           <div className="toolbar-item" onClick={() => handleToolbarClick('swap-template')}>
             <div className="toolbar-icon">
