@@ -1,5 +1,6 @@
 import React from 'react';
 import BackgroundVideo from '../ui/BackgroundVideo';
+import FooterBranding from './FooterBranding';
 
 const IntroFlowLayout = ({ children }) => {
   return (
@@ -8,6 +9,7 @@ const IntroFlowLayout = ({ children }) => {
       <div className="intro-content modal-overlay">
         {children}
       </div>
+      <FooterBranding />
     </div>
   );
 };

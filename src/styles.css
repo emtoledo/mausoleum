@@ -252,6 +252,17 @@ body {
 }
 
 /* New Memorial Form Modal */
+
+.modal {
+    background-color: #f8f8f8;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px #0000004d;
+    max-width: 90vw;
+    padding: 30px;
+    position: relative;
+    width: 400px;
+}
+
 .modal-overlay {
     position: fixed;
     top: 0;

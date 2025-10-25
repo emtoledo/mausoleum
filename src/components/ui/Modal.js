@@ -20,20 +20,6 @@ const Modal = ({
   return (
     <div className="modal-overlay" onClick={handleBackdropClick}>
       <div className={`modal ${className}`} {...props}>
-        {title && (
-          <div className="modal-header">
-            <h2 className="modal-title">{title}</h2>
-            {showCloseButton && (
-              <button 
-                className="modal-close" 
-                onClick={onClose}
-                aria-label="Close modal"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        )}
         <div className="modal-content">
           {children}
         </div>
