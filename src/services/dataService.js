@@ -22,14 +22,48 @@ class DataService {
     try {
       const projects = this.getAllProjects();
       const projectId = this.generateId();
+      
+      // If selectedTemplates are provided, use them; otherwise initialize default templates
+      let templates;
+      if (project.selectedTemplates && project.selectedTemplates.length > 0) {
+        console.log('DataService - Using selectedTemplates:', project.selectedTemplates);
+        // Convert selected templates to project template format
+        templates = project.selectedTemplates.map(template => ({
+          templateId: template.id,
+          templateName: template.name,
+          baseImage: template.baseImage,
+          previewImage: template.previewImage,
+          text: template.text,
+          type: template.type,
+          style: template.style,
+          category: template.category || template.type,
+          selected: false,
+          configured: false,
+          customizations: {
+            text: template.text,
+            colors: {},
+            fonts: {},
+            layout: {}
+          }
+        }));
+        console.log('DataService - Converted templates:', templates);
+      } else {
+        console.log('DataService - No selectedTemplates, using default initialization');
+        // Use default template initialization
+        templates = await templateService.initializeProjectTemplates(projectId);
+      }
+      
       const newProject = {
         id: projectId,
         title: project.title,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        templates: await templateService.initializeProjectTemplates(projectId),
+        templates: templates,
         ...project
       };
+      
+      // Remove selectedTemplates from the project object since we've converted it to templates
+      delete newProject.selectedTemplates;
       
       projects.push(newProject);
       localStorage.setItem(this.storageKey, JSON.stringify(projects));

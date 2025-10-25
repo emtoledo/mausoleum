@@ -46,19 +46,35 @@ const TemplateGridView = () => {
     if (!project) return;
 
     try {
+      console.log('TemplateGridView - Project data:', project);
+      console.log('TemplateGridView - Project has memorialType:', project.memorialType);
+      console.log('TemplateGridView - Project has memorialStyle:', project.memorialStyle);
+      console.log('TemplateGridView - Project templates:', project.templates);
+      
       if (project.selectedTemplates && project.selectedTemplates.length > 0) {
+        console.log('TemplateGridView - Using selectedTemplates');
         setTemplates(project.selectedTemplates);
       } else if (project.templates && project.templates.length > 0) {
-        // Filter templates that are selected
-        const selectedTemplates = project.templates.filter(template => template.selected);
-        
-        if (selectedTemplates.length > 0) {
-          setTemplates(selectedTemplates);
-        } else {
-          // Show all templates if none are selected
+        // Check if this is a new project created from wizard (has memorialType/memorialStyle)
+        // If so, show all templates as they represent the user's selection
+        if (project.memorialType && project.memorialStyle) {
+          console.log('TemplateGridView - New project from wizard, showing all templates');
           setTemplates(project.templates);
+        } else {
+          console.log('TemplateGridView - Existing project, filtering selected templates');
+          // For existing projects, filter templates that are selected
+          const selectedTemplates = project.templates.filter(template => template.selected);
+          
+          if (selectedTemplates.length > 0) {
+            console.log('TemplateGridView - Found selected templates:', selectedTemplates);
+            setTemplates(selectedTemplates);
+          } else {
+            console.log('TemplateGridView - No selected templates, showing all');
+            setTemplates(project.templates);
+          }
         }
       } else {
+        console.log('TemplateGridView - No templates found');
         setTemplates([]);
       }
     } catch (error) {

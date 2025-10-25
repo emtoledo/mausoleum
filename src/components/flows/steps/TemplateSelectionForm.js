@@ -72,6 +72,10 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
       selectedTemplates.includes(template.id)
     );
 
+    console.log('TemplateSelectionForm - Selected template IDs:', selectedTemplates);
+    console.log('TemplateSelectionForm - Selected template objects:', selectedTemplateObjects);
+    console.log('TemplateSelectionForm - Available templates:', availableTemplates);
+
     onNext({ selectedTemplates: selectedTemplateObjects });
   };
 

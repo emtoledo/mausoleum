@@ -28,12 +28,19 @@ const ProjectCreationWizard = () => {
   ];
 
   const handleNext = (stepData) => {
-    setWizardData(prev => ({ ...prev, ...stepData }));
+    console.log('ProjectCreationWizard - handleNext called with stepData:', stepData);
+    console.log('ProjectCreationWizard - Current wizardData before merge:', wizardData);
+    
+    const newWizardData = { ...wizardData, ...stepData };
+    console.log('ProjectCreationWizard - New wizardData after merge:', newWizardData);
+    
+    setWizardData(newWizardData);
+    
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Wizard complete
-      handleComplete();
+      // Wizard complete - pass the merged data directly
+      handleComplete(newWizardData);
     }
   };
 
@@ -49,30 +56,31 @@ const ProjectCreationWizard = () => {
     closeWizard();
   };
 
-  const handleComplete = async () => {
-    console.log('Wizard completed with data:', wizardData);
+  const handleComplete = async (finalWizardData = wizardData) => {
+    console.log('ProjectCreationWizard - Wizard completed with data:', finalWizardData);
     
     setIsCreating(true);
     
     try {
       // Prepare project data for creation
       const projectData = {
-        title: wizardData.customerName,
-        markerHeadline: wizardData.markerHeadline,
-        year: wizardData.year,
-        epitaph: wizardData.epitaph,
-        memorialType: wizardData.memorialType,
-        memorialStyle: wizardData.memorialStyle,
-        selectedTemplates: wizardData.selectedTemplates || []
+        title: finalWizardData.customerName,
+        markerHeadline: finalWizardData.markerHeadline,
+        year: finalWizardData.year,
+        epitaph: finalWizardData.epitaph,
+        memorialType: finalWizardData.memorialType,
+        memorialStyle: finalWizardData.memorialStyle,
+        selectedTemplates: finalWizardData.selectedTemplates || [] // Pass selected templates
       };
 
-      console.log('Creating project with data:', projectData);
+      console.log('ProjectCreationWizard - Creating project with data:', projectData);
+      console.log('ProjectCreationWizard - selectedTemplates:', projectData.selectedTemplates);
       
       // Create the project
       const result = await createProject(projectData);
       
       if (result.success) {
-        console.log('Project created successfully:', result.data);
+        console.log('ProjectCreationWizard - Project created successfully:', result.data);
         
         // Reset wizard state
         setCurrentStep(1);
