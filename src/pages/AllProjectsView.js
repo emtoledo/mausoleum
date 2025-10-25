@@ -57,10 +57,16 @@ const AllProjectsView = () => {
   };
 
   const getProjectThumbnail = (project) => {
+    // Check if project has templates (new format)
+    if (project.templates && project.templates.length > 0) {
+      return project.templates[0].baseImage;
+    }
+    // Fallback to selectedTemplates (legacy format)
     if (project.selectedTemplates && project.selectedTemplates.length > 0) {
       return project.selectedTemplates[0].baseImage;
     }
-    return '/images/templates/template_1.png'; // Default thumbnail
+    // Default thumbnail
+    return 'template_1.png';
   };
 
   if (loading) {
