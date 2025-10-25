@@ -147,7 +147,7 @@ const LoginPage = () => {
         ) : (
           <div className="selection-container">
             <Button 
-              variant="primary"
+              variant="secondary"
               onClick={handleCreateNew}
               className="selection-button"
             >

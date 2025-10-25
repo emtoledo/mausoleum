@@ -22,12 +22,12 @@ const Input = ({
 
   return (
     <div className="form-group">
-      {label && (
+      {/* {label && (
         <label htmlFor={inputId} className="input-label">
           {label}
           {required && <span className="required">*</span>}
         </label>
-      )}
+      )} */}
       <input
         id={inputId}
         type={type}

@@ -271,10 +271,7 @@ const TemplateGridView = () => {
       {showAddOptionOverlay && (
         <div className="add-option-overlay">
           <div className="overlay-content">
-            <div className="overlay-header">
-              <h2>Add New Memorial Option</h2>
-              <button className="close-button" onClick={handleOverlayCancel}>×</button>
-            </div>
+
             <div className="overlay-body">
               {overlayStep === 'type' && (
                 <MemorialTypeForm
