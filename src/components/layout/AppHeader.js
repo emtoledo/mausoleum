@@ -1,8 +1,9 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import ProfileDropdown from '../ui/ProfileDropdown';
 import { useAuth } from '../../hooks/useAuth';
 import { useProjectFlow } from '../../context/ProjectFlowContext';
+import dataService from '../../services/dataService';
 
 const AppHeader = ({ 
   pageTitle, 
@@ -19,6 +20,7 @@ const AppHeader = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
   const { logout, isAuthenticated } = useAuth();
   const { openWizard } = useProjectFlow();
@@ -28,6 +30,22 @@ const AppHeader = ({
     if (pageTitle) return pageTitle; // Use provided pageTitle if available
     
     const path = location.pathname;
+    
+    // Special handling for project-specific routes - show project title
+    if (path.startsWith('/projects/') && (path.includes('/templates') || path.includes('/edit'))) {
+      if (params.projectId) {
+        try {
+          const project = dataService.getProjectById(params.projectId);
+          if (project && project.title) {
+            return project.title;
+          }
+        } catch (error) {
+          console.error('Error loading project for title:', error);
+        }
+      }
+      return path.includes('/templates') ? 'Template Selection' : 'Edit Memorial';
+    }
+    
     switch (path) {
       case '/projects':
         return 'All Projects';
@@ -38,12 +56,6 @@ const AppHeader = ({
       case '/login':
         return 'Login';
       default:
-        if (path.startsWith('/projects/') && path.includes('/templates')) {
-          return 'Template Selection';
-        }
-        if (path.startsWith('/projects/') && path.includes('/edit')) {
-          return 'Edit Memorial';
-        }
         if (path.startsWith('/projects/')) {
           return 'Project Details';
         }
