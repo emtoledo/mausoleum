@@ -10,6 +10,9 @@
     "eject": "react-scripts eject"
   },
   "dependencies": {
+    "fabric": "^6.7.1",
+    "makerjs": "^0.18.1",
+    "opentype.js": "^1.3.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.4",
