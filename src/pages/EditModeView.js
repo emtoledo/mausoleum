@@ -102,22 +102,65 @@ const EditModeView = () => {
 
   return (
     <div className="canvas-layout">
-      <div className="canvas-area">
-        <div className="canvas-container">
-          <div className="memorial-preview">
-            <img 
-              src={`/images/templates/${selectedTemplate.baseImage}`}
-              alt={selectedTemplate.templateName}
-              className="memorial-image"
-            />
-            <div className="memorial-text-overlay">
-              <div className="memorial-headline">{project.markerHeadline}</div>
-              <div className="memorial-year">{project.year}</div>
-              <div className="memorial-epitaph">{project.epitaph}</div>
+
+
+
+<div className="edit-mode-container">
+        {/* Sidebar Toolbar */}
+        <div className="sidebar-toolbar">
+          <div className="toolbar-item" onClick={() => handleToolbarClick('artwork')}>
+            <div className="toolbar-icon">
+              <img src="/images/artwork_icon.png" alt="Artwork" className="toolbar-icon-image" />
+            </div>
+            <div className="toolbar-label">Artwork</div>
+          </div>
+          
+          <div className="toolbar-item" onClick={() => handleToolbarClick('text')}>
+            <div className="toolbar-icon">
+              <img src="/images/text_icon.png" alt="Text" className="toolbar-icon-image" />
+            </div>
+            <div className="toolbar-label">Text</div>
+          </div>
+          
+          <div className="toolbar-item" onClick={() => handleToolbarClick('vase')}>
+            <div className="toolbar-icon">
+              <img src="/images/vase_icon.png" alt="Vase" className="toolbar-icon-image vase" />
+            </div>
+            <div className="toolbar-label">Vase</div>
+          </div>
+          
+          <div className="toolbar-item" onClick={() => handleToolbarClick('swap-template')}>
+            <div className="toolbar-icon">
+              <img src="/images/swap_icon.png" alt="Swap Template" className="toolbar-icon-image swap" />
+            </div>
+            <div className="toolbar-label">Swap Template</div>
+          </div>
+        </div>
+
+        {/* Main Canvas Area */}
+        <div className="canvas-area">
+          <div className="memorial-canvas">
+            <div className="memorial-card">
+              <div className="memorial-image-container">
+                <img 
+                  src={`/images/templates/${selectedTemplate.baseImage}`}
+                  alt={selectedTemplate.templateName}
+                  className="memorial-base-image"
+                />
+                <div className="memorial-text-overlay">
+                  <div className="marker-headline">{project.markerHeadline}</div>
+                  <div className="marker-year">{project.year}</div>
+                  {project.epitaph && (
+                    <div className="marker-epitaph">{project.epitaph}</div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+
     </div>
   );
 };
