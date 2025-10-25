@@ -1013,7 +1013,6 @@ body:has(.canvas-layout) .footer-branding {
     flex-direction: column;
     align-items: center;
     width: 100%;
-    border:solid 1px red;
 }
 
 .memorial-image-container {

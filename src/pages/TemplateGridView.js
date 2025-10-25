@@ -138,7 +138,7 @@ const TemplateGridView = () => {
               onClick={() => handleTemplateClick(template)}
               hoverable
             >
-              <div className="memorial-card>">
+              <div className="memorial-card">
 
                 <div className="memorial-image-container">
                   <img 
