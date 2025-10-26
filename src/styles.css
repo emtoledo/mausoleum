@@ -1989,6 +1989,14 @@ body:has(.canvas-layout) .footer-branding {
     width: 100%;
 }
 
+/* When material picker is hidden, adjust left sidebar */
+.design-studio-sidebar-left {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+}
+
 .design-studio-sidebar {
     background-color: #ffffff;
     border-right: 1px solid #e0e0e0;
@@ -2034,6 +2042,11 @@ body:has(.canvas-layout) .footer-branding {
     transform: translate(-50%, -50%);
 }
 
+.canvas-layer.fabric-canvas {
+    z-index: 3;
+    cursor: crosshair;
+}
+
 .canvas-layer.product-canvas {
     z-index: 1;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -2045,10 +2058,7 @@ body:has(.canvas-layout) .footer-branding {
     opacity: 0.3; /* Semi-transparent zone overlay */
 }
 
-.canvas-layer.fabric-canvas {
-    z-index: 3;
-    cursor: crosshair;
-}
+/* Fabric.js handles its own canvas positioning internally */
 
 /* Toolbar */
 .design-studio-toolbar {

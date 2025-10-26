@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Text as FabricText } from 'fabric';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { pixelsToInches, calculateScale } from './utils/unitConverter';
 import DesignStudioToolbar from './components/DesignStudioToolbar';
@@ -82,8 +83,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     productCanvasRef,
     zoneCanvasRef,
     initialData,
-    activeMaterial?.textureUrl,
-    setSelectedElement
+    setSelectedElement,
+    canvasSize
   );
 
   // Save the returned Fabric instance to our state
@@ -105,22 +106,40 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Add Text
    */
   const handleAddText = useCallback(() => {
-    if (!fabricInstance) return;
+    if (!fabricInstance) {
+      console.log('No Fabric instance available');
+      return;
+    }
 
-    // TODO: Implement text insertion logic
-    // For now, just log
     console.log('Add text clicked');
     
-    // Example implementation:
-    // const textObject = new fabric.Text('New Text', {
-    //   left: fabricInstance.width / 2,
-    //   top: fabricInstance.height / 2,
-    //   fontSize: 20,
-    //   fontFamily: 'Arial'
-    // });
-    // fabricInstance.add(textObject);
-    // fabricInstance.renderAll();
-  }, [fabricInstance]);
+    // Create a new text object using FabricText (Fabric v6 API)
+    const textObject = new FabricText('Edit Me', {
+      left: fabricInstance.width / 2,
+      top: fabricInstance.height / 2,
+      fontSize: 20,
+      fontFamily: 'Arial',
+      fill: '#000000',
+      originX: 'center',
+      originY: 'center'
+    });
+
+    // Add metadata for tracking
+    textObject.elementId = `text-${Date.now()}`;
+    
+    // Add to canvas (Fabric will handle the first edit zone if it has zoneId)
+    if (initialData.editZones && initialData.editZones.length > 0) {
+      // Use the first edit zone as default
+      textObject.zoneId = initialData.editZones[0].id;
+    }
+
+    // Add to canvas and render
+    fabricInstance.add(textObject);
+    fabricInstance.setActiveObject(textObject);
+    fabricInstance.renderAll();
+    
+    console.log('Text object added:', textObject);
+  }, [fabricInstance, initialData]);
 
   /**
    * Handler: Add Artwork
@@ -273,13 +292,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
       <div className="design-studio-layout">
         
-        {/* Left Panel: Material & Artwork */}
+        {/* Left Panel: Artwork */}
         <div className="design-studio-sidebar design-studio-sidebar-left">
-          <MaterialPicker
-            materials={materials}
-            activeMaterialId={activeMaterial?.id}
-            onSelectMaterial={handleSelectMaterial}
-          />
+          {/* Material Picker hidden for now - will be shown in modal later */}
+          <div style={{ display: 'none' }}>
+            <MaterialPicker
+              materials={materials}
+              activeMaterialId={activeMaterial?.id}
+              onSelectMaterial={handleSelectMaterial}
+            />
+          </div>
           
           <ArtworkLibrary
             artwork={artwork}

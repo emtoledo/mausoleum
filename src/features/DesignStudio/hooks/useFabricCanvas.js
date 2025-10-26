@@ -15,12 +15,12 @@ import { calculateScale, inchesToPixels } from '../utils/unitConverter';
  * @param {React.RefObject} productCanvasRef - Ref to the product canvas (HTML5 Canvas)
  * @param {React.RefObject} zoneCanvasRef - Ref to the zone overlay canvas (HTML5 Canvas)
  * @param {Object} initialData - Template data with dimensions, editZones, and designElements
- * @param {string} materialTexture - URL to the material texture image
  * @param {Function} onElementSelect - Callback when an element is selected
+ * @param {Object} canvasSize - Current canvas container size { width, height }
  * 
  * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, materialTexture, onElementSelect) => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, onElementSelect, canvasSize) => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const selectedObject = useRef(null);
@@ -90,10 +90,10 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
   }, []);
 
   /**
-   * Draw the product canvas with material texture
+   * Draw the product canvas with template image
    */
   const drawProductCanvas = useCallback(() => {
-    if (!productCanvasRef.current || !initialData || !materialTexture) return;
+    if (!productCanvasRef.current || !initialData) return;
 
     const canvas = productCanvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -111,14 +111,18 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // Draw material texture as background
-    const textureImg = new Image();
-    textureImg.onload = () => {
-      ctx.drawImage(textureImg, 0, 0, canvas.width, canvas.height);
+    // Draw template image
+    const templateImg = new Image();
+    templateImg.onload = () => {
+      ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
     };
-    textureImg.src = materialTexture;
+    
+    // Use imageUrl from initialData (template image)
+    if (initialData.imageUrl) {
+      templateImg.src = initialData.imageUrl;
+    }
 
-  }, [productCanvasRef, initialData, materialTexture, scale]);
+  }, [productCanvasRef, initialData, scale]);
 
   /**
    * Draw the zone overlay canvas with edit zones
@@ -237,118 +241,123 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
    * Initialize Fabric.js canvas
    */
   useEffect(() => {
-    if (!fabricCanvasRef.current || !initialData) return;
+    if (!fabricCanvasRef.current || !initialData || !canvasSize || canvasSize.width === 0) return;
 
     const container = fabricCanvasRef.current;
     
-    // Calculate scale based on real-world dimensions
+    // Calculate scale based on real-world dimensions and responsive canvas width
     const realWorldWidth = initialData.realWorldWidth || 24;
     const realWorldHeight = initialData.realWorldHeight || 18;
-    const canvasWidth = 1200; // Default canvas width in pixels
+    
+    // Use responsive canvas size from container
+    const canvasWidth = canvasSize.width;
     const canvasHeight = (canvasWidth / realWorldWidth) * realWorldHeight;
 
     scale.current = calculateScale(realWorldWidth, canvasWidth);
 
-    // Create Fabric.js canvas
-    const canvas = new fabric.Canvas(container, {
-      width: canvasWidth,
-      height: canvasHeight,
-      backgroundColor: 'transparent',
-      preserveObjectStacking: true
-    });
+    // Create or update Fabric.js canvas
+    if (!fabricCanvasInstance.current) {
+      const canvas = new fabric.Canvas(container, {
+        width: canvasWidth,
+        height: canvasHeight,
+        backgroundColor: 'transparent',
+        preserveObjectStacking: true,
+        renderOnAddRemove: true
+      });
+      fabricCanvasInstance.current = canvas;
+      
+    } else {
+      // Update existing canvas dimensions
+      fabricCanvasInstance.current.setDimensions({ width: canvasWidth, height: canvasHeight });
+      fabricCanvasInstance.current.renderAll();
+    }
 
-    fabricCanvasInstance.current = canvas;
+    const canvas = fabricCanvasInstance.current;
 
     // Draw product and zone canvases
     drawProductCanvas();
     drawZoneCanvas();
 
-    // Populate canvas with design elements
-    if (initialData.designElements && initialData.designElements.length > 0) {
-      populateCanvasFromData(canvas, initialData.designElements);
+    // Only populate and set up event listeners on first creation
+    if (!canvas.listening) {
+      // Mark that listeners are set up
+      canvas.listening = true;
+      
+      // Populate canvas with design elements
+      if (initialData.designElements && initialData.designElements.length > 0) {
+        populateCanvasFromData(canvas, initialData.designElements);
+      }
+
+      // Selection event listeners
+      canvas.on('selection:created', (e) => {
+        const activeObject = canvas.getActiveObject();
+        selectedObject.current = activeObject;
+        console.log('Object selected:', activeObject);
+        if (onElementSelect) {
+          onElementSelect(activeObject);
+        }
+      });
+
+      canvas.on('selection:cleared', () => {
+        selectedObject.current = null;
+        console.log('Selection cleared');
+        if (onElementSelect) {
+          onElementSelect(null);
+        }
+      });
+
+      canvas.on('selection:updated', (e) => {
+        const activeObject = canvas.getActiveObject();
+        selectedObject.current = activeObject;
+        console.log('Selection updated:', activeObject);
+        if (onElementSelect) {
+          onElementSelect(activeObject);
+        }
+      });
+
+      // Object modification event listeners
+      canvas.on('object:moving', (e) => {
+        const obj = e.target;
+        const zone = getEditZoneForObject(obj);
+        
+        if (zone) {
+          constrainObjectInZone(obj, zone);
+        }
+      });
+
+      canvas.on('object:scaling', (e) => {
+        const obj = e.target;
+        const zone = getEditZoneForObject(obj);
+        
+        if (zone) {
+          constrainObjectInZone(obj, zone);
+        }
+      });
+
+      canvas.on('object:rotating', (e) => {
+        const obj = e.target;
+        console.log('Object rotating:', obj);
+      });
+
+      // Object modification completion
+      canvas.on('object:modified', (e) => {
+        const obj = e.target;
+        console.log('Object modified:', obj);
+      });
     }
-
-    // Selection event listeners
-    canvas.on('selection:created', (e) => {
-      const activeObject = canvas.getActiveObject();
-      selectedObject.current = activeObject;
-      console.log('Object selected:', activeObject);
-      if (onElementSelect) {
-        onElementSelect(activeObject);
-      }
-    });
-
-    canvas.on('selection:cleared', () => {
-      selectedObject.current = null;
-      console.log('Selection cleared');
-      if (onElementSelect) {
-        onElementSelect(null);
-      }
-    });
-
-    canvas.on('selection:updated', (e) => {
-      const activeObject = canvas.getActiveObject();
-      selectedObject.current = activeObject;
-      console.log('Selection updated:', activeObject);
-      if (onElementSelect) {
-        onElementSelect(activeObject);
-      }
-    });
-
-    // Object modification event listeners
-    canvas.on('object:moving', (e) => {
-      const obj = e.target;
-      const zone = getEditZoneForObject(obj);
-      
-      if (zone) {
-        constrainObjectInZone(obj, zone);
-      }
-    });
-
-    canvas.on('object:scaling', (e) => {
-      const obj = e.target;
-      const zone = getEditZoneForObject(obj);
-      
-      if (zone) {
-        constrainObjectInZone(obj, zone);
-      }
-    });
-
-    canvas.on('object:rotating', (e) => {
-      const obj = e.target;
-      console.log('Object rotating:', obj);
-    });
-
-    // Object modification completion
-    canvas.on('object:modified', (e) => {
-      const obj = e.target;
-      console.log('Object modified:', obj);
-    });
 
     // Cleanup
     return () => {
-      canvas.off('selection:created');
-      canvas.off('selection:cleared');
-      canvas.off('selection:updated');
-      canvas.off('object:moving');
-      canvas.off('object:scaling');
-      canvas.off('object:rotating');
-      canvas.off('object:modified');
-      canvas.dispose();
-      fabricCanvasInstance.current = null;
+      // Don't dispose canvas on resize - just let the effect handle canvas updates
     };
     // eslint-disable-next-line
-  }, [fabricCanvasRef, initialData]); // Only run when ref or initialData changes
+  }, [fabricCanvasRef, initialData, canvasSize]); // Re-run when canvasSize changes
 
   /**
-   * Update canvases when material texture changes
+   * Canvas is drawn once during initialization
+   * The product canvas shows the template image (not affected by material changes)
+   * Material selection would be applied during DXF export or rendering of the final product
    */
-  useEffect(() => {
-    if (!fabricCanvasInstance.current) return;
-    drawProductCanvas();
-    drawZoneCanvas();
-    // eslint-disable-next-line
-  }, [materialTexture]); // Only re-run when materialTexture changes
 
   return fabricCanvasInstance.current;
 };
