@@ -1,17 +1,18 @@
 /**
  * DesignStudio Component
  * 
- * Main container for the memorial design studio.
- * Manages canvas initialization, state, and coordinates all child components.
+ * Central layout manager and orchestrator for the memorial design studio.
+ * Manages all state, coordinates child components, and handles user actions.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
-import { pixelsToInches } from './utils/unitConverter';
+import { pixelsToInches, calculateScale } from './utils/unitConverter';
 import DesignStudioToolbar from './components/DesignStudioToolbar';
 import MaterialPicker from './components/MaterialPicker';
 import ArtworkLibrary from './components/ArtworkLibrary';
 import OptionsPanel from './components/OptionsPanel';
+// import exportToDxf from './utils/dxfExporter'; // TODO: Implement this
 
 /**
  * @param {Object} initialData - Template/product data with dimensions, editZones, and designElements
@@ -23,88 +24,145 @@ import OptionsPanel from './components/OptionsPanel';
  */
 const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClose }) => {
   
-  // Refs for canvas layers
+  // Canvas refs
   const productCanvasRef = useRef(null);
   const zoneCanvasRef = useRef(null);
   const fabricCanvasRef = useRef(null);
+  const canvasContainerRef = useRef(null);
 
-  // State for selected element and material
+  // Internal state management
+  const [fabricInstance, setFabricInstance] = useState(null);
+  const [activeMaterial, setActiveMaterial] = useState(null);
   const [selectedElement, setSelectedElement] = useState(null);
-  const [selectedMaterial, setSelectedMaterial] = useState(null);
-  const [activeMaterialId, setActiveMaterialId] = useState(null);
-  
-  // Loading states
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
-  // Get canvas instance and selected element from useFabricCanvas hook
-  const { canvas: fabricCanvas, selectedObject } = useFabricCanvas(
-    fabricCanvasRef,
+  // Update canvas size when container dimensions change
+  useEffect(() => {
+    if (!canvasContainerRef.current) return;
+
+    const updateCanvasSize = () => {
+      if (canvasContainerRef.current) {
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        setCanvasSize({ width: rect.width, height: rect.height });
+      }
+    };
+
+    // Initial size
+    updateCanvasSize();
+
+    // Create ResizeObserver for responsive canvas
+    const resizeObserver = new ResizeObserver(updateCanvasSize);
+    resizeObserver.observe(canvasContainerRef.current);
+
+    // Also listen to window resize as fallback
+    window.addEventListener('resize', updateCanvasSize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateCanvasSize);
+    };
+  }, []);
+
+  // Initialize active material from initialData on first load
+  useEffect(() => {
+    if (initialData && initialData.material && !activeMaterial) {
+      setActiveMaterial(initialData.material);
+    } else if (materials.length > 0 && !activeMaterial) {
+      // Set first material as default
+      setActiveMaterial(materials[0]);
+    }
+  }, [initialData, materials, activeMaterial]);
+
+  // Call useFabricCanvas hook (the "engine")
+  const fabric = useFabricCanvas({
     productCanvasRef,
     zoneCanvasRef,
+    fabricCanvasRef,
     initialData,
-    selectedMaterial?.textureUrl
-  );
+    activeMaterial: activeMaterial?.textureUrl,
+    canvasSize,
+    onElementSelect: setSelectedElement
+  });
 
-  // Update selected element when canvas selection changes
-  React.useEffect(() => {
-    if (selectedObject) {
-      setSelectedElement(selectedObject);
-    }
-  }, [selectedObject]);
-
-  /**
-   * Handle material selection
-   * 
-   * @param {Object} material - Selected material object
-   */
-  const handleMaterialSelect = (material) => {
-    setSelectedMaterial(material);
-    setActiveMaterialId(material.id);
-  };
+  // Save the returned Fabric instance to our state
+  useEffect(() => {
+    setFabricInstance(fabric);
+  }, [fabric]);
 
   /**
-   * Handle artwork selection
-   * 
-   * @param {Object} art - Selected artwork object
+   * Handler: Select Material
    */
-  const handleArtworkSelect = (art) => {
-    if (!fabricCanvas) return;
-
-    // TODO: Implement artwork insertion logic
-    // This would create a Fabric.js Image object and add it to the canvas
-    console.log('Selected artwork:', art);
-  };
+  const handleSelectMaterial = useCallback((material) => {
+    setActiveMaterial(material);
+  }, []);
 
   /**
-   * Handle Add Text button
+   * Handler: Add Text
    */
-  const handleAddText = () => {
-    if (!fabricCanvas) return;
+  const handleAddText = useCallback(() => {
+    if (!fabricInstance) return;
 
     // TODO: Implement text insertion logic
-    // This would create a Fabric.js Text object and add it to the canvas
+    // For now, just log
     console.log('Add text clicked');
-  };
+    
+    // Example implementation:
+    // const textObject = new fabric.Text('New Text', {
+    //   left: fabricInstance.width / 2,
+    //   top: fabricInstance.height / 2,
+    //   fontSize: 20,
+    //   fontFamily: 'Arial'
+    // });
+    // fabricInstance.add(textObject);
+    // fabricInstance.renderAll();
+  }, [fabricInstance]);
 
   /**
-   * Handle Save Project
-   * 
-   * Critical: Gets all objects from Fabric, converts to inches, and calls onSave
+   * Handler: Add Artwork
    */
-  const handleSave = async () => {
-    if (!fabricCanvas || isSaving) return;
+  const handleAddArtwork = useCallback((art) => {
+    if (!fabricInstance || !art) return;
+
+    // TODO: Implement artwork insertion logic
+    console.log('Adding artwork:', art);
+    
+    // Example implementation:
+    // fabric.Image.fromURL(art.imageUrl, (img) => {
+    //   img.set({
+    //     left: fabricInstance.width / 2,
+    //     top: fabricInstance.height / 2,
+    //     scaleX: art.defaultWidth / img.width,
+    //     scaleY: art.defaultHeight / img.height
+    //   });
+    //   fabricInstance.add(img);
+    //   fabricInstance.renderAll();
+    // });
+  }, [fabricInstance]);
+
+  /**
+   * Handler: Save Project (CRITICAL)
+   * 
+   * Gets all objects from Fabric, converts pixels to inches, and calls onSave
+   */
+  const handleSave = useCallback(async () => {
+    if (!fabricInstance || isSaving || canvasSize.width === 0) return;
 
     setIsSaving(true);
 
     try {
-      // Get all objects from Fabric canvas
-      const objects = fabricCanvas.getObjects();
-      
+      // Calculate scale (pixels per inch)
+      const scale = calculateScale(
+        initialData.realWorldWidth || 24,
+        canvasSize.width
+      );
+
+      // Get all objects from Fabric instance
+      const objects = fabricInstance.getObjects();
+
       // Convert each object to design element format
-      const designElements = objects.map(obj => {
-        const scale = fabricCanvas.width / (initialData.realWorldWidth || 24);
-        
+      const designElements = objects.map((obj) => {
         const element = {
           id: obj.elementId || `element-${Date.now()}`,
           type: obj.type,
@@ -120,7 +178,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.font = obj.fontFamily || 'Arial';
           element.fill = obj.fill || '#000000';
         } else if (obj.type === 'image') {
-          element.content = obj.getSrc() || '';
+          element.content = obj.getSrc ? obj.getSrc() : '';
           element.width = pixelsToInches(obj.width * obj.scaleX, scale);
           element.height = pixelsToInches(obj.height * obj.scaleY, scale);
           element.opacity = obj.opacity || 1;
@@ -133,39 +191,37 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       const updatedProjectData = {
         ...initialData,
         designElements,
-        material: selectedMaterial
+        material: activeMaterial
       };
 
       // Call parent's onSave callback
       if (onSave) {
         await onSave(updatedProjectData);
       }
+
     } catch (error) {
       console.error('Error saving project:', error);
       alert('Failed to save project. Please try again.');
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave]);
 
   /**
-   * Handle Export to DXF
+   * Handler: Export to DXF
    */
-  const handleExport = async () => {
-    if (!fabricCanvas || isExporting) return;
+  const handleExport = useCallback(async () => {
+    if (!fabricInstance || isExporting) return;
 
     setIsExporting(true);
 
     try {
-      // TODO: Implement DXF export logic
-      console.log('Export to DXF clicked');
+      // TODO: Implement DXF export
+      console.log('Exporting to DXF...');
       
-      // Get all objects from Fabric canvas
-      const objects = fabricCanvas.getObjects();
+      // await exportToDxf(fabricInstance, initialData);
       
-      // This would use the dxfExporter utility
-      // const dxfContent = exportToDXF(objects, initialData);
-      // downloadDXF(dxfContent);
+      alert('DXF export feature coming soon!');
       
     } catch (error) {
       console.error('Error exporting to DXF:', error);
@@ -173,34 +229,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [fabricInstance, initialData, isExporting]);
 
   /**
-   * Handle Close
+   * Handler: Close Studio
    */
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (onClose) {
       onClose();
     }
-  };
-
-  /**
-   * Handle element update from OptionsPanel
-   */
-  const handleElementUpdate = (element) => {
-    // Element is already updated by OptionsPanel's two-way binding
-    // This callback is optional for logging or notifications
-    console.log('Element updated:', element);
-  };
-
-  // Set default material on mount if available
-  React.useEffect(() => {
-    if (materials && materials.length > 0 && !selectedMaterial) {
-      const defaultMaterial = materials[0];
-      setSelectedMaterial(defaultMaterial);
-      setActiveMaterialId(defaultMaterial.id);
-    }
-  }, [materials, selectedMaterial]);
+  }, [onClose]);
 
   if (!initialData) {
     return (
@@ -215,7 +253,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   return (
     <div className="design-studio">
       
-      {/* Toolbar */}
+      {/* Top: Toolbar */}
       <DesignStudioToolbar
         onAddText={handleAddText}
         onSave={handleSave}
@@ -227,22 +265,22 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
       <div className="design-studio-layout">
         
-        {/* Left Sidebar: Material & Artwork */}
+        {/* Left Panel: Material & Artwork */}
         <div className="design-studio-sidebar design-studio-sidebar-left">
           <MaterialPicker
             materials={materials}
-            activeMaterialId={activeMaterialId}
-            onSelectMaterial={handleMaterialSelect}
+            activeMaterialId={activeMaterial?.id}
+            onSelectMaterial={handleSelectMaterial}
           />
           
           <ArtworkLibrary
             artwork={artwork}
-            onSelectArtwork={handleArtworkSelect}
+            onSelectArtwork={handleAddArtwork}
           />
         </div>
 
-        {/* Center: Canvas */}
-        <div className="design-studio-canvas-container">
+        {/* Main/Center: Canvas */}
+        <div className="design-studio-canvas-container" ref={canvasContainerRef}>
           
           {/* Canvas Stack */}
           <div className="canvas-stack">
@@ -268,11 +306,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           </div>
         </div>
 
-        {/* Right Sidebar: Options Panel */}
+        {/* Right Panel: Options */}
         <div className="design-studio-sidebar design-studio-sidebar-right">
           <OptionsPanel
             selectedElement={selectedElement}
-            onUpdateElement={handleElementUpdate}
           />
         </div>
 
@@ -282,4 +319,3 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 };
 
 export default DesignStudio;
-
