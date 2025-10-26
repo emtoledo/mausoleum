@@ -10,9 +10,10 @@ import React, { useState, useEffect } from 'react';
 /**
  * @param {fabric.Object} selectedElement - Currently selected Fabric.js object
  * @param {Function} onUpdateElement - Optional callback when element is modified
+ * @param {Function} onDeleteElement - Callback when element should be deleted
  * @returns {JSX.Element}
  */
-const OptionsPanel = ({ selectedElement, onUpdateElement }) => {
+const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement }) => {
   // Text properties state
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
@@ -114,6 +115,12 @@ const OptionsPanel = ({ selectedElement, onUpdateElement }) => {
     updateFabricObject('opacity', newOpacity);
   };
 
+  const handleDelete = () => {
+    if (onDeleteElement) {
+      onDeleteElement();
+    }
+  };
+
   // Render empty state
   if (!selectedElement) {
     return (
@@ -129,7 +136,17 @@ const OptionsPanel = ({ selectedElement, onUpdateElement }) => {
   if (selectedElement.type === 'text') {
     return (
       <div className="options-panel">
-        <h3 className="options-panel-title">Text Properties</h3>
+        <div className="options-panel-header">
+          <h3 className="options-panel-title">Text Properties</h3>
+          <button
+            type="button"
+            className="options-panel-delete-button"
+            onClick={handleDelete}
+            title="Delete element"
+          >
+            🗑️
+          </button>
+        </div>
         
         <div className="options-panel-form">
           <div className="form-group">
@@ -199,7 +216,17 @@ const OptionsPanel = ({ selectedElement, onUpdateElement }) => {
   if (selectedElement.type === 'image') {
     return (
       <div className="options-panel">
-        <h3 className="options-panel-title">Image Properties</h3>
+        <div className="options-panel-header">
+          <h3 className="options-panel-title">Image Properties</h3>
+          <button
+            type="button"
+            className="options-panel-delete-button"
+            onClick={handleDelete}
+            title="Delete element"
+          >
+            🗑️
+          </button>
+        </div>
         
         <div className="options-panel-form">
           <div className="form-group">

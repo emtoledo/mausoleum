@@ -2322,11 +2322,40 @@ body:has(.canvas-layout) .footer-branding {
     padding: 16px;
 }
 
+.options-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
 .options-panel-title {
     font-size: 16px;
     font-weight: 600;
     color: #333333;
-    margin-bottom: 16px;
+    margin: 0;
+}
+
+.options-panel-delete-button {
+    background: #ff4444;
+    border: none;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background-color 0.2s;
+}
+
+.options-panel-delete-button:hover {
+    background: #cc0000;
+}
+
+.options-panel-delete-button:active {
+    background: #990000;
 }
 
 .options-panel-form {

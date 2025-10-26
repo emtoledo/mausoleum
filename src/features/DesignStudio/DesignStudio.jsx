@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Text as FabricText } from 'fabric';
+import { FabricImage, FabricText } from 'fabric';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { pixelsToInches, calculateScale } from './utils/unitConverter';
 import DesignStudioToolbar from './components/DesignStudioToolbar';
@@ -144,24 +144,77 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   /**
    * Handler: Add Artwork
    */
-  const handleAddArtwork = useCallback((art) => {
+  const handleAddArtwork = useCallback(async (art) => {
     if (!fabricInstance || !art) return;
 
-    // TODO: Implement artwork insertion logic
     console.log('Adding artwork:', art);
+    console.log('FabricImage:', FabricImage);
     
-    // Example implementation:
-    // fabric.Image.fromURL(art.imageUrl, (img) => {
-    //   img.set({
-    //     left: fabricInstance.width / 2,
-    //     top: fabricInstance.height / 2,
-    //     scaleX: art.defaultWidth / img.width,
-    //     scaleY: art.defaultHeight / img.height
-    //   });
-    //   fabricInstance.add(img);
-    //   fabricInstance.renderAll();
-    // });
+    try {
+      // Fabric v6 uses fromURL as a Promise-based static method
+      const img = await FabricImage.fromURL(art.imageUrl);
+      
+      if (!img) {
+        console.error('Failed to load artwork image:', art.imageUrl);
+        return;
+      }
+
+      console.log('Image loaded successfully:', img);
+
+      // Calculate center position for the artwork
+      const canvasWidth = fabricInstance.width || 800;
+      const canvasHeight = fabricInstance.height || 600;
+      const centerX = canvasWidth / 2;
+      const centerY = canvasHeight / 2;
+
+      // Set position and scale
+      img.set({
+        left: centerX - img.width / 2,
+        top: centerY - img.height / 2,
+        originX: 'center',
+        originY: 'center',
+        selectable: true,
+        hasControls: true,
+        hasBorders: true,
+        lockMovementX: false,
+        lockMovementY: false,
+        lockRotation: false,
+        lockScalingX: false,
+        lockScalingY: false,
+        // Store artwork metadata for potential export
+        customData: {
+          type: 'artwork',
+          artworkId: art.id,
+          artworkName: art.name
+        }
+      });
+
+      // Add to canvas and render
+      fabricInstance.add(img);
+      fabricInstance.setActiveObject(img);
+      fabricInstance.renderAll();
+
+      console.log('Artwork object added to canvas:', img);
+    } catch (error) {
+      console.error('Error loading artwork:', error);
+    }
   }, [fabricInstance]);
+
+  /**
+   * Handler: Delete Selected Element
+   */
+  const handleDeleteElement = useCallback(() => {
+    if (!fabricInstance || !selectedElement) return;
+
+    // Remove the selected element
+    fabricInstance.remove(selectedElement);
+    fabricInstance.renderAll();
+    
+    // Clear selection
+    fabricInstance.discardActiveObject();
+    
+    console.log('Element deleted');
+  }, [fabricInstance, selectedElement]);
 
   /**
    * Handler: Save Project (CRITICAL)
@@ -340,6 +393,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         <div className="design-studio-sidebar design-studio-sidebar-right">
           <OptionsPanel
             selectedElement={selectedElement}
+            onDeleteElement={handleDeleteElement}
           />
         </div>
 
