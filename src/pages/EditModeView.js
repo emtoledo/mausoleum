@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import { useProjectMutations } from '../hooks/useProjectMutations';
+import DesignStudio from '../features/DesignStudio/DesignStudio';
+import { materials } from '../data/MaterialsData.js';
+import { artwork } from '../data/ArtworkData.js';
+import { templates } from '../data/TemplateData.js';
 
 const EditModeView = () => {
   const { projectId, templateId } = useParams();
@@ -54,24 +58,34 @@ const EditModeView = () => {
     navigate(`/projects/${projectId}/templates`);
   };
 
-  const handleSave = () => {
-    console.log('Save clicked');
-  };
-
-  const handleShare = () => {
-    console.log('Share clicked');
-  };
-
-  const handleMoreOptions = () => {
-    console.log('More options clicked');
-  };
-
-  const handleCanvasControl = (action) => {
-    console.log('Canvas control:', action);
-  };
-
   const handleProjectTitleClick = () => {
     navigate('/projects');
+  };
+
+  // Prepare initial data for Design Studio
+  const getInitialData = () => {
+    if (!selectedTemplate || !project) return null;
+
+    // Find the template configuration from templates data
+    const templateConfig = templates['template-001']; // Use first template for now
+    
+    return {
+      ...templateConfig,
+      realWorldWidth: templateConfig.realWorldWidth || 24,
+      realWorldHeight: templateConfig.realWorldHeight || 18,
+      editZones: templateConfig.editZones || [],
+      designElements: selectedTemplate.customizations?.designElements || []
+    };
+  };
+
+  const handleSave = async (updatedProjectData) => {
+    console.log('Saving project:', updatedProjectData);
+    // TODO: Implement actual save logic
+    alert('Project saved successfully!');
+  };
+
+  const handleClose = () => {
+    handleBack();
   };
 
   if (loading) {
@@ -100,68 +114,26 @@ const EditModeView = () => {
     );
   }
 
-  return (
-    <div className="canvas-layout">
+  const initialData = getInitialData();
 
-
-
-<div className="edit-mode-container">
-        {/* Sidebar Toolbar */}
-        <div className="sidebar-toolbar">
-          <div className="toolbar-item" onClick={() => handleToolbarClick('artwork')}>
-            <div className="toolbar-icon">
-              <img src="/images/artwork_icon.png" alt="Artwork" className="toolbar-icon-image" />
-            </div>
-            <div className="toolbar-label">Artwork</div>
-          </div>
-          
-          <div className="toolbar-item" onClick={() => handleToolbarClick('text')}>
-            <div className="toolbar-icon">
-              <img src="/images/text_icon.png" alt="Text" className="toolbar-icon-image" />
-            </div>
-            <div className="toolbar-label">Text</div>
-          </div>
-          
-          {/* <div className="toolbar-item" onClick={() => handleToolbarClick('vase')}>
-            <div className="toolbar-icon">
-              <img src="/images/vase_icon.png" alt="Vase" className="toolbar-icon-image vase" />
-            </div>
-            <div className="toolbar-label">Vase</div>
-          </div> */}
-          
-          <div className="toolbar-item" onClick={() => handleToolbarClick('swap-template')}>
-            <div className="toolbar-icon">
-              <img src="/images/swap_icon.png" alt="Swap Template" className="toolbar-icon-image swap" />
-            </div>
-            <div className="toolbar-label">Swap Template</div>
-          </div>
-        </div>
-
-        {/* Main Canvas Area */}
-        <div className="canvas-area">
-          <div className="memorial-canvas">
-            <div className="memorial-card">
-              <div className="memorial-image-container">
-                <img 
-                  src={`/images/templates/${selectedTemplate.baseImage}`}
-                  alt={selectedTemplate.templateName}
-                  className="memorial-base-image"
-                />
-                <div className="memorial-text-overlay">
-                  <div className="marker-headline">{project.markerHeadline}</div>
-                  <div className="marker-year">{project.year}</div>
-                  {project.epitaph && (
-                    <div className="marker-epitaph">{project.epitaph}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  if (!initialData) {
+    return (
+      <div className="canvas-layout">
+        <div className="error-message">Failed to load template data</div>
+        <Button onClick={handleBack}>Back to Templates</Button>
       </div>
+    );
+  }
 
-
-    </div>
+  // Render Design Studio
+  return (
+    <DesignStudio
+      initialData={initialData}
+      materials={materials}
+      artwork={artwork}
+      onSave={handleSave}
+      onClose={handleClose}
+    />
   );
 };
 

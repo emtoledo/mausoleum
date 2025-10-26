@@ -1,15 +1,15 @@
 // This is the most important file.
 // It connects your product images to their real-world data.
 
-// Import product images (using Vite/Webpack path aliases like @)
-import markerImg1 from '@/assets/images/templates/template1.png';
-import markerImg2 from '@/assets/images/templates/template2.png';
-import markerImg3 from '@/assets/images/templates/template3.png';
-import markerImg4 from '@/assets/images/templates/template4.png';
-import markerImg5 from '@/assets/images/templates/template5.png';
-import markerImg6 from '@/assets/images/templates/template6.png';
-import markerImg7 from '@/assets/images/templates/template7.png';
-import markerImg8 from '@/assets/images/templates/template8.png';
+// Import product images (using relative paths from src/data/ to src/assets/)
+import markerImg1 from '../assets/images/templates/template_1.png';
+import markerImg2 from '../assets/images/templates/template_2.png';
+import markerImg3 from '../assets/images/templates/template_3.png';
+import markerImg4 from '../assets/images/templates/template_4.png';
+import markerImg5 from '../assets/images/templates/template_5.png';
+import markerImg6 from '../assets/images/templates/template_6.png';
+import markerImg7 from '../assets/images/templates/template_7.png';
+import markerImg8 from '../assets/images/templates/template_8.png';
 
 export const templates = {
   'template-001': {
