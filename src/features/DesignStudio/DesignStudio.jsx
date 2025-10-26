@@ -73,22 +73,25 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       // Set first material as default
       setActiveMaterial(materials[0]);
     }
-  }, [initialData, materials, activeMaterial]);
+    // eslint-disable-next-line
+  }, []); // Only run once on mount
 
   // Call useFabricCanvas hook (the "engine")
-  const fabric = useFabricCanvas({
+  const fabric = useFabricCanvas(
+    fabricCanvasRef,
     productCanvasRef,
     zoneCanvasRef,
-    fabricCanvasRef,
     initialData,
-    activeMaterial: activeMaterial?.textureUrl,
-    canvasSize,
-    onElementSelect: setSelectedElement
-  });
+    activeMaterial?.textureUrl,
+    setSelectedElement
+  );
 
   // Save the returned Fabric instance to our state
   useEffect(() => {
-    setFabricInstance(fabric);
+    if (fabric && !fabricInstance) {
+      setFabricInstance(fabric);
+    }
+    // eslint-disable-next-line
   }, [fabric]);
 
   /**

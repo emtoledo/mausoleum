@@ -16,10 +16,11 @@ import { calculateScale, inchesToPixels } from '../utils/unitConverter';
  * @param {React.RefObject} zoneCanvasRef - Ref to the zone overlay canvas (HTML5 Canvas)
  * @param {Object} initialData - Template data with dimensions, editZones, and designElements
  * @param {string} materialTexture - URL to the material texture image
+ * @param {Function} onElementSelect - Callback when an element is selected
  * 
- * @returns {Object} Canvas state and methods
+ * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, materialTexture) => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, materialTexture, onElementSelect) => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const selectedObject = useRef(null);
@@ -272,17 +273,26 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       const activeObject = canvas.getActiveObject();
       selectedObject.current = activeObject;
       console.log('Object selected:', activeObject);
+      if (onElementSelect) {
+        onElementSelect(activeObject);
+      }
     });
 
     canvas.on('selection:cleared', () => {
       selectedObject.current = null;
       console.log('Selection cleared');
+      if (onElementSelect) {
+        onElementSelect(null);
+      }
     });
 
     canvas.on('selection:updated', (e) => {
       const activeObject = canvas.getActiveObject();
       selectedObject.current = activeObject;
       console.log('Selection updated:', activeObject);
+      if (onElementSelect) {
+        onElementSelect(activeObject);
+      }
     });
 
     // Object modification event listeners
@@ -327,7 +337,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       canvas.dispose();
       fabricCanvasInstance.current = null;
     };
-  }, [fabricCanvasRef, initialData, drawProductCanvas, drawZoneCanvas, populateCanvasFromData, constrainObjectInZone, getEditZoneForObject]);
+    // eslint-disable-next-line
+  }, [fabricCanvasRef, initialData]); // Only run when ref or initialData changes
 
   /**
    * Update canvases when material texture changes
@@ -336,12 +347,10 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     if (!fabricCanvasInstance.current) return;
     drawProductCanvas();
     drawZoneCanvas();
-  }, [materialTexture, drawProductCanvas, drawZoneCanvas]);
+    // eslint-disable-next-line
+  }, [materialTexture]); // Only re-run when materialTexture changes
 
-  return {
-    canvas: fabricCanvasInstance.current,
-    selectedObject: selectedObject.current
-  };
+  return fabricCanvasInstance.current;
 };
 
 export default useFabricCanvas;

@@ -1,12 +1,11 @@
 // This file catalogues your artwork for the UI
-// Note: Using placeholder URLs until actual artwork is available
-const flower1 = 'https://via.placeholder.com/200/FF6B6B/FFFFFF?text=Flower+1';
-const flower2 = 'https://via.placeholder.com/200/4ECDC4/FFFFFF?text=Flower+2';
-const flower3 = 'https://via.placeholder.com/200/95E1D3/FFFFFF?text=Flower+3';
-const flower4 = 'https://via.placeholder.com/200/F38181/FFFFFF?text=Flower+4';
-const flower5 = 'https://via.placeholder.com/200/AA96DA/FFFFFF?text=Flower+5';
-const flower6 = 'https://via.placeholder.com/200/FCBAD3/FFFFFF?text=Flower+6';
-const flower7 = 'https://via.placeholder.com/200/FFD93D/FFFFFF?text=Flower+7';
+import flower1 from '../assets/images/artwork/flower1.svg';
+import flower2 from '../assets/images/artwork/flower2.svg';
+import flower3 from '../assets/images/artwork/flower3.svg';
+import flower4 from '../assets/images/artwork/flower4.svg';
+import flower5 from '../assets/images/artwork/flower5.svg';
+import flower6 from '../assets/images/artwork/flower6.svg';
+import flower7 from '../assets/images/artwork/flower7.svg';
 
 
 export const artwork = [
