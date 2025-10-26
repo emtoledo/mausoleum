@@ -12,7 +12,7 @@ import DesignStudioToolbar from './components/DesignStudioToolbar';
 import MaterialPicker from './components/MaterialPicker';
 import ArtworkLibrary from './components/ArtworkLibrary';
 import OptionsPanel from './components/OptionsPanel';
-// import exportToDxf from './utils/dxfExporter'; // TODO: Implement this
+import exportToDxf from './utils/dxfExporter';
 
 /**
  * @param {Object} initialData - Template/product data with dimensions, editZones, and designElements
@@ -211,17 +211,22 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Export to DXF
    */
   const handleExport = useCallback(async () => {
-    if (!fabricInstance || isExporting) return;
+    if (!fabricInstance || isExporting || canvasSize.width === 0) return;
 
     setIsExporting(true);
 
     try {
-      // TODO: Implement DXF export
       console.log('Exporting to DXF...');
       
-      // await exportToDxf(fabricInstance, initialData);
-      
-      alert('DXF export feature coming soon!');
+      await exportToDxf({
+        fabricCanvas: fabricInstance,
+        productData: initialData,
+        unitConverter: {
+          calculateScale,
+          pixelsToInches,
+          inchesToPixels: (inches, scale) => inches * scale
+        }
+      });
       
     } catch (error) {
       console.error('Error exporting to DXF:', error);
@@ -229,7 +234,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     } finally {
       setIsExporting(false);
     }
-  }, [fabricInstance, initialData, isExporting]);
+  }, [fabricInstance, initialData, canvasSize, isExporting]);
 
   /**
    * Handler: Close Studio
