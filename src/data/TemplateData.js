@@ -16,18 +16,13 @@ export const templates = {
     id: 'template-001',
     name: 'Standard 24x18 Granite Marker',
     imageUrl: markerImg1,
-    realWorldWidth: 24, // inches
-    realWorldHeight: 18, // inches
+    realWorldWidth: 42, // inches
+    realWorldHeight: 20, // inches
     editZones: [
       {
         id: 'main-zone',
-        x: 2, y: 3, width: 20, height: 10,
+        x: 2, y: 2, width: 38, height: 24,
         allows: ['text', 'artwork']
-      },
-      {
-        id: 'date-zone',
-        x: 4, y: 14, width: 16, height: 2,
-        allows: ['text']
       }
     ],
     // Pre-populated elements for this template

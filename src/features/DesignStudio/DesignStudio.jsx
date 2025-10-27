@@ -145,10 +145,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Add Artwork
    */
   const handleAddArtwork = useCallback(async (art) => {
-    if (!fabricInstance || !art) return;
+    if (!fabricInstance || !art || !initialData) return;
 
     console.log('Adding artwork:', art);
-    console.log('FabricImage:', FabricImage);
     
     try {
       // Fabric v6 uses fromURL as a Promise-based static method
@@ -161,16 +160,34 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
       console.log('Image loaded successfully:', img);
 
-      // Calculate center position for the artwork
+      // Calculate scale factor based on template dimensions
+      const realWorldWidth = initialData.realWorldWidth || 24; // inches
       const canvasWidth = fabricInstance.width || 800;
+      const scale = calculateScale(realWorldWidth, canvasWidth);
+      
+      // Get the artwork's default width in real-world inches
+      const artworkWidthInches = art.defaultWidth || 2.5; // Default to 2.5 inches
+      const artworkWidthPixels = artworkWidthInches * scale;
+      
+      // Calculate the aspect ratio to maintain proportions
+      const aspectRatio = img.height / img.width;
+      const artworkHeightPixels = artworkWidthPixels * aspectRatio;
+      
+      // Calculate the scale factors for the image
+      const scaleX = artworkWidthPixels / img.width;
+      const scaleY = artworkHeightPixels / img.height;
+
+      // Calculate center position for the artwork
       const canvasHeight = fabricInstance.height || 600;
       const centerX = canvasWidth / 2;
       const centerY = canvasHeight / 2;
 
       // Set position and scale
       img.set({
-        left: centerX - img.width / 2,
-        top: centerY - img.height / 2,
+        left: centerX,
+        top: centerY,
+        scaleX: scaleX,
+        scaleY: scaleY,
         originX: 'center',
         originY: 'center',
         selectable: true,
@@ -185,7 +202,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         customData: {
           type: 'artwork',
           artworkId: art.id,
-          artworkName: art.name
+          artworkName: art.name,
+          defaultWidthInches: artworkWidthInches
         }
       });
 
@@ -195,10 +213,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       fabricInstance.renderAll();
 
       console.log('Artwork object added to canvas:', img);
+      console.log(`Artwork scaled to ${artworkWidthInches}" width (${artworkWidthPixels}px)`);
     } catch (error) {
       console.error('Error loading artwork:', error);
     }
-  }, [fabricInstance]);
+  }, [fabricInstance, initialData]);
 
   /**
    * Handler: Delete Selected Element

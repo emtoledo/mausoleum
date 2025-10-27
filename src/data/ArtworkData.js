@@ -15,7 +15,7 @@ export const artwork = [
     category: 'Floral',
     imageUrl: flower1,
     // Pre-define real-world size for consistent insertion
-    defaultWidth: 3 // 3 inches
+    defaultWidth: 5 // 3 inches
   },
   {
     id: 'art-002',
