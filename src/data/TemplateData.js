@@ -21,7 +21,7 @@ export const templates = {
     editZones: [
       {
         id: 'main-zone',
-        x: 2, y: 2, width: 38, height: 24,
+        x: 6, y: 2, width: 30, height: 14,
         allows: ['text', 'artwork']
       }
     ],

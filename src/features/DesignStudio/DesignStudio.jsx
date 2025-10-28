@@ -229,6 +229,51 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   }, [fabricInstance, selectedElement]);
 
   /**
+   * Handler: Center Selected Element Horizontally
+   */
+  const handleCenterHorizontal = useCallback(() => {
+    if (!fabricInstance || !selectedElement) return;
+
+    const centerX = fabricInstance.width / 2;
+    selectedElement.set({
+      left: centerX
+    });
+    selectedElement.setCoords();
+    fabricInstance.renderAll();
+  }, [fabricInstance, selectedElement]);
+
+  /**
+   * Handler: Center Selected Element Vertically
+   */
+  const handleCenterVertical = useCallback(() => {
+    if (!fabricInstance || !selectedElement) return;
+
+    const centerY = fabricInstance.height / 2;
+    selectedElement.set({
+      top: centerY
+    });
+    selectedElement.setCoords();
+    fabricInstance.renderAll();
+  }, [fabricInstance, selectedElement]);
+
+  // Keyboard event handler for Delete key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check if Delete or Backspace is pressed and an object is selected
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
+        e.preventDefault();
+        handleDeleteElement();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedElement, handleDeleteElement]);
+
+  /**
    * Handler: Save Project (CRITICAL)
    * 
    * Gets all objects from Fabric, converts pixels to inches, and calls onSave
@@ -401,13 +446,17 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           </div>
         </div>
 
-        {/* Right Panel: Options */}
-        <div className="design-studio-sidebar design-studio-sidebar-right">
-          <OptionsPanel
-            selectedElement={selectedElement}
-            onDeleteElement={handleDeleteElement}
-          />
-        </div>
+        {/* Right Panel: Options (only show when an object is selected) */}
+        {selectedElement && (
+          <div className="design-studio-sidebar design-studio-sidebar-right">
+            <OptionsPanel
+              selectedElement={selectedElement}
+              onDeleteElement={handleDeleteElement}
+              onCenterHorizontal={handleCenterHorizontal}
+              onCenterVertical={handleCenterVertical}
+            />
+          </div>
+        )}
 
       </div>
     </div>

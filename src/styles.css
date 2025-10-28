@@ -1987,6 +1987,7 @@ body:has(.canvas-layout) .footer-branding {
     gap: 0;
     height: calc(100vh - 60px); /* Subtract toolbar height */
     width: 100%;
+    background-color: #f0f0f0;
 }
 
 /* When material picker is hidden, adjust left sidebar */
@@ -2049,7 +2050,6 @@ body:has(.canvas-layout) .footer-branding {
 
 .canvas-layer.product-canvas {
     z-index: 1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .canvas-layer.zone-canvas {
@@ -2356,6 +2356,32 @@ body:has(.canvas-layout) .footer-branding {
 
 .options-panel-delete-button:active {
     background: #990000;
+}
+
+.options-panel-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.options-panel-action-button {
+    flex: 1;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.options-panel-action-button:hover {
+    background: #0056b3;
+}
+
+.options-panel-action-button:active {
+    background: #004085;
 }
 
 .options-panel-form {

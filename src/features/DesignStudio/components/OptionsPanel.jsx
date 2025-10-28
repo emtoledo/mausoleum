@@ -11,9 +11,11 @@ import React, { useState, useEffect } from 'react';
  * @param {fabric.Object} selectedElement - Currently selected Fabric.js object
  * @param {Function} onUpdateElement - Optional callback when element is modified
  * @param {Function} onDeleteElement - Callback when element should be deleted
+ * @param {Function} onCenterHorizontal - Callback to center object horizontally
+ * @param {Function} onCenterVertical - Callback to center object vertically
  * @returns {JSX.Element}
  */
-const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement }) => {
+const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical }) => {
   // Text properties state
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
@@ -147,6 +149,26 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement }) => 
             🗑️
           </button>
         </div>
+
+        {/* Center buttons */}
+        <div className="options-panel-actions">
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onCenterHorizontal}
+            title="Center horizontally"
+          >
+            ↔️ Center H
+          </button>
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onCenterVertical}
+            title="Center vertically"
+          >
+            ↕️ Center V
+          </button>
+        </div>
         
         <div className="options-panel-form">
           <div className="form-group">
@@ -231,6 +253,26 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement }) => 
             title="Delete element"
           >
             🗑️
+          </button>
+        </div>
+
+        {/* Center buttons */}
+        <div className="options-panel-actions">
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onCenterHorizontal}
+            title="Center horizontally"
+          >
+            ↔️ Center H
+          </button>
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onCenterVertical}
+            title="Center vertically"
+          >
+            ↕️ Center V
           </button>
         </div>
         
