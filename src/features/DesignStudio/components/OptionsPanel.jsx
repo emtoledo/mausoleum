@@ -13,9 +13,11 @@ import React, { useState, useEffect } from 'react';
  * @param {Function} onDeleteElement - Callback when element should be deleted
  * @param {Function} onCenterHorizontal - Callback to center object horizontally
  * @param {Function} onCenterVertical - Callback to center object vertically
+ * @param {Function} onFlipHorizontal - Callback to flip object horizontally
+ * @param {Function} onFlipVertical - Callback to flip object vertically
  * @returns {JSX.Element}
  */
-const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical }) => {
+const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical }) => {
   // Text properties state
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
@@ -273,6 +275,26 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             title="Center vertically"
           >
             ↕️ Center V
+          </button>
+        </div>
+
+        {/* Flip buttons */}
+        <div className="options-panel-actions">
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onFlipHorizontal}
+            title="Flip horizontally"
+          >
+            ⇄ Flip H
+          </button>
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onFlipVertical}
+            title="Flip vertically"
+          >
+            ⇅ Flip V
           </button>
         </div>
         

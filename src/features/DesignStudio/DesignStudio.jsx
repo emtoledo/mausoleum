@@ -8,7 +8,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FabricImage, FabricText } from 'fabric';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
-import { pixelsToInches, calculateScale } from './utils/unitConverter';
+import { pixelsToInches, calculateScale, inchesToPixels } from './utils/unitConverter';
 import DesignStudioToolbar from './components/DesignStudioToolbar';
 import MaterialPicker from './components/MaterialPicker';
 import ArtworkLibrary from './components/ArtworkLibrary';
@@ -256,13 +256,81 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     fabricInstance.renderAll();
   }, [fabricInstance, selectedElement]);
 
-  // Keyboard event handler for Delete key
+  /**
+   * Handler: Flip Selected Element Horizontally
+   */
+  const handleFlipHorizontal = useCallback(() => {
+    if (!fabricInstance || !selectedElement) return;
+
+    // Flip by negating scaleX
+    selectedElement.set({
+      scaleX: -selectedElement.scaleX
+    });
+    selectedElement.setCoords();
+    fabricInstance.renderAll();
+  }, [fabricInstance, selectedElement]);
+
+  /**
+   * Handler: Flip Selected Element Vertically
+   */
+  const handleFlipVertical = useCallback(() => {
+    if (!fabricInstance || !selectedElement) return;
+
+    // Flip by negating scaleY
+    selectedElement.set({
+      scaleY: -selectedElement.scaleY
+    });
+    selectedElement.setCoords();
+    fabricInstance.renderAll();
+  }, [fabricInstance, selectedElement]);
+
+  // Keyboard event handler for Delete key and arrow key nudge
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Check if Delete or Backspace is pressed and an object is selected
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
         e.preventDefault();
         handleDeleteElement();
+      }
+
+      // Arrow key nudge controls (with object selected)
+      if (selectedElement && fabricInstance && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        // Calculate scale to convert inches to pixels
+        const realWorldWidth = initialData.realWorldWidth || 24;
+        const canvasWidth = canvasSize.width || fabricInstance.width;
+        const scale = calculateScale(realWorldWidth, canvasWidth);
+        
+        // Nudge increment: 0.5 inches
+        const nudgeInches = 0.5;
+        const nudgePixels = inchesToPixels(nudgeInches, scale);
+
+        e.preventDefault();
+        
+        let newLeft = selectedElement.left;
+        let newTop = selectedElement.top;
+
+        switch (e.key) {
+          case 'ArrowLeft':
+            newLeft -= nudgePixels;
+            break;
+          case 'ArrowRight':
+            newLeft += nudgePixels;
+            break;
+          case 'ArrowUp':
+            newTop -= nudgePixels;
+            break;
+          case 'ArrowDown':
+            newTop += nudgePixels;
+            break;
+        }
+
+        // Update object position
+        selectedElement.set({
+          left: newLeft,
+          top: newTop
+        });
+        selectedElement.setCoords();
+        fabricInstance.renderAll();
       }
     };
 
@@ -271,7 +339,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedElement, handleDeleteElement]);
+  }, [selectedElement, handleDeleteElement, fabricInstance, canvasSize, initialData]);
 
   /**
    * Handler: Save Project (CRITICAL)
@@ -454,6 +522,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               onDeleteElement={handleDeleteElement}
               onCenterHorizontal={handleCenterHorizontal}
               onCenterVertical={handleCenterVertical}
+              onFlipHorizontal={handleFlipHorizontal}
+              onFlipVertical={handleFlipVertical}
             />
           </div>
         )}
