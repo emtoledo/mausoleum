@@ -29,34 +29,34 @@ export const artwork = [
     name: 'Flower 3',
     category: 'Floral',
     imageUrl: flower3,
-    defaultWidth: 2.5 // 2.5 inches
+    defaultWidth: 5 // 2.5 inches
   },
   {
     id: 'art-004',
     name: 'Flower 4',
     category: 'Floral',
     imageUrl: flower4,
-    defaultWidth: 2.5 // 2.5 inches
+    defaultWidth: 5 // 2.5 inches
   },
   {
     id: 'art-005',
     name: 'Flower 5',
     category: 'Floral',
     imageUrl: flower5,
-    defaultWidth: 2.5 // 2.5 inches
+    defaultWidth: 6 // 2.5 inches
   },
   {
     id: 'art-006',
     name: 'Flower 6',
     category: 'Floral',
     imageUrl: flower6,
-    defaultWidth: 2.5 // 2.5 inches
+    defaultWidth: 10 // 2.5 inches
   },
   {
     id: 'art-007',
     name: 'Flower 7',
     category: 'Floral',
     imageUrl: flower7,
-    defaultWidth: 2.5 // 2.5 inches
+    defaultWidth: 6 // 2.5 inches
   }
 ];
