@@ -111,7 +111,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       left: fabricInstance.width / 2,
       top: fabricInstance.height / 2,
       fontSize: 20,
-      fontFamily: 'Arial',
+      fontFamily: 'Times New Roman',
       fill: '#000000',
       originX: 'center',
       originY: 'center'

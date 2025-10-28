@@ -204,7 +204,13 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement }) => 
               <option value="Times New Roman">Times New Roman</option>
               <option value="Arial">Arial</option>
               <option value="Helvetica">Helvetica</option>
+              <option value="Helvetica Neue">Helvetica Neue</option>
               <option value="Georgia">Georgia</option>
+              <option value="Geneva">Geneva</option>
+              <option value="Avenir">Avenir</option>
+              <option value="Palatino">Palatino</option>
+              <option value="New York">New York</option>
+              <option value="Academy Engraved LET">Academy Engraved LET</option>
             </select>
           </div>
         </div>
