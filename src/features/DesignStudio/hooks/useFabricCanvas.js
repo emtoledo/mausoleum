@@ -357,6 +357,10 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
             scaleY: obj.scaleY * scaleRatioY
           });
         }
+        
+        // Recalculate hit area and coordinates for the object
+        // This is critical for proper hit detection after scaling
+        obj.setCoords();
       });
       
       // Update canvas dimensions
