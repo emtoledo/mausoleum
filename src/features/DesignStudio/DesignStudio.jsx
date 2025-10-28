@@ -84,16 +84,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     zoneCanvasRef,
     initialData,
     setSelectedElement,
-    canvasSize
+    canvasSize,
+    setFabricInstance // Callback when canvas is ready
   );
-
-  // Save the returned Fabric instance to our state
-  useEffect(() => {
-    if (fabric && !fabricInstance) {
-      setFabricInstance(fabric);
-    }
-    // eslint-disable-next-line
-  }, [fabric]);
 
   /**
    * Handler: Select Material

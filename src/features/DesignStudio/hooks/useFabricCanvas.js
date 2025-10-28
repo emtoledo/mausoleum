@@ -17,10 +17,11 @@ import { calculateScale, inchesToPixels } from '../utils/unitConverter';
  * @param {Object} initialData - Template data with dimensions, editZones, and designElements
  * @param {Function} onElementSelect - Callback when an element is selected
  * @param {Object} canvasSize - Current canvas container size { width, height }
+ * @param {Function} onCanvasReady - Callback when canvas instance is ready
  * 
  * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, onElementSelect, canvasSize) => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady) => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const selectedObject = useRef(null);
@@ -241,7 +242,13 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
    * Initialize Fabric.js canvas
    */
   useEffect(() => {
-    if (!fabricCanvasRef.current || !initialData || !canvasSize || canvasSize.width === 0) return;
+    if (!fabricCanvasRef.current || !initialData) return;
+    
+    // Wait for canvas size to be available
+    if (!canvasSize || canvasSize.width === 0) {
+      console.log('Waiting for canvas size...');
+      return;
+    }
 
     const container = fabricCanvasRef.current;
     
@@ -266,10 +273,57 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       });
       fabricCanvasInstance.current = canvas;
       
+      // Notify parent that canvas is ready
+      if (onCanvasReady) {
+        onCanvasReady(canvas);
+      }
+      
+      // Ensure Fabric's canvas elements have proper positioning
+      // Fabric creates a wrapper div with 'lower-canvas' and 'upper-canvas' inside it
+      const upperCanvas = canvas.upperCanvasEl;
+      const lowerCanvas = canvas.lowerCanvasEl;
+      
+      if (upperCanvas) {
+        // Set absolute positioning to match the container
+        upperCanvas.style.position = 'absolute';
+        upperCanvas.style.left = '50%';
+        upperCanvas.style.top = '50%';
+        upperCanvas.style.transform = 'translate(-50%, -50%)';
+      }
+      
+      if (lowerCanvas) {
+        // Set absolute positioning to match the container
+        lowerCanvas.style.position = 'absolute';
+        lowerCanvas.style.left = '50%';
+        lowerCanvas.style.top = '50%';
+        lowerCanvas.style.transform = 'translate(-50%, -50%)';
+      }
+      
     } else {
       // Update existing canvas dimensions
       fabricCanvasInstance.current.setDimensions({ width: canvasWidth, height: canvasHeight });
       fabricCanvasInstance.current.renderAll();
+      
+      // Re-apply proper positioning on resize
+      const canvas = fabricCanvasInstance.current;
+      const upperCanvas = canvas.upperCanvasEl;
+      const lowerCanvas = canvas.lowerCanvasEl;
+      
+      if (upperCanvas) {
+        // Set absolute positioning to match the container
+        upperCanvas.style.position = 'absolute';
+        upperCanvas.style.left = '50%';
+        upperCanvas.style.top = '50%';
+        upperCanvas.style.transform = 'translate(-50%, -50%)';
+      }
+      
+      if (lowerCanvas) {
+        // Set absolute positioning to match the container
+        lowerCanvas.style.position = 'absolute';
+        lowerCanvas.style.left = '50%';
+        lowerCanvas.style.top = '50%';
+        lowerCanvas.style.transform = 'translate(-50%, -50%)';
+      }
     }
 
     const canvas = fabricCanvasInstance.current;
