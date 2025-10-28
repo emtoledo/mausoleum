@@ -300,12 +300,73 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       }
       
     } else {
-      // Update existing canvas dimensions
-      fabricCanvasInstance.current.setDimensions({ width: canvasWidth, height: canvasHeight });
-      fabricCanvasInstance.current.renderAll();
+      // Update existing canvas dimensions and scale all objects proportionally
+      const canvas = fabricCanvasInstance.current;
+      const oldWidth = canvas.width;
+      const oldHeight = canvas.height;
+      const oldScale = scale.current;
+      const newScale = calculateScale(realWorldWidth, canvasWidth);
+      
+      // Calculate scale ratio for objects
+      const scaleRatioX = canvasWidth / oldWidth;
+      const scaleRatioY = canvasHeight / oldHeight;
+      
+      console.log('Resizing canvas:', {
+        oldWidth,
+        oldHeight,
+        canvasWidth,
+        canvasHeight,
+        scaleRatioX,
+        scaleRatioY,
+        oldScale,
+        newScale
+      });
+      
+      // Scale all objects proportionally from center
+      canvas.forEachObject((obj) => {
+        // Get current position relative to canvas center
+        const oldCenterX = oldWidth / 2;
+        const oldCenterY = oldHeight / 2;
+        
+        // Calculate distance from center
+        const distFromCenterX = obj.left - oldCenterX;
+        const distFromCenterY = obj.top - oldCenterY;
+        
+        // Calculate new position
+        const newCenterX = canvasWidth / 2;
+        const newCenterY = canvasHeight / 2;
+        const newLeft = newCenterX + (distFromCenterX * scaleRatioX);
+        const newTop = newCenterY + (distFromCenterY * scaleRatioY);
+        
+        // Update position
+        obj.set({
+          left: newLeft,
+          top: newTop
+        });
+        
+        // Update dimensions (for text, this means fontSize)
+        if (obj.type === 'text') {
+          const newFontSize = obj.fontSize * scaleRatioX;
+          obj.set({
+            fontSize: newFontSize
+          });
+        } else if (obj.type === 'image') {
+          // For images, scale the scaleX and scaleY
+          obj.set({
+            scaleX: obj.scaleX * scaleRatioX,
+            scaleY: obj.scaleY * scaleRatioY
+          });
+        }
+      });
+      
+      // Update canvas dimensions
+      canvas.setDimensions({ width: canvasWidth, height: canvasHeight });
+      canvas.renderAll();
+      
+      // Update the scale reference for future resizes
+      scale.current = newScale;
       
       // Re-apply proper positioning on resize
-      const canvas = fabricCanvasInstance.current;
       const upperCanvas = canvas.upperCanvasEl;
       const lowerCanvas = canvas.lowerCanvasEl;
       
@@ -324,13 +385,19 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
         lowerCanvas.style.top = '50%';
         lowerCanvas.style.transform = 'translate(-50%, -50%)';
       }
+      
+      // Redraw product and zone canvases with new scale
+      drawProductCanvas();
+      drawZoneCanvas();
     }
 
     const canvas = fabricCanvasInstance.current;
 
-    // Draw product and zone canvases
-    drawProductCanvas();
-    drawZoneCanvas();
+    // Draw product and zone canvases (only on initial creation, not on resize)
+    if (!fabricCanvasInstance.current || (fabricCanvasInstance.current && !fabricCanvasInstance.current.listening)) {
+      drawProductCanvas();
+      drawZoneCanvas();
+    }
 
     // Only populate and set up event listeners on first creation
     if (!canvas.listening) {
