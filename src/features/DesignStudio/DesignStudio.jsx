@@ -299,10 +299,23 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   // Keyboard event handler for Delete key and arrow key nudge
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Check if focus is in an input field (input, textarea, or contenteditable)
+      const target = e.target;
+      const isInputField = target.tagName === 'INPUT' || 
+                          target.tagName === 'TEXTAREA' || 
+                          target.isContentEditable ||
+                          target.closest('input, textarea, [contenteditable="true"]');
+      
+      // If focus is in an input field, allow normal text editing (don't intercept keys)
+      if (isInputField) {
+        return; // Let the browser handle it normally
+      }
+
       // Check if Delete or Backspace is pressed and an object is selected
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
         e.preventDefault();
         handleDeleteElement();
+        return;
       }
 
       // Arrow key nudge controls (with object selected)
