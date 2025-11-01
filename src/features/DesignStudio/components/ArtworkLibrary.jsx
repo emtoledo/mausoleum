@@ -84,7 +84,7 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
   }
 
   return (
-    <div className="artwork-library">
+    <div className="artwork-library add-panel-container">
       <h3 className="artwork-library-title">Artwork Library</h3>
       
       {/* Category Filter */}

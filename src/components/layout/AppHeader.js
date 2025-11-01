@@ -186,9 +186,10 @@ const AppHeader = ({
         <div className="header-center">
           <div className="canvas-controls">
             <div className="control-group">
-              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('cloud')}>
+              {/* Cloud icon hidden for later use */}
+              {/* <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('cloud')}>
                 <img src="/images/cloud_icon.png" alt="Cloud" className="control-icon cloud" />
-              </div>
+              </div> */}
               <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('undo')}>
                 <img src="/images/undo_icon.png" alt="Undo" className="control-icon undo" />
               </div>

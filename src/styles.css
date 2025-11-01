@@ -1982,7 +1982,7 @@ body:has(.canvas-layout) .footer-branding {
 /* Layout: Main grid with sidebar-column-layout */
 .design-studio-layout {
     display: grid;
-    grid-template-columns: .5fr 1fr 3fr 1fr; /* 0.5 part for the toolbar, 1 part for the left sidebar, 3 parts for the canvas, 1 part for the right sidebar */
+    grid-template-columns: 100px 1fr 3fr 1fr; /* 100px for the toolbar, 1 part for the left sidebar, 3 parts for the canvas, 1 part for the right sidebar */
     grid-template-rows: 4fr 1fr; /* 4 parts for the canvas, 1 part for the footer */
     gap: 0;
     height: calc(100vh - 60px); /* Subtract toolbar height, could also just set this to 100% */
@@ -2114,6 +2114,28 @@ body:has(.canvas-layout) .footer-branding {
     font-size: 11px;
 }
 
+
+/*Add Panel Treatments for Artwork and Template Picker*/
+
+.add-panel-container {
+    background: #fff;
+    padding: 20px;
+    position: absolute;
+    z-index: 10;
+    width: 400px;
+    border: solid 1px #dbdbdb;
+    border-radius: 10px;
+}
+
+
+
+/* Canvas Actions */
+.canvas-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .animate-spin {
     animation: spin 1s linear infinite;
 }
@@ -2121,13 +2143,6 @@ body:has(.canvas-layout) .footer-branding {
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
-}
-
-/* Canvas Actions */
-.canvas-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 /* Material Picker */
@@ -2201,7 +2216,7 @@ body:has(.canvas-layout) .footer-branding {
 
 /* Artwork Library */
 .artwork-library {
-    margin-top: 24px;
+
 }
 
 .artwork-library-title {
