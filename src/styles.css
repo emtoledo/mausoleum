@@ -968,7 +968,7 @@ body:has(.canvas-layout) .footer-branding {
     gap: 16px;
 }
 
-.save-button {
+.button-primary {
     background: #000;
     color: white;
     border: none;
@@ -978,7 +978,7 @@ body:has(.canvas-layout) .footer-branding {
     cursor: pointer;
 }
 
-.share-button {
+.button-secondary {
     background: white;
     color: #000;
     border: 1px solid #000;

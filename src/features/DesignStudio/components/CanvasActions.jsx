@@ -44,25 +44,20 @@ const CanvasActions = ({
       
       {/* Export to DXF */}
       <button
-        className="toolbar-button"
+        className="button-secondary"
         onClick={handleExport}
         disabled={isExporting}
         title="Export to DXF"
         aria-label="Export to DXF"
       >
-        {isExporting ? (
-          <Loader2 className="toolbar-icon animate-spin" />
-        ) : (
-          <FileDown className="toolbar-icon" />
-        )}
-        <span className="toolbar-label">
-          {isExporting ? 'Exporting...' : 'Export to DXF'}
+        <span>
+          {isExporting ? 'Exporting...' : 'Export DXF'}
         </span>
       </button>
 
       {/* Save Project */}
       <button
-        className="toolbar-button"
+        className="button-primary"
         onClick={handleSave}
         disabled={isSaving}
         title="Save Project"
@@ -71,12 +66,11 @@ const CanvasActions = ({
         {isSaving ? (
           <>
             <Loader2 className="toolbar-icon animate-spin" />
-            <span className="toolbar-label">Saving...</span>
+            <span>Saving...</span>
           </>
         ) : (
           <>
-            <Save className="toolbar-icon" />
-            <span className="toolbar-label">Save</span>
+            <span>Save</span>
           </>
         )}
       </button>
