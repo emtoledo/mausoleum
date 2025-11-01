@@ -1982,7 +1982,7 @@ body:has(.canvas-layout) .footer-branding {
 /* Layout: Main grid with sidebar-column-layout */
 .design-studio-layout {
     display: grid;
-    grid-template-columns: 1fr 3fr 1fr;
+    grid-template-columns: .5fr 1fr 3fr 1fr; /* 0.5 part for the toolbar, 1 part for the left sidebar, 3 parts for the canvas, 1 part for the right sidebar */
     grid-template-rows: 4fr 1fr; /* 4 parts for the canvas, 1 part for the footer */
     gap: 0;
     height: calc(100vh - 60px); /* Subtract toolbar height, could also just set this to 100% */
@@ -2005,12 +2005,12 @@ body:has(.canvas-layout) .footer-branding {
 }
 
 .design-studio-sidebar-left {
-    grid-column: 1;
+    grid-column: 2;
     padding: 16px;
 }
 
 .design-studio-sidebar-right {
-    grid-column: 3;
+    grid-column: 4;
     padding: 16px;
     border-right: none;
     border-left: 1px solid #e0e0e0;
@@ -2018,7 +2018,7 @@ body:has(.canvas-layout) .footer-branding {
 
 /* Canvas Container - Center column */
 .design-studio-canvas-container {
-    grid-column: 2;
+    grid-column: 3;
     position: relative;
     background-color: #f0f0f0;
     overflow: hidden;
@@ -2066,15 +2066,15 @@ body:has(.canvas-layout) .footer-branding {
     align-items: center;
     justify-content: space-between;
     padding: 12px 24px;
-    background-color: #ffffff;
-    border-bottom: 1px solid #e0e0e0;
     height: 60px;
+    flex-direction: column;
 }
 
 .toolbar-group {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-direction: column;
 }
 
 .toolbar-group-left {
@@ -2098,6 +2098,7 @@ body:has(.canvas-layout) .footer-branding {
     font-size: 14px;
     font-weight: 500;
     color: #333333;
+    flex-direction: column;
 }
 
 .toolbar-button:hover:not(:disabled) {
