@@ -21,9 +21,10 @@ import exportToDxf from './utils/dxfExporter';
  * @param {Array} artwork - Array of artwork objects from ArtworkData
  * @param {Function} onSave - Callback when user saves (receives updated project data)
  * @param {Function} onClose - Callback when user closes the studio
+ * @param {Function} onHandlersReady - Optional callback to expose handlers to parent (for AppHeader integration)
  * @returns {JSX.Element}
  */
-const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClose }) => {
+const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClose, onHandlersReady }) => {
   
   // Canvas refs
   const productCanvasRef = useRef(null);
@@ -38,6 +39,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
 
   // Update canvas size when container dimensions change
   useEffect(() => {
@@ -135,6 +137,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   }, [fabricInstance, initialData]);
 
   /**
+   * Handler: Toggle Artwork Library Visibility
+   */
+  const handleToggleArtworkLibrary = useCallback(() => {
+    setShowArtworkLibrary(prev => !prev);
+  }, []);
+
+  /**
    * Handler: Add Artwork
    */
   const handleAddArtwork = useCallback(async (art) => {
@@ -204,6 +213,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       fabricInstance.add(img);
       fabricInstance.setActiveObject(img);
       fabricInstance.renderAll();
+
+      // Close the artwork library after selecting artwork
+      setShowArtworkLibrary(false);
 
       console.log('Artwork object added to canvas:', img);
       console.log(`Artwork scaled to ${artworkWidthInches}" width (${artworkWidthPixels}px)`);
@@ -445,6 +457,45 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     }
   }, [onClose]);
 
+  // Expose handlers to parent component (for AppHeader integration)
+  // Store handlers in ref to always have latest version without causing re-renders
+  const handlersRef = useRef({ onSave: handleSave, onExport: handleExport });
+  const prevStateRef = useRef({ isSaving: false, isExporting: false, initialized: false });
+  
+  // Update handlers ref when they change (without triggering effects)
+  useEffect(() => {
+    handlersRef.current = { onSave: handleSave, onExport: handleExport };
+  }, [handleSave, handleExport]);
+  
+  // Only expose handlers when state changes or on initial mount
+  useEffect(() => {
+    if (!onHandlersReady) return;
+    
+    // Only update if state actually changed (ignore function reference changes)
+    const stateChanged = 
+      prevStateRef.current.isSaving !== isSaving ||
+      prevStateRef.current.isExporting !== isExporting;
+    
+    // Also call on initial mount
+    const isInitial = !prevStateRef.current.initialized;
+    
+    if (stateChanged || isInitial) {
+      prevStateRef.current = { 
+        isSaving, 
+        isExporting, 
+        initialized: true 
+      };
+      
+      // Use handlers from ref to avoid dependency issues
+      onHandlersReady({
+        onSave: handlersRef.current.onSave,
+        onExport: handlersRef.current.onExport,
+        isSaving,
+        isExporting
+      });
+    }
+  }, [onHandlersReady, isSaving, isExporting]); // Only depend on state, not handlers
+
   if (!initialData) {
     return (
       <div className="design-studio">
@@ -458,34 +509,36 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   return (
     <div className="design-studio">
       
-      {/* Top: Toolbar */}
-      <DesignStudioToolbar
-        onAddText={handleAddText}
-        onSave={handleSave}
-        onExport={handleExport}
-        onClose={handleClose}
-        isSaving={isSaving}
-        isExporting={isExporting}
-      />
+
 
       <div className="design-studio-layout">
         
-        {/* Left Panel: Artwork */}
-        <div className="design-studio-sidebar design-studio-sidebar-left">
-          {/* Material Picker hidden for now - will be shown in modal later */}
-          <div style={{ display: 'none' }}>
-            <MaterialPicker
-              materials={materials}
-              activeMaterialId={activeMaterial?.id}
-              onSelectMaterial={handleSelectMaterial}
+        
+      {/* side bar: Toolbar */}
+      <DesignStudioToolbar
+        onAddText={handleAddText}
+        onToggleArtworkLibrary={handleToggleArtworkLibrary}
+        onClose={handleClose}
+      />
+
+        {/* Left Panel: Artwork (only show when toggled) */}
+        {showArtworkLibrary && (
+          <div className="design-studio-sidebar-left">
+            {/* Material Picker hidden for now - will be shown in modal later */}
+            <div style={{ display: 'none' }}>
+              <MaterialPicker
+                materials={materials}
+                activeMaterialId={activeMaterial?.id}
+                onSelectMaterial={handleSelectMaterial}
+              />
+            </div>
+            
+            <ArtworkLibrary
+              artwork={artwork}
+              onSelectArtwork={handleAddArtwork}
             />
           </div>
-          
-          <ArtworkLibrary
-            artwork={artwork}
-            onSelectArtwork={handleAddArtwork}
-          />
-        </div>
+        )}
 
         {/* Main/Center: Canvas */}
         <div className="design-studio-canvas-container" ref={canvasContainerRef}>

@@ -4,19 +4,23 @@ import ProfileDropdown from '../ui/ProfileDropdown';
 import { useAuth } from '../../hooks/useAuth';
 import { useProjectFlow } from '../../context/ProjectFlowContext';
 import dataService from '../../services/dataService';
+import CanvasActions from '../../features/DesignStudio/components/CanvasActions';
 
 const AppHeader = ({ 
   pageTitle, 
   currentPage, 
   onSave, 
   onShare, 
+  onExport,
   onMoreOptions, 
   showCanvasControls, 
   onCanvasControl, 
   onPageTitleClick, 
   showFullBreadcrumb, 
   showSaveButton, 
-  showShareButton = true 
+  showShareButton = true,
+  isSaving = false,
+  isExporting = false
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -137,6 +141,10 @@ const AppHeader = ({
     console.log('Share clicked');
   };
 
+  const defaultExport = () => {
+    console.log('Export clicked');
+  };
+
   const defaultMoreOptions = () => {
     console.log('More options clicked');
   };
@@ -210,12 +218,17 @@ const AppHeader = ({
       )}
       
               <div className="header-right">
+
                 {shouldShowSaveButton && (
-                  <button className="save-button" onClick={onSave || defaultSave}>Save</button>
+                  <CanvasActions
+                    onSave={onSave || defaultSave}
+                    onExport={onExport || defaultExport}
+                    isSaving={isSaving}
+                    isExporting={isExporting}
+                  />
                 )}
-                {shouldShowShareButton && (
-                  <button className="share-button" onClick={onShare || defaultShare}>Share</button>
-                )}
+
+                
         <div className="more-options" onClick={onMoreOptions || defaultMoreOptions}>
           <div className="more-dots">
             <div className="dot"></div>

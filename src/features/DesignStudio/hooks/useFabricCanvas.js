@@ -304,6 +304,13 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       const canvas = fabricCanvasInstance.current;
       const oldWidth = canvas.width;
       const oldHeight = canvas.height;
+      
+      // Only resize if dimensions actually changed (prevent infinite loops)
+      if (Math.abs(oldWidth - canvasWidth) < 1 && Math.abs(oldHeight - canvasHeight) < 1) {
+        // Dimensions haven't changed, skip resize
+        return;
+      }
+      
       const oldScale = scale.current;
       const newScale = calculateScale(realWorldWidth, canvasWidth);
       

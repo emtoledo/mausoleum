@@ -7,7 +7,7 @@ import { materials } from '../data/MaterialsData.js';
 import { artwork } from '../data/ArtworkData.js';
 import { templates } from '../data/TemplateData.js';
 
-const EditModeView = () => {
+const EditModeView = ({ onHandlersReady }) => {
   const { projectId, templateId } = useParams();
   const navigate = useNavigate();
   const { getProject } = useProjectMutations();
@@ -16,6 +16,14 @@ const EditModeView = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [designStudioHandlers, setDesignStudioHandlers] = useState(null);
+
+  // Forward handlers to parent (BaseScreenLayout)
+  useEffect(() => {
+    if (onHandlersReady && designStudioHandlers) {
+      onHandlersReady(designStudioHandlers);
+    }
+  }, [onHandlersReady, designStudioHandlers]);
 
   useEffect(() => {
     loadProject();
@@ -133,6 +141,7 @@ const EditModeView = () => {
       artwork={artwork}
       onSave={handleSave}
       onClose={handleClose}
+      onHandlersReady={setDesignStudioHandlers}
     />
   );
 };
