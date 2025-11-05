@@ -1999,8 +1999,6 @@ body:has(.canvas-layout) .footer-branding {
 }
 
 .design-studio-sidebar {
-    background-color: #ffffff;
-    border-right: 1px solid #e0e0e0;
     overflow-y: auto;
 }
 
@@ -2012,8 +2010,6 @@ body:has(.canvas-layout) .footer-branding {
 .design-studio-sidebar-right {
     grid-column: 4;
     padding: 16px;
-    border-right: none;
-    border-left: 1px solid #e0e0e0;
 }
 
 /* Canvas Container - Center column */
@@ -2325,8 +2321,14 @@ body:has(.canvas-layout) .footer-branding {
 /* Options Panel */
 .options-panel {
     background-color: #ffffff;
-    border-radius: 8px;
-    padding: 16px;
+    border-radius: 10px;
+    border: solid 1px #dbdbdb;
+    padding: 20px;
+    position: absolute;
+    top: 85px;
+    right: 20px;
+    z-index: 100;
+    width: 250px;
 }
 
 .options-panel-header {
@@ -2344,7 +2346,6 @@ body:has(.canvas-layout) .footer-branding {
 }
 
 .options-panel-delete-button {
-    background: #ff4444;
     border: none;
     border-radius: 4px;
     width: 32px;
