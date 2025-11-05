@@ -118,6 +118,54 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     templateImg.crossOrigin = 'anonymous'; // Enable CORS if needed
     
     templateImg.onload = () => {
+      // Helper function to draw overlay after base template/material is drawn
+      const drawOverlay = () => {
+        if (initialData && initialData.overlayUrl) {
+          const overlayImg = new Image();
+          overlayImg.crossOrigin = 'anonymous';
+          
+          overlayImg.onload = () => {
+            ctx.save();
+            ctx.globalAlpha = 0.5;
+            
+            // If activeMaterial has overlayFill, fill the overlay SVG with that color
+            if (activeMaterial && activeMaterial.overlayFill) {
+              // Create a temporary canvas to draw the overlay with fill color
+              const overlayCanvas = document.createElement('canvas');
+              overlayCanvas.width = canvas.width;
+              overlayCanvas.height = canvas.height;
+              const overlayCtx = overlayCanvas.getContext('2d');
+              
+              // Fill the temporary canvas with the overlay fill color
+              overlayCtx.fillStyle = activeMaterial.overlayFill;
+              overlayCtx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+              
+              // Apply the overlay SVG shape as a mask using composite operation
+              // This will only show the fill color where the overlay SVG has pixels
+              overlayCtx.globalCompositeOperation = 'destination-in';
+              overlayCtx.drawImage(overlayImg, 0, 0, overlayCanvas.width, overlayCanvas.height);
+              
+              // Reset composite operation
+              overlayCtx.globalCompositeOperation = 'source-over';
+              
+              // Draw the filled overlay onto the main canvas
+              ctx.drawImage(overlayCanvas, 0, 0, canvas.width, canvas.height);
+            } else {
+              // No overlayFill specified, just draw the overlay as-is
+              ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.restore();
+          };
+          
+          overlayImg.onerror = () => {
+            console.warn('Failed to load overlay image:', initialData.overlayUrl);
+          };
+          
+          overlayImg.src = initialData.overlayUrl;
+        }
+      };
+
       // If we have an active material, fill the SVG shape with the material texture
       if (activeMaterial && activeMaterial.textureUrl) {
         const materialImg = new Image();
@@ -143,18 +191,25 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
             // Fallback: just draw the template without material fill
             ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
           }
+          
+          // Draw overlay on top of material-filled template
+          drawOverlay();
         };
         
         materialImg.onerror = () => {
           console.warn('Failed to load material texture:', activeMaterial.textureUrl);
           // Fallback: just draw the template without material fill
           ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+          // Draw overlay on top
+          drawOverlay();
         };
         
         materialImg.src = activeMaterial.textureUrl;
       } else {
         // No material selected, just draw the template SVG as-is
         ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+        // Draw overlay on top
+        drawOverlay();
       }
     };
     

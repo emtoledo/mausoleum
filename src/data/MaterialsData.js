@@ -1,7 +1,7 @@
 // This file catalogues your materials
 import black from '../assets/images/materials/black.png';
 import grey from '../assets/images/materials/grey.png';
-import bluepearl from '../assets/images/materials/bluepearl.jpg';
+import bluepearl from '../assets/images/materials/bluepearl.png';
 import red from '../assets/images/materials/red.png';
 import mahogany from '../assets/images/materials/mahogany.png';
 
@@ -16,7 +16,8 @@ export const materials = [
     id: 'mat-002',
     name: 'Grey Granite',
     textureUrl: grey,
-    swatch: grey
+    swatch: grey,
+    overlayFill:'#898989',
   },
   {
     id: 'mat-003',
