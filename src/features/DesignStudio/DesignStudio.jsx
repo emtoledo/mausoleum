@@ -606,14 +606,6 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         {/* Left Panel: Artwork (only show when toggled) */}
         {showArtworkLibrary && (
           <div className="design-studio-sidebar-left">
-            {/* Material Picker hidden for now - will be shown in modal later */}
-            <div style={{ display: 'none' }}>
-              <MaterialPicker
-                materials={materials}
-                activeMaterialId={activeMaterial?.id}
-                onSelectMaterial={handleSelectMaterial}
-              />
-            </div>
             
             <ArtworkLibrary
               artwork={artwork}
@@ -647,6 +639,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             />
             
           </div>
+
+
         </div>
 
         {/* Right Panel: Options (only show when an object is selected) */}
@@ -663,6 +657,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           </div>
         )}
 
+
+        {/* Material Picker */}
+
+          <MaterialPicker
+            materials={materials}
+            activeMaterialId={activeMaterial?.id}
+            onSelectMaterial={handleSelectMaterial}
+          />
+
+        {/* Modal: Material Picker */}
       </div>
     </div>
   );

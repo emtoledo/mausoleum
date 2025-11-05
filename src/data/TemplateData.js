@@ -2,7 +2,7 @@
 // It connects your product images to their real-world data.
 
 // Import product images (using relative paths from src/data/ to src/assets/)
-import markerImg1 from '../assets/images/templates/template_1.png';
+import markerImg1 from '../assets/images/templates/estate1.svg';
 import markerImg2 from '../assets/images/templates/template_2.png';
 import markerImg3 from '../assets/images/templates/template_3.png';
 import markerImg4 from '../assets/images/templates/template_4.png';
@@ -14,14 +14,14 @@ import markerImg8 from '../assets/images/templates/template_8.png';
 export const templates = {
   'template-001': {
     id: 'template-001',
-    name: 'Standard 24x18 Granite Marker',
+    name: 'Estate Collection 1',
     imageUrl: markerImg1,
-    realWorldWidth: 42, // inches
-    realWorldHeight: 20, // inches
+    realWorldWidth: 60, // inches
+    realWorldHeight: 23, // inches
     editZones: [
       {
         id: 'main-zone',
-        x: 6, y: 2, width: 30, height: 14,
+        x: 0, y: 0, width: 60, height: 23,
         allows: ['text', 'artwork']
       }
     ],

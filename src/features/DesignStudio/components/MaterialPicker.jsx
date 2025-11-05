@@ -39,8 +39,7 @@ const MaterialPicker = ({ materials = [], activeMaterialId = null, onSelectMater
 
   return (
     <div className="material-picker">
-      <h3 className="material-picker-title">Select Material</h3>
-      
+
       <div className="material-picker-grid">
         {materials.map((material) => {
           const isSelected = material.id === activeMaterialId;
