@@ -51,7 +51,7 @@ const DesignStudioToolbar = ({
     <div className="design-studio-toolbar">
       
       {/* Left Group: Tools */}
-      <div className="toolbar-group toolbar-group-left">
+      <div className="toolbar-group">
 
         <button
           className="toolbar-button"

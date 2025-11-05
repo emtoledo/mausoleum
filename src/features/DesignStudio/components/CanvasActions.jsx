@@ -12,13 +12,15 @@ import { FileDown, Save, Loader2 } from 'lucide-react';
  * @param {Function} onExport - Callback when Export to DXF is clicked
  * @param {boolean} isSaving - Whether save operation is in progress
  * @param {boolean} isExporting - Whether export operation is in progress
+ * @param {boolean} isCanvasReady - Whether the canvas is initialized and ready
  * @returns {JSX.Element}
  */
 const CanvasActions = ({
   onSave,
   onExport,
   isSaving = false,
-  isExporting = false
+  isExporting = false,
+  isCanvasReady = false
 }) => {
   
   /**
@@ -34,8 +36,15 @@ const CanvasActions = ({
    * Handle Export button click
    */
   const handleExport = () => {
+    if (!isCanvasReady) {
+      console.warn('CanvasActions: Canvas not ready yet');
+      return;
+    }
     if (!isExporting && onExport) {
+      console.log('CanvasActions: Export button clicked, calling onExport');
       onExport();
+    } else if (!onExport) {
+      console.warn('CanvasActions: onExport handler not provided');
     }
   };
 
@@ -46,12 +55,12 @@ const CanvasActions = ({
       <button
         className="button-secondary"
         onClick={handleExport}
-        disabled={isExporting}
-        title="Export to DXF"
+        disabled={isExporting || !isCanvasReady}
+        title={!isCanvasReady ? 'Canvas is loading...' : 'Export to DXF'}
         aria-label="Export to DXF"
       >
         <span>
-          {isExporting ? 'Exporting...' : 'Export DXF'}
+          {isExporting ? 'Exporting...' : !isCanvasReady ? 'Loading Canvas...' : 'Export DXF'}
         </span>
       </button>
 

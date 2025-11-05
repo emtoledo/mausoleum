@@ -80,7 +80,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   }, []); // Only run once on mount
 
   // Call useFabricCanvas hook (the "engine")
-  const fabric = useFabricCanvas(
+  const fabricFromHook = useFabricCanvas(
     fabricCanvasRef,
     productCanvasRef,
     zoneCanvasRef,
@@ -89,6 +89,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     canvasSize,
     setFabricInstance // Callback when canvas is ready
   );
+
+  // Use the fabric instance from state (set via callback) or hook return value as fallback
+  // This ensures we have the latest instance even if state hasn't updated
+  const currentFabricInstance = fabricInstance || fabricFromHook;
 
   /**
    * Handler: Select Material
@@ -101,7 +105,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Add Text
    */
   const handleAddText = useCallback(() => {
-    if (!fabricInstance) {
+    const fabric = fabricInstance || fabricFromHook;
+    if (!fabric) {
       console.log('No Fabric instance available');
       return;
     }
@@ -436,15 +441,45 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Export to DXF
    */
   const handleExport = useCallback(async () => {
-    if (!fabricInstance || isExporting || canvasSize.width === 0) return;
+    // Use current fabric instance (from state or hook return value)
+    const fabric = fabricInstance || fabricFromHook;
+    
+    console.log('DesignStudio handleExport called', {
+      hasFabricInstance: !!fabricInstance,
+      hasFabricFromHook: !!fabricFromHook,
+      fabricFromHookType: typeof fabricFromHook,
+      currentFabricInstance: !!fabric,
+      isExporting,
+      canvasSizeWidth: canvasSize.width,
+      fabricCanvasRefCurrent: !!fabricCanvasRef.current
+    });
+
+    // Check if canvas size is ready
+    if (canvasSize.width === 0) {
+      console.warn('DesignStudio handleExport: Canvas size is 0, waiting for canvas to initialize...');
+      alert('Canvas is still initializing. Please wait a moment for the canvas to load and try again.');
+      return;
+    }
+
+    // Check if we have a fabric instance
+    if (!fabric) {
+      console.warn('DesignStudio handleExport: No fabric instance available yet');
+      alert('Canvas not ready. The canvas is still initializing. Please wait a moment and try again.');
+      return;
+    }
+
+    if (isExporting) {
+      console.warn('DesignStudio handleExport: Export already in progress');
+      return;
+    }
 
     setIsExporting(true);
 
     try {
-      console.log('Exporting to DXF...');
+      console.log('DesignStudio: Starting DXF export...');
       
       await exportToDxf({
-        fabricCanvas: fabricInstance,
+        fabricCanvas: fabric,
         productData: initialData,
         unitConverter: {
           calculateScale,
@@ -453,13 +488,14 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         }
       });
       
+      console.log('DesignStudio: DXF export completed successfully');
     } catch (error) {
-      console.error('Error exporting to DXF:', error);
+      console.error('DesignStudio: Error exporting to DXF:', error);
       alert('Failed to export to DXF. Please try again.');
     } finally {
       setIsExporting(false);
     }
-  }, [fabricInstance, initialData, canvasSize, isExporting]);
+  }, [fabricInstance, fabricFromHook, initialData, canvasSize, isExporting]);
 
   /**
    * Handler: Close Studio
@@ -473,7 +509,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   // Expose handlers to parent component (for AppHeader integration)
   // Store handlers in ref to always have latest version without causing re-renders
   const handlersRef = useRef({ onSave: handleSave, onExport: handleExport });
-  const prevStateRef = useRef({ isSaving: false, isExporting: false, initialized: false });
+  const prevStateRef = useRef({ isSaving: false, isExporting: false, canvasReady: false, initialized: false });
   
   // Update handlers ref when they change (without triggering effects)
   useEffect(() => {
@@ -484,30 +520,63 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   useEffect(() => {
     if (!onHandlersReady) return;
     
-    // Only update if state actually changed (ignore function reference changes)
+    // Check if state changed
     const stateChanged = 
       prevStateRef.current.isSaving !== isSaving ||
       prevStateRef.current.isExporting !== isExporting;
     
+    // Check if canvas readiness changed
+    const canvasReady = canvasSize.width > 0 && (!!fabricInstance || !!fabricFromHook);
+    const prevCanvasReady = prevStateRef.current.canvasReady || false;
+    const canvasReadinessChanged = canvasReady !== prevCanvasReady;
+    
     // Also call on initial mount
     const isInitial = !prevStateRef.current.initialized;
     
-    if (stateChanged || isInitial) {
+    console.log('DesignStudio: Checking if handlers should be exposed', {
+      stateChanged,
+      canvasReadinessChanged,
+      isInitial,
+      isSaving,
+      isExporting,
+      canvasReady,
+      prevCanvasReady,
+      canvasSizeWidth: canvasSize.width,
+      hasFabricInstance: !!fabricInstance,
+      hasFabricFromHook: !!fabricFromHook
+    });
+    
+    if (stateChanged || canvasReadinessChanged || isInitial) {
       prevStateRef.current = { 
         isSaving, 
-        isExporting, 
+        isExporting,
+        canvasReady,
         initialized: true 
       };
       
       // Use handlers from ref to avoid dependency issues
+      console.log('DesignStudio: Exposing handlers via onHandlersReady', {
+        hasOnHandlersReady: !!onHandlersReady,
+        hasOnSave: !!handlersRef.current.onSave,
+        hasOnExport: !!handlersRef.current.onExport,
+        onExportName: handlersRef.current.onExport?.name || 'anonymous',
+        isSaving,
+        isExporting,
+        isCanvasReady: canvasReady,
+        canvasSizeWidth: canvasSize.width,
+        hasFabricInstance: !!fabricInstance,
+        hasFabricFromHook: !!fabricFromHook,
+        '*** isCanvasReady VALUE': canvasReady
+      });
       onHandlersReady({
         onSave: handlersRef.current.onSave,
         onExport: handlersRef.current.onExport,
         isSaving,
-        isExporting
+        isExporting,
+        isCanvasReady: canvasReady
       });
     }
-  }, [onHandlersReady, isSaving, isExporting]); // Only depend on state, not handlers
+  }, [onHandlersReady, isSaving, isExporting, canvasSize.width, fabricInstance, fabricFromHook]); // Re-expose when canvas becomes ready
 
   if (!initialData) {
     return (

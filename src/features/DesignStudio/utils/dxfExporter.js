@@ -6,7 +6,7 @@
  */
 
 import opentype from 'opentype.js';
-import maker from 'makerjs';
+import * as maker from 'makerjs';
 
 // Module-level cache to store loaded fonts
 const fontCache = new Map();
@@ -76,8 +76,8 @@ function triggerDownload(filename, data) {
  */
 export async function exportToDxf({ fabricCanvas, productData, unitConverter }) {
   try {
-    // 1. Initialize the DXF Document
-    const dxfDocument = new maker.Document({ units: maker.unitType.Inches });
+    // 1. Initialize the DXF Document (plain object with models property)
+    const dxfDocument = { models: {} };
 
     // 2. Get Canvas Objects & Scale
     const objects = fabricCanvas.getObjects();
@@ -168,7 +168,7 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
     }
 
     // 6. Generate and Download the File
-    const dxfString = maker.exporter.toDxf(dxfDocument);
+    const dxfString = maker.exporter.toDXF(dxfDocument);
     const filename = (productData.name || productData.id || 'design') + '-export.dxf';
     
     triggerDownload(filename, dxfString);

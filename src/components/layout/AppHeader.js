@@ -20,7 +20,8 @@ const AppHeader = ({
   showSaveButton, 
   showShareButton = true,
   isSaving = false,
-  isExporting = false
+  isExporting = false,
+  isCanvasReady = false
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -226,6 +227,7 @@ const AppHeader = ({
                     onExport={onExport || defaultExport}
                     isSaving={isSaving}
                     isExporting={isExporting}
+                    isCanvasReady={isCanvasReady}
                   />
                 )}
 
