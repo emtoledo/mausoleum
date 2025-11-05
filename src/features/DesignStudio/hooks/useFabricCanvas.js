@@ -18,10 +18,11 @@ import { calculateScale, inchesToPixels } from '../utils/unitConverter';
  * @param {Function} onElementSelect - Callback when an element is selected
  * @param {Object} canvasSize - Current canvas container size { width, height }
  * @param {Function} onCanvasReady - Callback when canvas instance is ready
+ * @param {Object} activeMaterial - Currently selected material object
  * 
  * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady) => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial) => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const selectedObject = useRef(null);
@@ -91,7 +92,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
   }, []);
 
   /**
-   * Draw the product canvas with template image
+   * Draw the product canvas with template image and material fill
    */
   const drawProductCanvas = useCallback(() => {
     if (!productCanvasRef.current || !initialData) return;
@@ -112,10 +113,53 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // Draw template image
+    // Draw template image with material fill
     const templateImg = new Image();
+    templateImg.crossOrigin = 'anonymous'; // Enable CORS if needed
+    
     templateImg.onload = () => {
-      ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+      // If we have an active material, fill the SVG shape with the material texture
+      if (activeMaterial && activeMaterial.textureUrl) {
+        const materialImg = new Image();
+        materialImg.crossOrigin = 'anonymous';
+        
+        materialImg.onload = () => {
+          // Create a pattern from the material texture
+          const pattern = ctx.createPattern(materialImg, 'repeat');
+          
+          if (pattern) {
+            // Fill entire canvas with material pattern
+            ctx.fillStyle = pattern;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Apply the SVG shape as a mask using composite operation
+            // This will only show the material pattern where the SVG has pixels
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+            
+            // Reset composite operation
+            ctx.globalCompositeOperation = 'source-over';
+          } else {
+            // Fallback: just draw the template without material fill
+            ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+          }
+        };
+        
+        materialImg.onerror = () => {
+          console.warn('Failed to load material texture:', activeMaterial.textureUrl);
+          // Fallback: just draw the template without material fill
+          ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+        };
+        
+        materialImg.src = activeMaterial.textureUrl;
+      } else {
+        // No material selected, just draw the template SVG as-is
+        ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+      }
+    };
+    
+    templateImg.onerror = () => {
+      console.warn('Failed to load template image:', initialData.imageUrl);
     };
     
     // Use imageUrl from initialData (template image)
@@ -123,7 +167,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       templateImg.src = initialData.imageUrl;
     }
 
-  }, [productCanvasRef, initialData, scale]);
+  }, [productCanvasRef, initialData, scale, activeMaterial]);
 
   /**
    * Draw the zone overlay canvas with edit zones
@@ -486,10 +530,13 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
   }, [fabricCanvasRef, initialData, canvasSize]); // Re-run when canvasSize changes
 
   /**
-   * Canvas is drawn once during initialization
-   * The product canvas shows the template image (not affected by material changes)
-   * Material selection would be applied during DXF export or rendering of the final product
+   * Redraw product canvas when activeMaterial changes
    */
+  useEffect(() => {
+    if (scale.current > 0 && fabricCanvasInstance.current) {
+      drawProductCanvas();
+    }
+  }, [activeMaterial, drawProductCanvas]);
 
   return fabricCanvasInstance.current;
 };

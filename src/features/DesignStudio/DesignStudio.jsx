@@ -70,11 +70,25 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
   // Initialize active material from initialData on first load
   useEffect(() => {
-    if (initialData && initialData.material && !activeMaterial) {
-      setActiveMaterial(initialData.material);
-    } else if (materials.length > 0 && !activeMaterial) {
-      // Set first material as default
-      setActiveMaterial(materials[0]);
+    if (!activeMaterial && materials.length > 0) {
+      let materialToSet = null;
+      
+      // Priority 1: Use material object from initialData if provided
+      if (initialData && initialData.material) {
+        materialToSet = initialData.material;
+      }
+      // Priority 2: Use defaultMaterialId from template to find matching material
+      else if (initialData && initialData.defaultMaterialId) {
+        materialToSet = materials.find(m => m.id === initialData.defaultMaterialId);
+      }
+      // Priority 3: Fallback to first material in array
+      if (!materialToSet) {
+        materialToSet = materials[0];
+      }
+      
+      if (materialToSet) {
+        setActiveMaterial(materialToSet);
+      }
     }
     // eslint-disable-next-line
   }, []); // Only run once on mount
@@ -87,7 +101,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     initialData,
     setSelectedElement,
     canvasSize,
-    setFabricInstance // Callback when canvas is ready
+    setFabricInstance, // Callback when canvas is ready
+    activeMaterial // Pass active material for product canvas fill
   );
 
   // Use the fabric instance from state (set via callback) or hook return value as fallback

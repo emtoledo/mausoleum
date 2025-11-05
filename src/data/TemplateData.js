@@ -18,6 +18,7 @@ export const templates = {
     imageUrl: markerImg1,
     realWorldWidth: 60, // inches
     realWorldHeight: 23, // inches
+    defaultMaterialId: 'mat-002', // Default material ID (Black Granite)
     editZones: [
       {
         id: 'main-zone',
@@ -40,6 +41,7 @@ export const templates = {
     imageUrl: markerImg2,
     realWorldWidth: 30, // inches
     realWorldHeight: 42, // inches
+    defaultMaterialId: 'mat-002', // Default material ID (Grey Granite)
     editZones: [
       {
         id: 'top-banner',
@@ -61,6 +63,7 @@ export const templates = {
     imageUrl: markerImg3,
     realWorldWidth: 30, // inches
     realWorldHeight: 42, // inches
+    defaultMaterialId: 'mat-001', // Default material ID (Black Granite)
     editZones: [
       {
         id: 'top-banner',
@@ -82,6 +85,7 @@ export const templates = {
     imageUrl: markerImg4,
     realWorldWidth: 30, // inches
     realWorldHeight: 42, // inches
+    defaultMaterialId: 'mat-002', // Default material ID (Grey Granite)
     editZones: [
       {
         id: 'top-banner',
@@ -103,6 +107,7 @@ export const templates = {
     imageUrl: markerImg5,
     realWorldWidth: 30, // inches
     realWorldHeight: 42, // inches
+    defaultMaterialId: 'mat-001', // Default material ID (Black Granite)
     editZones: [
       {
         id: 'top-banner',
@@ -124,6 +129,7 @@ export const templates = {
     imageUrl: markerImg6,
     realWorldWidth: 30, // inches
     realWorldHeight: 42, // inches
+    defaultMaterialId: 'mat-003', // Default material ID (Blue Pearl)
     editZones: [
       {
         id: 'top-banner',
@@ -145,6 +151,7 @@ export const templates = {
     imageUrl: markerImg7,
     realWorldWidth: 30, // inches
     realWorldHeight: 42, // inches
+    defaultMaterialId: 'mat-004', // Default material ID (Red Granite)
     editZones: [
       {
         id: 'top-banner',
@@ -166,6 +173,7 @@ export const templates = {
     imageUrl: markerImg8,
     realWorldWidth: 30, // inches
     realWorldHeight: 42, // inches
+    defaultMaterialId: 'mat-005', // Default material ID (Mahogany Granite)
     editZones: [
       {
         id: 'top-banner',
