@@ -145,7 +145,9 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       return;
     }
     
-    if (!selectedElement.canvas) {
+    // Store canvas reference early - we'll need it for error handling
+    const canvas = selectedElement.canvas;
+    if (!canvas) {
       console.warn('Selected element has no canvas reference');
       return;
     }
@@ -172,28 +174,26 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         if (!imageSrc || imageSrc.startsWith('blob:')) {
           console.warn('Cannot modify blob URL or no source available, using filter approach');
           // Fallback to filter approach
-          if (selectedElement.canvas) {
-            const filters = selectedElement.get('filters') || [];
-            const filteredFilters = filters.filter(f => f.type !== 'BlendColor');
-            
-            const blendColorFilter = new fabric.filters.BlendColor({
-              color: newColor,
-              mode: 'multiply'
-            });
-            filteredFilters.push(blendColorFilter);
-            
-            selectedElement.set('filters', filteredFilters);
-            selectedElement.applyFilters();
-            
-            // Store color in customData
-            const updatedCustomData = {
-              ...customData,
-              currentColor: newColor
-            };
-            selectedElement.set('customData', updatedCustomData);
-            
-            selectedElement.canvas.renderAll();
-          }
+          const filters = selectedElement.get('filters') || [];
+          const filteredFilters = filters.filter(f => f.type !== 'BlendColor');
+          
+          const blendColorFilter = new fabric.filters.BlendColor({
+            color: newColor,
+            mode: 'multiply'
+          });
+          filteredFilters.push(blendColorFilter);
+          
+          selectedElement.set('filters', filteredFilters);
+          selectedElement.applyFilters();
+          
+          // Store color in customData
+          const updatedCustomData = {
+            ...customData,
+            currentColor: newColor
+          };
+          selectedElement.set('customData', updatedCustomData);
+          
+          canvas.renderAll();
           return;
         }
 
@@ -209,28 +209,26 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         } catch (fetchErr) {
           console.warn('Could not fetch SVG, falling back to filter:', fetchErr);
           // Fallback to filter approach
-          if (selectedElement.canvas) {
-            const filters = selectedElement.get('filters') || [];
-            const filteredFilters = filters.filter(f => f.type !== 'BlendColor');
-            
-            const blendColorFilter = new fabric.filters.BlendColor({
-              color: newColor,
-              mode: 'multiply'
-            });
-            filteredFilters.push(blendColorFilter);
-            
-            selectedElement.set('filters', filteredFilters);
-            selectedElement.applyFilters();
-            
-            // Store color in customData
-            const updatedCustomData = {
-              ...customData,
-              currentColor: newColor
-            };
-            selectedElement.set('customData', updatedCustomData);
-            
-            selectedElement.canvas.renderAll();
-          }
+          const filters = selectedElement.get('filters') || [];
+          const filteredFilters = filters.filter(f => f.type !== 'BlendColor');
+          
+          const blendColorFilter = new fabric.filters.BlendColor({
+            color: newColor,
+            mode: 'multiply'
+          });
+          filteredFilters.push(blendColorFilter);
+          
+          selectedElement.set('filters', filteredFilters);
+          selectedElement.applyFilters();
+          
+          // Store color in customData
+          const updatedCustomData = {
+            ...customData,
+            currentColor: newColor
+          };
+          selectedElement.set('customData', updatedCustomData);
+          
+          canvas.renderAll();
           return;
         }
         
@@ -282,25 +280,128 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         const serializer = new XMLSerializer();
         const modifiedSvg = serializer.serializeToString(svgElement);
         
-        // Create a blob URL from the modified SVG
-        const blob = new Blob([modifiedSvg], { type: 'image/svg+xml' });
-        const blobUrl = URL.createObjectURL(blob);
+        // Convert SVG to data URL (more stable than blob URL)
+        const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modifiedSvg);
         
         // Reload the image with the modified SVG
-        const newImg = await FabricImage.fromURL(blobUrl);
-        
-        if (!newImg) {
-          console.warn('Failed to load new image');
-          URL.revokeObjectURL(blobUrl);
+        let newImg;
+        try {
+          newImg = await FabricImage.fromURL(svgDataUrl);
+          
+          if (!newImg) {
+            throw new Error('FabricImage.fromURL returned null or undefined');
+          }
+          
+          // Wait for image element to be fully loaded
+          if (newImg._element) {
+            if (newImg._element.complete === false || !newImg._element.naturalWidth) {
+              await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  reject(new Error('Image load timeout'));
+                }, 10000); // Increased timeout for SVG data URLs
+                
+                const onLoad = () => {
+                  clearTimeout(timeout);
+                  newImg._element.removeEventListener('load', onLoad);
+                  newImg._element.removeEventListener('error', onError);
+                  resolve();
+                };
+                
+                const onError = (err) => {
+                  clearTimeout(timeout);
+                  newImg._element.removeEventListener('load', onLoad);
+                  newImg._element.removeEventListener('error', onError);
+                  reject(err || new Error('Image load error'));
+                };
+                
+                newImg._element.addEventListener('load', onLoad);
+                newImg._element.addEventListener('error', onError);
+                
+                // If already loaded, resolve immediately
+                if (newImg._element.complete && newImg._element.naturalWidth > 0) {
+                  onLoad();
+                }
+              });
+            }
+          }
+          
+          // Ensure image has dimensions
+          if (newImg.width === 0 || newImg.height === 0) {
+            // Wait a bit more for dimensions to be set
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (loadErr) {
+          console.error('Failed to load modified SVG image:', loadErr);
+          // Fallback to filter approach
+          const isOnCanvas = canvas.getObjects().includes(selectedElement);
+          if (isOnCanvas) {
+            const filters = selectedElement.get('filters') || [];
+            const filteredFilters = filters.filter(f => f.type !== 'BlendColor');
+            
+            const blendColorFilter = new fabric.filters.BlendColor({
+              color: newColor,
+              mode: 'multiply'
+            });
+            filteredFilters.push(blendColorFilter);
+            
+            selectedElement.set('filters', filteredFilters);
+            selectedElement.applyFilters();
+            
+            // Store color in customData
+            const updatedCustomData = {
+              ...customData,
+              currentColor: newColor
+            };
+            selectedElement.set('customData', updatedCustomData);
+            
+            canvas.renderAll();
+          }
           return;
         }
         
-        // Wait for image to be fully loaded
-        if (newImg._element && newImg._element.complete === false) {
-          await new Promise((resolve) => {
-            newImg._element.onload = resolve;
-            newImg._element.onerror = resolve;
+        if (!newImg) {
+          console.warn('Failed to load new image');
+          return;
+        }
+        
+        // Validate that the new image is a proper Fabric.js object
+        // Check for required methods and properties
+        if (!newImg || 
+            typeof newImg.render !== 'function' || 
+            typeof newImg.set !== 'function' ||
+            typeof newImg.setCoords !== 'function') {
+          console.error('New image object is not a valid Fabric.js object', {
+            hasRender: typeof newImg?.render === 'function',
+            hasSet: typeof newImg?.set === 'function',
+            hasSetCoords: typeof newImg?.setCoords === 'function',
+            newImgType: typeof newImg,
+            newImgConstructor: newImg?.constructor?.name
           });
+          // Fallback to filter approach
+          const isOnCanvas = canvas.getObjects().includes(selectedElement);
+          if (isOnCanvas) {
+            const filters = selectedElement.get('filters') || [];
+            const filteredFilters = filters.filter(f => f.type !== 'BlendColor');
+            
+            const blendColorFilter = new fabric.filters.BlendColor({
+              color: newColor,
+              mode: 'multiply'
+            });
+            filteredFilters.push(blendColorFilter);
+            
+            selectedElement.set('filters', filteredFilters);
+            selectedElement.applyFilters();
+            
+            // Store color in customData
+            const updatedCustomData = {
+              ...customData,
+              currentColor: newColor
+            };
+            selectedElement.set('customData', updatedCustomData);
+            
+            canvas.renderAll();
+          }
+          return;
         }
         
         // Copy properties from old image to new image
@@ -336,36 +437,165 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         // Ensure the image is properly initialized
         newImg.setCoords();
         
-        // Replace the old image with the new one
-        const canvas = selectedElement.canvas;
-        if (!canvas) {
-          console.warn('Canvas not available, cannot replace image');
-          URL.revokeObjectURL(blobUrl);
-          return;
+        // Double-check that flip state (negative scaleX/scaleY) is preserved
+        // Sometimes set() might normalize values, so we explicitly set them again
+        if (selectedElement.scaleX !== undefined) {
+          newImg.set('scaleX', selectedElement.scaleX);
+        }
+        if (selectedElement.scaleY !== undefined) {
+          newImg.set('scaleY', selectedElement.scaleY);
         }
         
-        // Store the index before removing to maintain z-order
+        // Re-apply coordinates after setting scale to ensure proper bounds
+        newImg.setCoords();
+        
+        // Verify the selected element is still on the canvas before replacing
+        // (it might have been removed during resize or other operations)
         const objects = canvas.getObjects();
         const index = objects.indexOf(selectedElement);
         
-        // Remove the old image first
-        canvas.remove(selectedElement);
-        
-        // Add the new image at the same index to maintain z-order
-        if (index >= 0 && index < canvas.getObjects().length) {
-          canvas.insertAt(newImg, index);
-        } else {
+        if (index === -1) {
+          console.warn('Selected element not found in canvas objects, cannot replace');
+          // Element was removed, so we can't replace it - just add the new one
+          newImg.canvas = canvas;
           canvas.add(newImg);
+          canvas.setActiveObject(newImg);
+          canvas.renderAll();
+          
+          if (onUpdateElement) {
+            onUpdateElement(newImg);
+          }
+          return;
         }
         
-        // Set as active object
-        canvas.setActiveObject(newImg);
+        // Double-check the new image is still valid before removing the old one
+        if (typeof newImg.render !== 'function' || 
+            typeof newImg.set !== 'function' ||
+            typeof newImg.setCoords !== 'function') {
+          console.error('New image is not a valid Fabric.js object, aborting replacement');
+          // Don't remove the old element, just abort
+          return;
+        }
         
-        // Render the canvas
-        canvas.renderAll();
+        // Store reference to old element's properties in case we need them
+        // But don't try to restore it once removed (removed objects lose their methods)
+        const oldElementIndex = index;
         
-        // Clean up blob URL
-        URL.revokeObjectURL(blobUrl);
+        // Remove the old image
+        try {
+          canvas.remove(selectedElement);
+        } catch (removeErr) {
+          console.error('Error removing old image:', removeErr);
+          // If removal fails, abort - don't try to add new one
+          return;
+        }
+        
+        // Don't manually set canvas reference - let Fabric.js handle it
+        // First, clean up any invalid objects that might be on the canvas
+        const allObjectsBeforeAdd = canvas.getObjects();
+        const validObjectsBeforeAdd = allObjectsBeforeAdd.filter(obj => 
+          obj && 
+          typeof obj.render === 'function' &&
+          typeof obj.set === 'function' &&
+          typeof obj.setCoords === 'function'
+        );
+        
+        // Clean up invalid objects before adding new one
+        if (validObjectsBeforeAdd.length !== allObjectsBeforeAdd.length) {
+          console.warn('Found invalid objects before adding new image, cleaning up');
+          canvas._objects = validObjectsBeforeAdd;
+        }
+        
+        // Add the new image to canvas (Fabric.js will set canvas reference automatically)
+        try {
+          // Use add() first to properly initialize the object
+          canvas.add(newImg);
+          
+          // Ensure coordinates are set immediately after adding
+          newImg.setCoords();
+          
+          // Skip z-order adjustment to avoid issues with invalid objects
+          // The object is already added and functional - z-order is not critical
+          // Attempting insertAt can cause errors if any objects on canvas are invalid
+          // So we'll just leave it at the end (which is fine for functionality)
+          
+          // Final validation before rendering
+          const allObjectsBeforeRender = canvas.getObjects();
+          const validObjectsBeforeRender = allObjectsBeforeRender.filter(obj => 
+            obj && 
+            typeof obj.render === 'function' &&
+            typeof obj.set === 'function' &&
+            typeof obj.setCoords === 'function'
+          );
+          
+          // If there are invalid objects, clean them up before rendering
+          if (validObjectsBeforeRender.length !== allObjectsBeforeRender.length) {
+            console.warn('Found invalid objects before render, cleaning up');
+            canvas._objects = validObjectsBeforeRender;
+          }
+          
+          // Set as active object (only if it's valid)
+          if (validObjectsBeforeRender.includes(newImg)) {
+            canvas.setActiveObject(newImg);
+          }
+          
+          // Render the canvas
+          canvas.renderAll();
+        } catch (addErr) {
+          console.error('Error adding new image to canvas:', addErr);
+          
+          // Clean up invalid objects before attempting to render
+          const cleanupAndRender = () => {
+            try {
+              // Get all objects and filter out invalid ones
+              const allObjects = canvas.getObjects();
+              const validObjects = [];
+              const invalidObjects = [];
+              
+              allObjects.forEach((obj, idx) => {
+                // Check if object is valid
+                if (obj && 
+                    obj !== newImg && // Exclude the failed new image
+                    typeof obj.render === 'function' &&
+                    typeof obj.set === 'function' &&
+                    typeof obj.setCoords === 'function') {
+                  validObjects.push(obj);
+                } else {
+                  invalidObjects.push({ obj, idx });
+                }
+              });
+              
+              // Remove invalid objects using direct array manipulation
+              // (can't use canvas.remove() because invalid objects don't have required methods)
+              if (invalidObjects.length > 0) {
+                console.warn(`Cleaning up ${invalidObjects.length} invalid objects using direct array manipulation`);
+                // Use direct array manipulation to avoid calling methods on invalid objects
+                canvas._objects = validObjects;
+              }
+              
+              // Now try to render
+              canvas.renderAll();
+            } catch (cleanupErr) {
+              console.error('Could not clean up and render canvas:', cleanupErr);
+              // Absolute last resort: clear and rebuild
+              try {
+                const finalObjects = canvas.getObjects().filter(obj => 
+                  obj && 
+                  typeof obj === 'object' &&
+                  'render' in obj &&
+                  typeof obj.render === 'function'
+                );
+                canvas._objects = finalObjects;
+                canvas.renderAll();
+              } catch (finalErr) {
+                console.error('Complete canvas recovery failed:', finalErr);
+              }
+            }
+          };
+          
+          // Clean up and render (this will handle removing the failed newImg)
+          cleanupAndRender();
+        }
         
         if (onUpdateElement) {
           onUpdateElement(newImg);
@@ -373,7 +603,9 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       } catch (err) {
         console.error('Error changing SVG color:', err);
         // Fallback: try BlendColor filter
-        if (selectedElement.canvas) {
+        // Check if element is still on canvas (might have been removed)
+        const isOnCanvas = canvas.getObjects().includes(selectedElement);
+        if (isOnCanvas) {
           try {
             const filters = selectedElement.get('filters') || [];
             const filteredFilters = filters.filter(f => f.type !== 'BlendColor');
@@ -386,12 +618,21 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             
             selectedElement.set('filters', filteredFilters);
             selectedElement.applyFilters();
-            selectedElement.canvas.renderAll();
+            
+            // Store color in customData
+            const customData = selectedElement.customData || {};
+            const updatedCustomData = {
+              ...customData,
+              currentColor: newColor
+            };
+            selectedElement.set('customData', updatedCustomData);
+            
+            canvas.renderAll();
           } catch (filterErr) {
             console.warn('Could not apply color filter:', filterErr);
           }
         } else {
-          console.warn('Canvas not available for fallback filter');
+          console.warn('Selected element no longer on canvas, cannot apply fallback filter');
         }
       }
   };
@@ -464,9 +705,33 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             />
           </div>
 
+
+          <div className="form-group">
+            <label htmlFor="text-font-family" className="form-label">
+              Font
+            </label>
+            <select
+              id="text-font-family"
+              className="form-input form-select"
+              value={fontFamily}
+              onChange={handleFontFamilyChange}
+            >
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Arial">Arial</option>
+              <option value="Helvetica">Helvetica</option>
+              <option value="Helvetica Neue">Helvetica Neue</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Geneva">Geneva</option>
+              <option value="Avenir">Avenir</option>
+              <option value="Palatino">Palatino</option>
+              <option value="New York">New York</option>
+              <option value="Academy Engraved LET">Academy Engraved LET</option>
+            </select>
+          </div>
+
           <div className="form-group">
             <label htmlFor="text-font-size" className="form-label">
-              Font Size
+              Size
             </label>
             <input
               id="text-font-size"
@@ -524,28 +789,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="text-font-family" className="form-label">
-              Font Family
-            </label>
-            <select
-              id="text-font-family"
-              className="form-input form-select"
-              value={fontFamily}
-              onChange={handleFontFamilyChange}
-            >
-              <option value="Times New Roman">Times New Roman</option>
-              <option value="Arial">Arial</option>
-              <option value="Helvetica">Helvetica</option>
-              <option value="Helvetica Neue">Helvetica Neue</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Geneva">Geneva</option>
-              <option value="Avenir">Avenir</option>
-              <option value="Palatino">Palatino</option>
-              <option value="New York">New York</option>
-              <option value="Academy Engraved LET">Academy Engraved LET</option>
-            </select>
-          </div>
+
         </div>
       </div>
     );

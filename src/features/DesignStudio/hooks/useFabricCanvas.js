@@ -429,49 +429,141 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       });
       
       // Scale all objects proportionally from center
-      canvas.forEachObject((obj) => {
-        // Get current position relative to canvas center
-        const oldCenterX = oldWidth / 2;
-        const oldCenterY = oldHeight / 2;
-        
-        // Calculate distance from center
-        const distFromCenterX = obj.left - oldCenterX;
-        const distFromCenterY = obj.top - oldCenterY;
-        
-        // Calculate new position
-        const newCenterX = canvasWidth / 2;
-        const newCenterY = canvasHeight / 2;
-        const newLeft = newCenterX + (distFromCenterX * scaleRatioX);
-        const newTop = newCenterY + (distFromCenterY * scaleRatioY);
-        
-        // Update position
-        obj.set({
-          left: newLeft,
-          top: newTop
-        });
-        
-        // Update dimensions (for text, this means fontSize)
-        if (obj.type === 'text') {
-          const newFontSize = obj.fontSize * scaleRatioX;
-          obj.set({
-            fontSize: newFontSize
-          });
-        } else if (obj.type === 'image') {
-          // For images, scale the scaleX and scaleY
-          obj.set({
-            scaleX: obj.scaleX * scaleRatioX,
-            scaleY: obj.scaleY * scaleRatioY
-          });
+      // First, filter out any invalid objects that don't have required methods
+      const validObjects = canvas.getObjects().filter(obj => 
+        obj && 
+        typeof obj.set === 'function' && 
+        typeof obj.setCoords === 'function' &&
+        typeof obj.render === 'function'
+      );
+      
+      // Remove invalid objects
+      // Get all objects and identify invalid ones
+      const allObjects = canvas.getObjects();
+      const invalidIndices = [];
+      
+      allObjects.forEach((obj, idx) => {
+        if (!obj || 
+            typeof obj.set !== 'function' || 
+            typeof obj.setCoords !== 'function' ||
+            typeof obj.render !== 'function') {
+          invalidIndices.push(idx);
         }
+      });
+      
+      if (invalidIndices.length > 0) {
+        console.warn(`Found ${invalidIndices.length} invalid objects during resize`);
         
-        // Recalculate hit area and coordinates for the object
-        // This is critical for proper hit detection after scaling
-        obj.setCoords();
+        // Remove invalid objects by index (in reverse order to maintain indices)
+        invalidIndices.reverse().forEach(idx => {
+          try {
+            const objToRemove = allObjects[idx];
+            if (objToRemove) {
+              canvas.remove(objToRemove);
+            }
+          } catch (err) {
+            console.warn(`Error removing invalid object at index ${idx}:`, err);
+            // If removal fails, the object might already be gone or corrupted
+            // Continue with other objects
+          }
+        });
+      }
+      
+      // Scale valid objects
+      validObjects.forEach((obj) => {
+        try {
+          // Get current position relative to canvas center
+          const oldCenterX = oldWidth / 2;
+          const oldCenterY = oldHeight / 2;
+          
+          // Calculate distance from center
+          const distFromCenterX = obj.left - oldCenterX;
+          const distFromCenterY = obj.top - oldCenterY;
+          
+          // Calculate new position
+          const newCenterX = canvasWidth / 2;
+          const newCenterY = canvasHeight / 2;
+          const newLeft = newCenterX + (distFromCenterX * scaleRatioX);
+          const newTop = newCenterY + (distFromCenterY * scaleRatioY);
+          
+          // Update position
+          obj.set({
+            left: newLeft,
+            top: newTop
+          });
+          
+          // Update dimensions (for text, this means fontSize)
+          if (obj.type === 'text') {
+            const newFontSize = obj.fontSize * scaleRatioX;
+            obj.set({
+              fontSize: newFontSize
+            });
+          } else if (obj.type === 'image') {
+            // For images, scale the scaleX and scaleY
+            obj.set({
+              scaleX: obj.scaleX * scaleRatioX,
+              scaleY: obj.scaleY * scaleRatioY
+            });
+          }
+          
+          // Recalculate hit area and coordinates for the object
+          // This is critical for proper hit detection after scaling
+          obj.setCoords();
+        } catch (err) {
+          console.warn('Error scaling object during resize:', err, obj);
+          // Try to remove the problematic object
+          try {
+            canvas.remove(obj);
+          } catch (removeErr) {
+            console.warn('Could not remove problematic object:', removeErr);
+          }
+        }
       });
       
       // Update canvas dimensions
       canvas.setDimensions({ width: canvasWidth, height: canvasHeight });
-      canvas.renderAll();
+      
+      // Final validation before rendering - ensure all objects are valid
+      const finalObjects = canvas.getObjects();
+      const finalInvalidObjects = finalObjects.filter(obj => 
+        !obj || 
+        typeof obj.render !== 'function'
+      );
+      
+      if (finalInvalidObjects.length > 0) {
+        console.warn(`Removing ${finalInvalidObjects.length} invalid objects before final render`);
+        finalInvalidObjects.forEach(invalidObj => {
+          try {
+            // Get index before removal
+            const idx = finalObjects.indexOf(invalidObj);
+            if (idx !== -1) {
+              // Use direct array manipulation as last resort
+              const currentObjects = canvas.getObjects();
+              currentObjects.splice(idx, 1);
+              // Re-set the objects array
+              canvas._objects = currentObjects.filter(o => o && typeof o.render === 'function');
+            }
+          } catch (err) {
+            console.error('Could not remove invalid object before render:', err);
+          }
+        });
+      }
+      
+      try {
+        canvas.renderAll();
+      } catch (renderErr) {
+        console.error('Error rendering canvas after resize:', renderErr);
+        // Try to clean up and render again
+        try {
+          const cleanObjects = canvas.getObjects().filter(obj => 
+            obj && typeof obj.render === 'function'
+          );
+          canvas._objects = cleanObjects;
+          canvas.renderAll();
+        } catch (cleanupErr) {
+          console.error('Could not recover from render error:', cleanupErr);
+        }
+      }
       
       // Update the scale reference for future resizes
       scale.current = newScale;
