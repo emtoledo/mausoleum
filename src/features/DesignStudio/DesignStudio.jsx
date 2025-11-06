@@ -225,7 +225,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           type: 'artwork',
           artworkId: art.id,
           artworkName: art.name,
-          defaultWidthInches: artworkWidthInches
+          defaultWidthInches: artworkWidthInches,
+          originalSource: art.imageUrl // Store original source URL for color changes
         }
       });
 
