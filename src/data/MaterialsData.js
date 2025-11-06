@@ -4,6 +4,7 @@ import grey from '../assets/images/materials/grey.png';
 import bluepearl from '../assets/images/materials/bluepearl.png';
 import red from '../assets/images/materials/red.png';
 import mahogany from '../assets/images/materials/mahogany.png';
+import base from '../assets/images/materials/base.png';
 
 export const materials = [
   {
@@ -36,5 +37,11 @@ export const materials = [
     name: 'Mahogany Granite',
     textureUrl: mahogany,
     swatch: mahogany
+  },
+  {
+    id: 'mat-006',
+    name: 'Default Base',
+    textureUrl: base,
+    swatch: base
   }
 ];

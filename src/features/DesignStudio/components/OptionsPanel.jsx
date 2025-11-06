@@ -427,8 +427,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             originalSource: oldCustomData.originalSource || imageSrc, // Store original source
             currentColor: newColor // Store current color
           },
-          elementId: selectedElement.elementId,
-          zoneId: selectedElement.zoneId
+          elementId: selectedElement.elementId
         };
         
         // Set properties on the new image

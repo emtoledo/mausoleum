@@ -28,7 +28,6 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   
   // Canvas refs
   const productCanvasRef = useRef(null);
-  const zoneCanvasRef = useRef(null);
   const fabricCanvasRef = useRef(null);
   const canvasContainerRef = useRef(null);
 
@@ -71,23 +70,36 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   // Initialize active material from initialData on first load
   useEffect(() => {
     if (!activeMaterial && materials.length > 0) {
-      let materialToSet = null;
-      
-      // Priority 1: Use material object from initialData if provided
-      if (initialData && initialData.material) {
-        materialToSet = initialData.material;
-      }
-      // Priority 2: Use defaultMaterialId from template to find matching material
-      else if (initialData && initialData.defaultMaterialId) {
-        materialToSet = materials.find(m => m.id === initialData.defaultMaterialId);
-      }
-      // Priority 3: Fallback to first material in array
-      if (!materialToSet) {
-        materialToSet = materials[0];
+      // Filter materials based on template's availableMaterials
+      let availableMaterials = materials;
+      if (initialData && initialData.availableMaterials && Array.isArray(initialData.availableMaterials)) {
+        availableMaterials = materials.filter(material => 
+          initialData.availableMaterials.includes(material.id)
+        );
       }
       
-      if (materialToSet) {
-        setActiveMaterial(materialToSet);
+      if (availableMaterials.length > 0) {
+        let materialToSet = null;
+        
+        // Priority 1: Use material object from initialData if provided
+        if (initialData && initialData.material) {
+          // Check if the material is in availableMaterials
+          if (availableMaterials.find(m => m.id === initialData.material.id)) {
+            materialToSet = initialData.material;
+          }
+        }
+        // Priority 2: Use defaultMaterialId from template to find matching material
+        if (!materialToSet && initialData && initialData.defaultMaterialId) {
+          materialToSet = availableMaterials.find(m => m.id === initialData.defaultMaterialId);
+        }
+        // Priority 3: Fallback to first available material
+        if (!materialToSet) {
+          materialToSet = availableMaterials[0];
+        }
+        
+        if (materialToSet) {
+          setActiveMaterial(materialToSet);
+        }
       }
     }
     // eslint-disable-next-line
@@ -97,12 +109,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const fabricFromHook = useFabricCanvas(
     fabricCanvasRef,
     productCanvasRef,
-    zoneCanvasRef,
     initialData,
     setSelectedElement,
     canvasSize,
     setFabricInstance, // Callback when canvas is ready
-    activeMaterial // Pass active material for product canvas fill
+    activeMaterial, // Pass active material for product canvas fill
+    materials // Pass materials array for productBase rendering
   );
 
   // Use the fabric instance from state (set via callback) or hook return value as fallback
@@ -141,12 +153,6 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
     // Add metadata for tracking
     textObject.elementId = `text-${Date.now()}`;
-    
-    // Add to canvas (Fabric will handle the first edit zone if it has zoneId)
-    if (initialData.editZones && initialData.editZones.length > 0) {
-      // Use the first edit zone as default
-      textObject.zoneId = initialData.editZones[0].id;
-    }
 
     // Add to canvas and render
     fabricInstance.add(textObject);
@@ -413,8 +419,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           id: obj.elementId || `element-${Date.now()}`,
           type: obj.type,
           x: pixelsToInches(obj.left, scale),
-          y: pixelsToInches(obj.top, scale),
-          zoneId: obj.zoneId
+          y: pixelsToInches(obj.top, scale)
         };
 
         // Add type-specific properties
@@ -642,12 +647,6 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               className="canvas-layer product-canvas"
             />
             
-            {/* Zone Canvas (middle layer) */}
-            <canvas
-              ref={zoneCanvasRef}
-              className="canvas-layer zone-canvas"
-            />
-            
             {/* Fabric Canvas (top layer) */}
             <canvas
               ref={fabricCanvasRef}
@@ -675,12 +674,23 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
 
         {/* Material Picker */}
-
-          <MaterialPicker
-            materials={materials}
-            activeMaterialId={activeMaterial?.id}
-            onSelectMaterial={handleSelectMaterial}
-          />
+          {(() => {
+            // Filter materials based on template's availableMaterials
+            let filteredMaterials = materials;
+            if (initialData && initialData.availableMaterials && Array.isArray(initialData.availableMaterials)) {
+              filteredMaterials = materials.filter(material => 
+                initialData.availableMaterials.includes(material.id)
+              );
+            }
+            
+            return (
+              <MaterialPicker
+                materials={filteredMaterials}
+                activeMaterialId={activeMaterial?.id}
+                onSelectMaterial={handleSelectMaterial}
+              />
+            );
+          })()}
 
         {/* Modal: Material Picker */}
       </div>

@@ -13,36 +13,35 @@ import { calculateScale, inchesToPixels } from '../utils/unitConverter';
 /**
  * @param {React.RefObject} fabricCanvasRef - Ref to the main Fabric.js canvas container
  * @param {React.RefObject} productCanvasRef - Ref to the product canvas (HTML5 Canvas)
- * @param {React.RefObject} zoneCanvasRef - Ref to the zone overlay canvas (HTML5 Canvas)
- * @param {Object} initialData - Template data with dimensions, editZones, and designElements
+ * @param {Object} initialData - Template data with dimensions and designElements
  * @param {Function} onElementSelect - Callback when an element is selected
  * @param {Object} canvasSize - Current canvas container size { width, height }
  * @param {Function} onCanvasReady - Callback when canvas instance is ready
  * @param {Object} activeMaterial - Currently selected material object
+ * @param {Array} materials - Array of all materials for productBase rendering
  * 
  * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial) => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial, materials = []) => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const selectedObject = useRef(null);
 
   /**
-   * Constrain an object within its edit zone boundaries
+   * Constrain an object within the canvas boundaries
    * 
    * @param {fabric.Object} obj - The object to constrain
-   * @param {Object} zone - The edit zone boundaries
    */
-  const constrainObjectInZone = useCallback((obj, zone) => {
-    if (!zone) return;
+  const constrainObjectInCanvas = useCallback((obj) => {
+    if (!obj || !fabricCanvasInstance.current) return;
 
-    // Get zone boundaries in pixels
-    const zoneLeft = inchesToPixels(zone.x, scale.current);
-    const zoneTop = inchesToPixels(zone.y, scale.current);
-    const zoneWidth = inchesToPixels(zone.width, scale.current);
-    const zoneHeight = inchesToPixels(zone.height, scale.current);
-    const zoneRight = zoneLeft + zoneWidth;
-    const zoneBottom = zoneTop + zoneHeight;
+    // Get canvas dimensions
+    const canvasWidth = fabricCanvasInstance.current.width;
+    const canvasHeight = fabricCanvasInstance.current.height;
+    const canvasLeft = 0;
+    const canvasTop = 0;
+    const canvasRight = canvasWidth;
+    const canvasBottom = canvasHeight;
 
     // Get object dimensions
     const objLeft = obj.left;
@@ -57,29 +56,29 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     let newTop = objTop;
 
     // Constrain horizontally
-    if (objLeft < zoneLeft) {
-      newLeft = zoneLeft;
-    } else if (objRight > zoneRight) {
-      newLeft = zoneRight - objWidth;
+    if (objLeft < canvasLeft) {
+      newLeft = canvasLeft;
+    } else if (objRight > canvasRight) {
+      newLeft = canvasRight - objWidth;
     }
 
     // Constrain vertically
-    if (objTop < zoneTop) {
-      newTop = zoneTop;
-    } else if (objBottom > zoneBottom) {
-      newTop = zoneBottom - objHeight;
+    if (objTop < canvasTop) {
+      newTop = canvasTop;
+    } else if (objBottom > canvasBottom) {
+      newTop = canvasBottom - objHeight;
     }
 
-    // Constrain scale if object would exceed zone
+    // Constrain scale if object would exceed canvas
     let constrainedScaleX = obj.scaleX;
     let constrainedScaleY = obj.scaleY;
 
-    if (objWidth > zoneWidth) {
-      constrainedScaleX = zoneWidth / obj.width;
+    if (objWidth > canvasWidth) {
+      constrainedScaleX = canvasWidth / obj.width;
     }
 
-    if (objHeight > zoneHeight) {
-      constrainedScaleY = zoneHeight / obj.height;
+    if (objHeight > canvasHeight) {
+      constrainedScaleY = canvasHeight / obj.height;
     }
 
     // Apply constraints
@@ -89,7 +88,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       scaleX: constrainedScaleX,
       scaleY: constrainedScaleY
     });
-  }, []);
+  }, [fabricCanvasInstance]);
 
   /**
    * Draw the product canvas with template image and material fill
@@ -103,11 +102,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Calculate canvas size based on real-world dimensions
-    const realWorldWidth = initialData.realWorldWidth || 24;
-    const realWorldHeight = initialData.realWorldHeight || 18;
-    const canvasWidth = inchesToPixels(realWorldWidth, scale.current);
-    const canvasHeight = inchesToPixels(realWorldHeight, scale.current);
+    // Calculate canvas size - use canvas dimensions if specified, otherwise fall back to realWorld dimensions
+    const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
+      ? initialData.canvas.width 
+      : (initialData.realWorldWidth || 24);
+    const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+      ? initialData.canvas.height 
+      : (initialData.realWorldHeight || 18);
+    
+    const canvasWidth = inchesToPixels(canvasWidthInches, scale.current);
+    const canvasHeight = inchesToPixels(canvasHeightInches, scale.current);
 
     // Set canvas size
     canvas.width = canvasWidth;
@@ -116,6 +120,68 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     // Draw template image with material fill
     const templateImg = new Image();
     templateImg.crossOrigin = 'anonymous'; // Enable CORS if needed
+    
+    // Helper function to draw productBase rectangles
+    const drawProductBases = () => {
+      if (!initialData || !initialData.productBase || !Array.isArray(initialData.productBase)) {
+        return;
+      }
+      
+      // Draw each productBase rectangle
+      initialData.productBase.forEach((base) => {
+        if (!base.material || base.x === undefined || base.y === undefined || !base.width || !base.height) {
+          return;
+        }
+        
+        // Find the material for this base
+        const baseMaterial = materials.find(m => m.id === base.material);
+        if (!baseMaterial || !baseMaterial.textureUrl) {
+          console.warn(`Material ${base.material} not found for productBase ${base.id}`);
+          return;
+        }
+        
+        // Calculate pixel positions and dimensions
+        const baseX = inchesToPixels(base.x, scale.current);
+        const baseY = inchesToPixels(base.y, scale.current);
+        const baseWidth = inchesToPixels(base.width, scale.current);
+        const baseHeight = inchesToPixels(base.height, scale.current);
+        
+        // Load and draw the base material texture
+        const baseMaterialImg = new Image();
+        baseMaterialImg.crossOrigin = 'anonymous';
+        
+        baseMaterialImg.onload = () => {
+          // Create a pattern from the base material texture
+          const basePattern = ctx.createPattern(baseMaterialImg, 'repeat');
+          
+          if (basePattern) {
+            // Save context state
+            ctx.save();
+            
+            // Fill the rectangle with the material pattern
+            ctx.fillStyle = basePattern;
+            ctx.fillRect(baseX, baseY, baseWidth, baseHeight);
+            
+            // Restore context state
+            ctx.restore();
+          } else {
+            console.warn(`Failed to create pattern for base material ${base.material}`);
+          }
+        };
+        
+        baseMaterialImg.onerror = () => {
+          console.warn(`Failed to load base material texture: ${baseMaterial.textureUrl}`);
+        };
+        
+        baseMaterialImg.src = baseMaterial.textureUrl;
+      });
+    };
+    
+    // Calculate template SVG dimensions using realWorldWidth and realWorldHeight
+    const templateWidthInches = initialData.realWorldWidth || 24;
+    const templateHeightInches = initialData.realWorldHeight || 18;
+    const templateWidth = inchesToPixels(templateWidthInches, scale.current);
+    const templateHeight = inchesToPixels(templateHeightInches, scale.current);
     
     templateImg.onload = () => {
       // Helper function to draw overlay after base template/material is drawn
@@ -132,8 +198,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
             if (activeMaterial && activeMaterial.overlayFill) {
               // Create a temporary canvas to draw the overlay with fill color
               const overlayCanvas = document.createElement('canvas');
-              overlayCanvas.width = canvas.width;
-              overlayCanvas.height = canvas.height;
+              overlayCanvas.width = templateWidth;
+              overlayCanvas.height = templateHeight;
               const overlayCtx = overlayCanvas.getContext('2d');
               
               // Fill the temporary canvas with the overlay fill color
@@ -148,11 +214,11 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
               // Reset composite operation
               overlayCtx.globalCompositeOperation = 'source-over';
               
-              // Draw the filled overlay onto the main canvas
-              ctx.drawImage(overlayCanvas, 0, 0, canvas.width, canvas.height);
+              // Draw the filled overlay onto the main canvas at template position
+              ctx.drawImage(overlayCanvas, 0, 0, templateWidth, templateHeight);
             } else {
-              // No overlayFill specified, just draw the overlay as-is
-              ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
+              // No overlayFill specified, just draw the overlay as-is at template size
+              ctx.drawImage(overlayImg, 0, 0, templateWidth, templateHeight);
             }
             
             ctx.restore();
@@ -176,41 +242,48 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
           const pattern = ctx.createPattern(materialImg, 'repeat');
           
           if (pattern) {
-            // Fill entire canvas with material pattern
+            // Fill template area with material pattern
             ctx.fillStyle = pattern;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, templateWidth, templateHeight);
             
             // Apply the SVG shape as a mask using composite operation
             // This will only show the material pattern where the SVG has pixels
             ctx.globalCompositeOperation = 'destination-in';
-            ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
             
             // Reset composite operation
             ctx.globalCompositeOperation = 'source-over';
           } else {
             // Fallback: just draw the template without material fill
-            ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
           }
           
-          // Draw overlay on top of material-filled template
-          drawOverlay();
-        };
-        
-        materialImg.onerror = () => {
-          console.warn('Failed to load material texture:', activeMaterial.textureUrl);
-          // Fallback: just draw the template without material fill
-          ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
+            // Draw overlay on top of material-filled template
+            drawOverlay();
+            
+            // Draw productBase rectangles after overlay
+            drawProductBases();
+          };
+          
+          materialImg.onerror = () => {
+            console.warn('Failed to load material texture:', activeMaterial.textureUrl);
+            // Fallback: just draw the template without material fill
+            ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
+            // Draw overlay on top
+            drawOverlay();
+            // Draw productBase rectangles
+            drawProductBases();
+          };
+          
+          materialImg.src = activeMaterial.textureUrl;
+        } else {
+          // No material selected, just draw the template SVG as-is at template size
+          ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
           // Draw overlay on top
           drawOverlay();
-        };
-        
-        materialImg.src = activeMaterial.textureUrl;
-      } else {
-        // No material selected, just draw the template SVG as-is
-        ctx.drawImage(templateImg, 0, 0, canvas.width, canvas.height);
-        // Draw overlay on top
-        drawOverlay();
-      }
+          // Draw productBase rectangles
+          drawProductBases();
+        }
     };
     
     templateImg.onerror = () => {
@@ -222,49 +295,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       templateImg.src = initialData.imageUrl;
     }
 
-  }, [productCanvasRef, initialData, scale, activeMaterial]);
+  }, [productCanvasRef, initialData, scale, activeMaterial, materials]);
 
-  /**
-   * Draw the zone overlay canvas with edit zones
-   */
-  const drawZoneCanvas = useCallback(() => {
-    if (!zoneCanvasRef.current || !initialData || !initialData.editZones) return;
-
-    const canvas = zoneCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Match canvas size to product canvas
-    const realWorldWidth = initialData.realWorldWidth || 24;
-    const realWorldHeight = initialData.realWorldHeight || 18;
-    const canvasWidth = inchesToPixels(realWorldWidth, scale.current);
-    const canvasHeight = inchesToPixels(realWorldHeight, scale.current);
-
-    // Set canvas size
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-
-    // Draw edit zones
-    initialData.editZones.forEach(zone => {
-      const x = inchesToPixels(zone.x, scale.current);
-      const y = inchesToPixels(zone.y, scale.current);
-      const width = inchesToPixels(zone.width, scale.current);
-      const height = inchesToPixels(zone.height, scale.current);
-
-      // Draw zone boundary (semi-transparent overlay)
-      ctx.strokeStyle = 'rgba(0, 123, 255, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      ctx.strokeRect(x, y, width, height);
-
-      // Draw zone background (very subtle)
-      ctx.fillStyle = 'rgba(0, 123, 255, 0.05)';
-      ctx.fillRect(x, y, width, height);
-    });
-
-  }, [zoneCanvasRef, initialData, scale]);
 
   /**
    * Create Fabric.js objects from design elements
@@ -320,7 +352,6 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       if (fabricObject) {
         // Store element metadata
         fabricObject.elementId = element.id;
-        fabricObject.zoneId = element.zoneId;
 
         canvas.add(fabricObject);
       }
@@ -329,13 +360,6 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
     canvas.renderAll();
   }, [scale]);
 
-  /**
-   * Get edit zone for an object
-   */
-  const getEditZoneForObject = useCallback((obj) => {
-    if (!initialData || !initialData.editZones || !obj.zoneId) return null;
-    return initialData.editZones.find(zone => zone.id === obj.zoneId);
-  }, [initialData]);
 
   /**
    * Initialize Fabric.js canvas
@@ -351,14 +375,23 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
 
     const container = fabricCanvasRef.current;
     
-    // Calculate scale based on real-world dimensions and responsive canvas width
+    // Calculate canvas dimensions - use canvas dimensions if specified, otherwise fall back to realWorld dimensions
+    const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
+      ? initialData.canvas.width 
+      : (initialData.realWorldWidth || 24);
+    const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+      ? initialData.canvas.height 
+      : (initialData.realWorldHeight || 18);
+    
+    // Calculate scale based on canvas width (not realWorldWidth) for proper scaling
+    // But use realWorldWidth for object positioning/scaling calculations
     const realWorldWidth = initialData.realWorldWidth || 24;
-    const realWorldHeight = initialData.realWorldHeight || 18;
     
     // Use responsive canvas size from container
     const canvasWidth = canvasSize.width;
-    const canvasHeight = (canvasWidth / realWorldWidth) * realWorldHeight;
+    const canvasHeight = (canvasWidth / canvasWidthInches) * canvasHeightInches;
 
+    // Scale is still calculated based on realWorldWidth for object positioning
     scale.current = calculateScale(realWorldWidth, canvasWidth);
 
     // Create or update Fabric.js canvas
@@ -588,17 +621,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
         lowerCanvas.style.transform = 'translate(-50%, -50%)';
       }
       
-      // Redraw product and zone canvases with new scale
+      // Redraw product canvas with new scale
       drawProductCanvas();
-      drawZoneCanvas();
     }
 
     const canvas = fabricCanvasInstance.current;
 
-    // Draw product and zone canvases (only on initial creation, not on resize)
+    // Draw product canvas (only on initial creation, not on resize)
     if (!fabricCanvasInstance.current || (fabricCanvasInstance.current && !fabricCanvasInstance.current.listening)) {
       drawProductCanvas();
-      drawZoneCanvas();
     }
 
     // Only populate and set up event listeners on first creation
@@ -641,20 +672,12 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, zoneCanvasRef
       // Object modification event listeners
       canvas.on('object:moving', (e) => {
         const obj = e.target;
-        const zone = getEditZoneForObject(obj);
-        
-        if (zone) {
-          constrainObjectInZone(obj, zone);
-        }
+        constrainObjectInCanvas(obj);
       });
 
       canvas.on('object:scaling', (e) => {
         const obj = e.target;
-        const zone = getEditZoneForObject(obj);
-        
-        if (zone) {
-          constrainObjectInZone(obj, zone);
-        }
+        constrainObjectInCanvas(obj);
       });
 
       canvas.on('object:rotating', (e) => {
