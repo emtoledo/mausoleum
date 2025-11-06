@@ -43,30 +43,65 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     const canvasRight = canvasWidth;
     const canvasBottom = canvasHeight;
 
-    // Get object dimensions
-    const objLeft = obj.left;
-    const objTop = obj.top;
-    const objWidth = obj.width * obj.scaleX;
-    const objHeight = obj.height * obj.scaleY;
-    const objRight = objLeft + objWidth;
-    const objBottom = objTop + objHeight;
+    // Get object dimensions (accounting for scale)
+    const objWidth = Math.abs(obj.width * obj.scaleX);
+    const objHeight = Math.abs(obj.height * obj.scaleY);
+    
+    // Get object origin point
+    const originX = obj.originX || 'left';
+    const originY = obj.originY || 'top';
+    
+    // Calculate actual bounding box based on origin point
+    let objLeft, objTop, objRight, objBottom;
+    
+    if (originX === 'center') {
+      objLeft = obj.left - (objWidth / 2);
+      objRight = obj.left + (objWidth / 2);
+    } else {
+      objLeft = obj.left;
+      objRight = obj.left + objWidth;
+    }
+    
+    if (originY === 'center') {
+      objTop = obj.top - (objHeight / 2);
+      objBottom = obj.top + (objHeight / 2);
+    } else {
+      objTop = obj.top;
+      objBottom = obj.top + objHeight;
+    }
 
     // Constrain position
-    let newLeft = objLeft;
-    let newTop = objTop;
+    let newLeft = obj.left;
+    let newTop = obj.top;
 
     // Constrain horizontally
     if (objLeft < canvasLeft) {
-      newLeft = canvasLeft;
+      if (originX === 'center') {
+        newLeft = canvasLeft + (objWidth / 2);
+      } else {
+        newLeft = canvasLeft;
+      }
     } else if (objRight > canvasRight) {
-      newLeft = canvasRight - objWidth;
+      if (originX === 'center') {
+        newLeft = canvasRight - (objWidth / 2);
+      } else {
+        newLeft = canvasRight - objWidth;
+      }
     }
 
     // Constrain vertically
     if (objTop < canvasTop) {
-      newTop = canvasTop;
+      if (originY === 'center') {
+        newTop = canvasTop + (objHeight / 2);
+      } else {
+        newTop = canvasTop;
+      }
     } else if (objBottom > canvasBottom) {
-      newTop = canvasBottom - objHeight;
+      if (originY === 'center') {
+        newTop = canvasBottom - (objHeight / 2);
+      } else {
+        newTop = canvasBottom - objHeight;
+      }
     }
 
     // Constrain scale if object would exceed canvas
@@ -74,11 +109,11 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     let constrainedScaleY = obj.scaleY;
 
     if (objWidth > canvasWidth) {
-      constrainedScaleX = canvasWidth / obj.width;
+      constrainedScaleX = (canvasWidth / obj.width) * Math.sign(obj.scaleX || 1);
     }
 
     if (objHeight > canvasHeight) {
-      constrainedScaleY = canvasHeight / obj.height;
+      constrainedScaleY = (canvasHeight / obj.height) * Math.sign(obj.scaleY || 1);
     }
 
     // Apply constraints
@@ -88,6 +123,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       scaleX: constrainedScaleX,
       scaleY: constrainedScaleY
     });
+    
+    // Update coordinates after constraint
+    obj.setCoords();
   }, [fabricCanvasInstance]);
 
   /**
