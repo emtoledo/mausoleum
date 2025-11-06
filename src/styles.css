@@ -2472,7 +2472,7 @@ body:has(.canvas-layout) .footer-branding {
 /* Responsive adjustments */
 @media (max-width: 1200px) {
     .design-studio-layout {
-        grid-template-columns: 240px 1fr 280px;
+        /*grid-template-columns: 240px 1fr 280px;*/
     }
 }
 
