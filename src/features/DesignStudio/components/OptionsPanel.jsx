@@ -425,7 +425,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={handleDelete}
             title="Delete element"
           >
-            🗑️
+            <img src="/images/delete_icon.png" alt="Text" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
           </button>
         </div>
 
@@ -437,7 +437,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={onCenterHorizontal}
             title="Center horizontally"
           >
-            ↔️ Center H
+            <img src="/images/hcenter_icon.png" alt="Text" className="options-panel-icon" />
           </button>
           <button
             type="button"
@@ -445,7 +445,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={onCenterVertical}
             title="Center vertically"
           >
-            ↕️ Center V
+            <img src="/images/vcenter_icon.png" alt="Text" className="options-panel-icon" />
           </button>
         </div>
         
@@ -563,7 +563,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={handleDelete}
             title="Delete element"
           >
-            🗑️
+            <img src="/images/delete_icon.png" alt="Text" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
           </button>
         </div>
 
@@ -575,7 +575,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={onCenterHorizontal}
             title="Center horizontally"
           >
-            ↔️ Center H
+            <img src="/images/hcenter_icon.png" alt="Text" className="options-panel-icon" />
           </button>
           <button
             type="button"
@@ -583,7 +583,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={onCenterVertical}
             title="Center vertically"
           >
-            ↕️ Center V
+            <img src="/images/vcenter_icon.png" alt="Text" className="options-panel-icon" />
           </button>
         </div>
 
@@ -595,7 +595,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={onFlipHorizontal}
             title="Flip horizontally"
           >
-            ⇄ Flip H
+            <img src="/images/hflip_icon.png" alt="Text" className="options-panel-icon" />
           </button>
           <button
             type="button"
@@ -603,7 +603,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             onClick={onFlipVertical}
             title="Flip vertically"
           >
-            ⇅ Flip V
+            <img src="/images/vflip_icon.png" alt="Text" className="options-panel-icon" />
           </button>
         </div>
         

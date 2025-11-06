@@ -2345,6 +2345,11 @@ body:has(.canvas-layout) .footer-branding {
     margin: 0;
 }
 
+.options-panel-icon {
+    width: 14px;
+    height: 14px;
+}
+
 .options-panel-delete-button {
     border: none;
     border-radius: 4px;
@@ -2359,7 +2364,7 @@ body:has(.canvas-layout) .footer-branding {
 }
 
 .options-panel-delete-button:hover {
-    background: #cc0000;
+    background: #f7b2b2;
 }
 
 .options-panel-delete-button:active {
@@ -2379,13 +2384,13 @@ body:has(.canvas-layout) .footer-branding {
     border: none;
     border-radius: 4px;
     padding: 8px 12px;
-    font-size: 14px;
+    font-size: 0;
     cursor: pointer;
     transition: background 0.2s;
 }
 
 .options-panel-action-button:hover {
-    background: #0056b3;
+    background: #cbcccc;
 }
 
 .options-panel-action-button:active {
