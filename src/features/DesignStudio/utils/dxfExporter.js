@@ -1,15 +1,66 @@
 /**
  * DXF Exporter Utility
  * 
- * Converts Fabric.js canvas state into high-precision, real-world-scale DXF files
- * for CNC manufacturing. Handles fonts, coordinate transformations, and vector paths.
+ * Converts all canvas objects (from both product-canvas and fabric-canvas) into
+ * a single unified DXF file with proper coordinate system conversion.
  */
 
 import opentype from 'opentype.js';
 import * as maker from 'makerjs';
+import * as fabric from 'fabric';
 
 // Module-level cache to store loaded fonts
 const fontCache = new Map();
+
+/**
+ * Recursively calculates the bounding box of all paths within a Maker.js model
+ * 
+ * @param {Object} model - Maker.js model
+ * @param {Object} bounds - Bounds object to accumulate results (optional)
+ * @returns {Object} - Bounds object with {minX, minY, maxX, maxY}
+ */
+function getModelBounds(model, bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }) {
+  if (model.paths) {
+    Object.keys(model.paths).forEach(pathKey => {
+      const path = model.paths[pathKey];
+      
+      if (path.origin && Array.isArray(path.origin)) {
+        bounds.minX = Math.min(bounds.minX, path.origin[0]);
+        bounds.minY = Math.min(bounds.minY, path.origin[1]);
+        bounds.maxX = Math.max(bounds.maxX, path.origin[0]);
+        bounds.maxY = Math.max(bounds.maxY, path.origin[1]);
+      }
+      if (path.end && Array.isArray(path.end)) {
+        bounds.minX = Math.min(bounds.minX, path.end[0]);
+        bounds.minY = Math.min(bounds.minY, path.end[1]);
+        bounds.maxX = Math.max(bounds.maxX, path.end[0]);
+        bounds.maxY = Math.max(bounds.maxY, path.end[1]);
+      }
+      if (path.center && Array.isArray(path.center)) {
+        if (path.radius !== undefined) {
+          const r = path.radius;
+          bounds.minX = Math.min(bounds.minX, path.center[0] - r);
+          bounds.minY = Math.min(bounds.minY, path.center[1] - r);
+          bounds.maxX = Math.max(bounds.maxX, path.center[0] + r);
+          bounds.maxY = Math.max(bounds.maxY, path.center[1] + r);
+        } else {
+          bounds.minX = Math.min(bounds.minX, path.center[0]);
+          bounds.minY = Math.min(bounds.minY, path.center[1]);
+          bounds.maxX = Math.max(bounds.maxX, path.center[0]);
+          bounds.maxY = Math.max(bounds.maxY, path.center[1]);
+        }
+      }
+    });
+  }
+  
+  if (model.models) {
+    Object.keys(model.models).forEach(modelKey => {
+      getModelBounds(model.models[modelKey], bounds);
+    });
+  }
+  
+  return bounds;
+}
 
 /**
  * Converts an SVG file to maker.js models
@@ -32,36 +83,46 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
     const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
     const svgElement = svgDoc.documentElement;
     
-    // Get SVG viewBox or dimensions
-    const viewBox = svgElement.getAttribute('viewBox');
-    let svgWidth = parseFloat(svgElement.getAttribute('width')) || widthInches;
-    let svgHeight = parseFloat(svgElement.getAttribute('height')) || heightInches;
+    // Read the SVG's coordinate system from viewBox or width/height
+    let svgCoordWidth = null;
+    let svgCoordHeight = null;
     
+    // Try viewBox first (most reliable)
+    const viewBox = svgElement.getAttribute('viewBox');
     if (viewBox) {
-      const viewBoxValues = viewBox.split(/\s+|,/);
-      svgWidth = parseFloat(viewBoxValues[2]) || svgWidth;
-      svgHeight = parseFloat(viewBoxValues[3]) || svgHeight;
+      const viewBoxValues = viewBox.split(/\s+|,/).filter(v => v);
+      if (viewBoxValues.length >= 4) {
+        svgCoordWidth = parseFloat(viewBoxValues[2]);
+        svgCoordHeight = parseFloat(viewBoxValues[3]);
+        console.log(`SVG viewBox found: ${viewBox} → coordinate system: ${svgCoordWidth} x ${svgCoordHeight}`);
+      }
     }
     
-    // Calculate scale factor to convert SVG units to inches
-    const scaleX = widthInches / svgWidth;
-    const scaleY = heightInches / svgHeight;
+    // Fallback to width/height attributes
+    if (!svgCoordWidth || !svgCoordHeight) {
+      svgCoordWidth = parseFloat(svgElement.getAttribute('width')) || null;
+      svgCoordHeight = parseFloat(svgElement.getAttribute('height')) || null;
+      if (svgCoordWidth && svgCoordHeight) {
+        console.log(`SVG width/height found: ${svgCoordWidth} x ${svgCoordHeight}`);
+      }
+    }
     
-    // Extract all path elements and other shape elements
+    console.log(`Converting SVG to Maker.js model`);
+    console.log(`SVG coordinate system: ${svgCoordWidth} x ${svgCoordHeight}`);
+    console.log(`Target template dimensions: ${widthInches}" x ${heightInches}"`);
+    
+    // Convert all SVG elements to Maker.js models at their natural coordinates
     const paths = svgElement.querySelectorAll('path');
     const models = {};
     let modelIndex = 0;
     
-    // Convert path elements
+    // Convert path elements (no transformation - use coordinates as-is)
     paths.forEach((path) => {
       const pathData = path.getAttribute('d');
       if (pathData) {
         try {
-          // Convert SVG path to maker.js model
           const pathModel = maker.importer.fromSVGPathData(pathData);
           if (pathModel && pathModel.paths) {
-            // Scale the path to match desired dimensions
-            maker.model.scale(pathModel, scaleX, scaleY);
             models[`path-${modelIndex++}`] = pathModel;
           }
         } catch (err) {
@@ -70,14 +131,14 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
       }
     });
     
-    // Convert rectangle elements
+    // Convert rectangle elements (no transformation)
     const rects = svgElement.querySelectorAll('rect');
     rects.forEach((rect) => {
       try {
-        const x = (parseFloat(rect.getAttribute('x')) || 0) * scaleX;
-        const y = (parseFloat(rect.getAttribute('y')) || 0) * scaleY;
-        const w = (parseFloat(rect.getAttribute('width')) || 0) * scaleX;
-        const h = (parseFloat(rect.getAttribute('height')) || 0) * scaleY;
+        const x = parseFloat(rect.getAttribute('x')) || 0;
+        const y = parseFloat(rect.getAttribute('y')) || 0;
+        const w = parseFloat(rect.getAttribute('width')) || 0;
+        const h = parseFloat(rect.getAttribute('height')) || 0;
         if (w > 0 && h > 0) {
           const rectModel = new maker.models.Rectangle(w, h);
           maker.model.move(rectModel, [x, y]);
@@ -88,16 +149,14 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
       }
     });
     
-    // Convert circle elements to SVG path data (more reliable)
+    // Convert circle elements
     const circles = svgElement.querySelectorAll('circle');
     circles.forEach((circle) => {
       try {
-        const cx = (parseFloat(circle.getAttribute('cx')) || 0) * scaleX;
-        const cy = (parseFloat(circle.getAttribute('cy')) || 0) * scaleY;
-        const r = (parseFloat(circle.getAttribute('r')) || 0) * Math.min(scaleX, scaleY);
+        const cx = parseFloat(circle.getAttribute('cx')) || 0;
+        const cy = parseFloat(circle.getAttribute('cy')) || 0;
+        const r = parseFloat(circle.getAttribute('r')) || 0;
         if (r > 0) {
-          // Convert circle to SVG path data and import it
-          // Circle path: M cx-r,cy A r,r 0 1,1 cx+r,cy A r,r 0 1,1 cx-r,cy
           const pathData = `M ${cx - r},${cy} A ${r},${r} 0 1,1 ${cx + r},${cy} A ${r},${r} 0 1,1 ${cx - r},${cy}`;
           const pathModel = maker.importer.fromSVGPathData(pathData);
           if (pathModel && pathModel.paths) {
@@ -109,17 +168,15 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
       }
     });
     
-    // Convert ellipse elements to SVG path data
+    // Convert ellipse elements
     const ellipses = svgElement.querySelectorAll('ellipse');
     ellipses.forEach((ellipse) => {
       try {
-        const cx = (parseFloat(ellipse.getAttribute('cx')) || 0) * scaleX;
-        const cy = (parseFloat(ellipse.getAttribute('cy')) || 0) * scaleY;
-        const rx = (parseFloat(ellipse.getAttribute('rx')) || 0) * scaleX;
-        const ry = (parseFloat(ellipse.getAttribute('ry')) || 0) * scaleY;
+        const cx = parseFloat(ellipse.getAttribute('cx')) || 0;
+        const cy = parseFloat(ellipse.getAttribute('cy')) || 0;
+        const rx = parseFloat(ellipse.getAttribute('rx')) || 0;
+        const ry = parseFloat(ellipse.getAttribute('ry')) || 0;
         if (rx > 0 && ry > 0) {
-          // Convert ellipse to SVG path data
-          // Ellipse path: M cx-rx,cy A rx,ry 0 1,1 cx+rx,cy A rx,ry 0 1,1 cx-rx,cy
           const pathData = `M ${cx - rx},${cy} A ${rx},${ry} 0 1,1 ${cx + rx},${cy} A ${rx},${ry} 0 1,1 ${cx - rx},${cy}`;
           const pathModel = maker.importer.fromSVGPathData(pathData);
           if (pathModel && pathModel.paths) {
@@ -135,10 +192,10 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
     const lines = svgElement.querySelectorAll('line');
     lines.forEach((line) => {
       try {
-        const x1 = (parseFloat(line.getAttribute('x1')) || 0) * scaleX;
-        const y1 = (parseFloat(line.getAttribute('y1')) || 0) * scaleY;
-        const x2 = (parseFloat(line.getAttribute('x2')) || 0) * scaleX;
-        const y2 = (parseFloat(line.getAttribute('y2')) || 0) * scaleY;
+        const x1 = parseFloat(line.getAttribute('x1')) || 0;
+        const y1 = parseFloat(line.getAttribute('y1')) || 0;
+        const x2 = parseFloat(line.getAttribute('x2')) || 0;
+        const y2 = parseFloat(line.getAttribute('y2')) || 0;
         const lineModel = {
           paths: {
             line: new maker.paths.Line([x1, y1], [x2, y2])
@@ -156,85 +213,105 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
     }
     
     // Combine all elements into a single model
-    // If we have nested models, we need to return them in a way that maker.js can handle
-    // Maker.js expects either a model with paths, or a model with nested models
     let combinedModel;
-    
     if (Object.keys(models).length === 1) {
-      // Single model - return it directly
       combinedModel = Object.values(models)[0];
     } else {
-      // Multiple models - combine them
       combinedModel = { models };
     }
     
-    // Note: SVG uses top-left origin, but we'll handle coordinate conversion
-    // during positioning. The paths are extracted in SVG coordinate space,
-    // scaled to match desired dimensions, and then positioned in DXF space.
+    // Get bounds to verify and optionally normalize
+    const actualBounds = getModelBounds(combinedModel);
+    
+    if (isFinite(actualBounds.minX) && isFinite(actualBounds.minY) && 
+        isFinite(actualBounds.maxX) && isFinite(actualBounds.maxY)) {
+      
+      const actualWidth = actualBounds.maxX - actualBounds.minX;
+      const actualHeight = actualBounds.maxY - actualBounds.minY;
+      
+      console.log(`SVG path bounds (original): [${actualBounds.minX}, ${actualBounds.minY}] to [${actualBounds.maxX}, ${actualBounds.maxY}]`);
+      console.log(`SVG path dimensions (original): ${actualWidth} x ${actualHeight}`);
+      
+      // Normalize to [0,0] first
+      maker.model.move(combinedModel, [-actualBounds.minX, -actualBounds.minY]);
+      console.log(`Normalized to origin [0, 0]`);
+      
+      // Scale based on SVG coordinate system if available, otherwise use path bounds
+      if (svgCoordWidth && svgCoordHeight && svgCoordWidth > 0 && svgCoordHeight > 0) {
+        // Use SVG coordinate system as reference
+        const scaleX = widthInches / svgCoordWidth;
+        const scaleY = heightInches / svgCoordHeight;
+        console.log(`Scaling from SVG coordinate system (${svgCoordWidth} x ${svgCoordHeight}) to template (${widthInches}" x ${heightInches}"): scaleX=${scaleX}, scaleY=${scaleY}`);
+        maker.model.scale(combinedModel, scaleX, scaleY);
+      } else if (actualWidth > 0 && actualHeight > 0) {
+        // Fallback: use path bounds
+        const scaleX = widthInches / actualWidth;
+        const scaleY = heightInches / actualHeight;
+        console.log(`Scaling from path bounds (${actualWidth} x ${actualHeight}) to template (${widthInches}" x ${heightInches}"): scaleX=${scaleX}, scaleY=${scaleY}`);
+        maker.model.scale(combinedModel, scaleX, scaleY);
+      } else {
+        console.warn('Invalid dimensions, cannot scale');
+        return new maker.models.Rectangle(widthInches, heightInches);
+      }
+      
+      // Verify final bounds after scaling
+      const finalBounds = getModelBounds(combinedModel);
+      const finalWidth = finalBounds.maxX - finalBounds.minX;
+      const finalHeight = finalBounds.maxY - finalBounds.minY;
+      console.log(`SVG path bounds (after scaling): [${finalBounds.minX}, ${finalBounds.minY}] to [${finalBounds.maxX}, ${finalBounds.maxY}]`);
+      console.log(`SVG path dimensions (after scaling): ${finalWidth}" x ${finalHeight}"`);
+      console.log(`Expected template dimensions: ${widthInches}" x ${heightInches}"`);
+      
+      if (Math.abs(finalWidth - widthInches) > 0.1 || Math.abs(finalHeight - heightInches) > 0.1) {
+        console.warn(`WARNING: Final dimensions don't match template! Expected ${widthInches}" x ${heightInches}", got ${finalWidth}" x ${finalHeight}"`);
+      }
+    } else {
+      console.warn('Could not determine path bounds, using fallback rectangle');
+      return new maker.models.Rectangle(widthInches, heightInches);
+    }
     
     return combinedModel;
   } catch (error) {
     console.warn(`Failed to convert SVG to maker model: ${svgUrl}`, error);
-    // Return a rectangle as fallback
     return new maker.models.Rectangle(widthInches, heightInches);
   }
 }
 
 /**
- * Asynchronously loads a font from the /public/fonts/ directory and caches it
- * 
- * @param {string} fontFamily - The font family name
- * @returns {Promise<opentype.Font>} - The loaded font
+ * Font mapping for opentype.js
  */
-// Map font family names to actual filenames (used in error messages)
-// Note: Filenames must match exactly what's in public/fonts/
 const fontMap = {
   'Arial': 'Arial.ttf',
-  'Times New Roman': 'Times New Roman.ttf', // File has spaces in name
-  'Helvetica': 'Helvetica.ttc', // Note: .ttc file (TrueType Collection)
+  'Times New Roman': 'Times New Roman.ttf',
+  'Helvetica': 'Helvetica.ttc',
   'Georgia': 'Georgia.ttf',
-  'Courier New': 'CourierNew.ttf', // May need to check actual filename
+  'Courier New': 'CourierNew.ttf',
   'Verdana': 'Verdana.ttf',
   'New York': 'NewYork.ttf'
 };
 
 /**
- * Asynchronously loads a font from the /public/fonts/ directory using opentype.js
- * 
- * @param {string} fontFamily - The font family name
- * @returns {Promise<opentype.Font>} - The loaded font, or null if failed
+ * Loads a font from /public/fonts/ directory
  */
 async function getFont(fontFamily) {
   if (fontCache.has(fontFamily)) {
-    const cached = fontCache.get(fontFamily);
-    return cached; // Return cached font or null
+    return fontCache.get(fontFamily);
   }
 
-  // Check if we have a mapping for this font family
   let fontFilename = fontMap[fontFamily];
-  
-  // If no mapping, try the font family name as-is (with spaces)
-  // Many font files keep spaces in their names
   if (!fontFilename) {
     fontFilename = `${fontFamily}.ttf`;
   }
   
-  // Encode the filename to handle spaces and special characters in URLs
   const encodedFilename = encodeURIComponent(fontFilename);
   const fontUrl = `/fonts/${encodedFilename}`;
   
-  console.log(`Attempting to load font: ${fontFamily} from ${fontUrl}`);
-
   try {
-    // Use opentype.js to load the font file
     const font = await opentype.load(fontUrl);
     fontCache.set(fontFamily, font);
-    console.log(`Successfully loaded font using opentype.js: ${fontFamily} from ${fontUrl}`);
     return font;
   } catch (err) {
-    console.error(`Failed to load font using opentype.js: ${fontUrl}`, err);
-    console.error(`Please ensure the font file exists at: public/fonts/${fontFilename}`);
-    // Cache null so we don't retry failed fonts
+    console.error(`Failed to load font: ${fontUrl}`, err);
     fontCache.set(fontFamily, null);
     return null;
   }
@@ -242,9 +319,6 @@ async function getFont(fontFamily) {
 
 /**
  * Helper function to trigger a browser download
- * 
- * @param {string} filename - Name of the file to download
- * @param {string} data - File contents as string
  */
 function triggerDownload(filename, data) {
   const blob = new Blob([data], { type: 'application/dxf' });
@@ -259,159 +333,402 @@ function triggerDownload(filename, data) {
 }
 
 /**
- * Export Fabric.js canvas to DXF format
+ * Helper function to create an offset for a Maker.js model
+ * to match the Fabric.js object's originX/originY.
+ * Maker.js models are always built from bottom-left (0,0),
+ * so we need to compensate for Fabric's origin point.
  * 
- * @param {Object} params - Export parameters
- * @param {fabric.Canvas} params.fabricCanvas - The Fabric.js canvas instance
- * @param {Object} params.productData - Product/template data with real-world dimensions
- * @param {Object} params.unitConverter - Unit converter utilities
- * @returns {Promise<void>}
+ * @param {fabric.Object} obj - Fabric.js object
+ * @param {number} width - Object width in inches
+ * @param {number} height - Object height in inches
+ * @returns {Object} - Offset {x, y} to apply to Maker.js model
+ */
+function getMakerOriginOffset(obj, width, height) {
+  let x = 0;
+  let y = 0; // Maker.js default origin is bottom-left
+  
+  // Handle originX
+  if (obj.originX === 'center') {
+    x = -width / 2;
+  } else if (obj.originX === 'right') {
+    x = -width;
+  }
+  // else 'left' - no adjustment needed (Maker.js default)
+  
+  // Handle originY
+  if (obj.originY === 'center') {
+    y = -height / 2;
+  } else if (obj.originY === 'top') {
+    // This is the most common mismatch
+    // Fabric 'top' means top-left, Maker.js default is bottom-left
+    y = -height;
+  }
+  // else 'bottom' - no adjustment needed (Maker.js default)
+  
+  return { x, y };
+}
+
+/**
+ * Converts a Fabric.js object to a Maker.js model,
+ * handling coordinate system and origin transformations.
+ * 
+ * @param {fabric.Object} obj - Fabric.js object
+ * @param {Object} decomposed - Decomposed transform matrix from qrDecompose
+ * @param {number} canvasHeightInches - Canvas height in inches (for Y-flip)
+ * @param {number} scale - Scale factor (pixels to inches)
+ * @returns {Object|null} - Maker.js model or null if unsupported
+ */
+function convertFabricToMaker(obj, decomposed, canvasHeightInches, scale) {
+  const { translateX, translateY, angle, scaleX, scaleY } = decomposed;
+  
+  // Convert translateX/Y from pixels to inches
+  const translateXInches = translateX / scale;
+  const translateYInches = translateY / scale;
+  
+  let baseModel = null;
+  
+  // --- A. Create the base Maker.js model at (0,0) ---
+  
+  if (obj.type === 'text') {
+    // Text objects are handled separately with opentype.js
+    // This function is mainly for shapes
+    return null;
+  } else if (obj.type === 'rect' || obj.type === 'image' || obj.type === 'imagebox') {
+    // For rectangles and images, get dimensions
+    const widthPx = obj.get('width') || obj.width || 0;
+    const heightPx = obj.get('height') || obj.height || 0;
+    const w = (widthPx * scaleX) / scale;
+    const h = (heightPx * scaleY) / scale;
+    
+    // Create rectangle model
+    baseModel = new maker.models.Rectangle(w, h);
+    
+    // Apply origin offset to compensate for Fabric's origin
+    const originOffset = getMakerOriginOffset(obj, w, h);
+    maker.model.move(baseModel, [originOffset.x, originOffset.y]);
+    
+  } else if (obj.type === 'circle') {
+    // Assumes uniform scale. If not, it's an ellipse.
+    const radiusPx = obj.get('radius') || obj.radius || 0;
+    const r = (radiusPx * scaleX) / scale;
+    
+    baseModel = new maker.models.Circle(r);
+    // No origin offset needed. Fabric 'center' and Maker 'center' are both (0,0)
+    
+  } else if (obj.type === 'path') {
+    // Paths: The path data is already relative to (0,0)
+    // fabric.util.joinPath converts the path array to SVG 'd' string
+    if (obj.path && Array.isArray(obj.path)) {
+      try {
+        const svgPathString = fabric.util.joinPath(obj.path);
+        baseModel = maker.importer.fromSVGPathData(svgPathString);
+        
+        // Apply path-specific scaling
+        if (scaleX > 0 && scaleY > 0) {
+          maker.model.scale(baseModel, scaleX, scaleY);
+        }
+      } catch (pathErr) {
+        console.warn('Failed to convert path to SVG:', pathErr);
+        return null;
+      }
+    } else {
+      console.warn('Path object has no path data');
+      return null;
+    }
+  } else {
+    console.warn(`Unsupported object type for DXF export: ${obj.type}`);
+    return null;
+  }
+  
+  if (!baseModel) {
+    return null;
+  }
+  
+  // --- B. Apply Global Transforms (Rotate, then Move) ---
+  
+  // 1. Rotate the model around its (now corrected) origin
+  if (angle !== 0) {
+    maker.model.rotate(baseModel, -angle, [0, 0]); // Negative because Fabric uses clockwise, Maker.js uses counter-clockwise
+  }
+  
+  // 2. Move the model to its final global position,
+  //    applying the Y-FLIP
+  const finalX = translateXInches;
+  const finalY = canvasHeightInches - translateYInches; // The Y-Flip
+  
+  maker.model.move(baseModel, [finalX, finalY]);
+  
+  return baseModel;
+}
+
+/**
+ * Converts Y coordinate from Y-down (Fabric.js/web) to Y-up (DXF/Cartesian)
+ * 
+ * @param {number} yDown - Y coordinate in Y-down system
+ * @param {number} canvasHeightInches - Canvas height in inches
+ * @returns {number} - Y coordinate in Y-up system
+ */
+function convertYDownToYUp(yDown, canvasHeightInches) {
+  return canvasHeightInches - yDown;
+}
+
+/**
+ * Main export function - Unified approach
+ * Collects all objects from both canvases and creates a single DXF model
  */
 export async function exportToDxf({ fabricCanvas, productData, unitConverter }) {
   try {
-    console.log('Starting DXF export...', { productData, fabricCanvas });
+    console.log('Starting unified DXF export...', { productData, fabricCanvas });
     
-    // 1. Initialize the DXF Document (plain object with models property)
-    const dxfDocument = { models: {} };
-
-    // 2. Get Canvas Objects & Scale
-    const objects = fabricCanvas.getObjects();
-    console.log(`Found ${objects.length} canvas objects`);
-    
+    // Step 1: Calculate scale and canvas dimensions
     const scale = unitConverter.calculateScale(
       productData.realWorldWidth,
       fabricCanvas.width
     );
-    console.log('Scale calculated:', scale);
-
-    // Get canvas dimensions for coordinate conversion
+    
+    const canvasWidthInches = (productData.canvas && productData.canvas.width) 
+      ? productData.canvas.width 
+      : (productData.realWorldWidth || 24);
     const canvasHeightInches = (productData.canvas && productData.canvas.height) 
       ? productData.canvas.height 
       : (productData.realWorldHeight || 18);
-
-    // 3. Export Product Template SVG
+    
+    console.log(`Canvas dimensions: ${canvasWidthInches}" x ${canvasHeightInches}", scale: ${scale}`);
+    
+    // Step 2: Initialize single consolidated Maker.js model
+    // This will be the parent model containing all objects
+    const mainMakerModel = { models: {} };
+    
+    // UNIVERSAL COORDINATE SYSTEM: Canvas dimensions (canvasWidthInches x canvasHeightInches)
+    // All objects are positioned relative to this coordinate system
+    // Origin [0, 0] is at top-left in Y-down system, bottom-left in Y-up (DXF) system
+    
+    console.log(`\n=== UNIVERSAL COORDINATE SYSTEM ===`);
+    console.log(`Canvas: ${canvasWidthInches}" x ${canvasHeightInches}"`);
+    console.log(`Scale (pixels to inches): ${scale}`);
+    console.log(`=====================================\n`);
+    
+    // Step 3: Collect all objects from both canvases into unified list
+    // Both canvases are aligned at (0,0) via CSS, so we treat them as a single coordinate system
+    const allObjects = [];
+    
+    // 3a. Product Canvas Objects (from productData)
+    // These are drawn on the product-canvas (HTML5 Canvas), not Fabric.js
+    // We need to create transform matrices for these objects just like Fabric.js objects
+    
+    // Template SVG - create absolute transform matrix
     if (productData.imageUrl) {
-      try {
-        console.log('Exporting template SVG:', productData.imageUrl);
-        const templateWidthInches = productData.realWorldWidth || 24;
-        const templateHeightInches = productData.realWorldHeight || 18;
-        const templateModel = await svgToMakerModel(
-          productData.imageUrl,
-          templateWidthInches,
-          templateHeightInches
-        );
-        
-        if (templateModel) {
-          // Position template at bottom-left in DXF coordinates
-          // SVG uses top-left origin, so we need to flip Y and position at bottom
-          // First, flip the model vertically around its center
-          try {
-            maker.model.mirror(templateModel, false, true, [templateWidthInches / 2, templateHeightInches / 2]);
-          } catch (mirrorErr) {
-            console.warn('Failed to mirror template model, continuing without mirror:', mirrorErr);
-          }
-          // Then position at bottom-left (Y=0 for bottom edge)
-          maker.model.move(templateModel, [0, 0]);
-          
-          dxfDocument.models['template'] = templateModel;
-          console.log('Template SVG exported successfully');
-        }
-      } catch (error) {
-        console.error('Failed to export template SVG:', error);
-        // Don't throw - continue with other elements
-      }
+      const templateWidth = productData.realWorldWidth || 24;
+      const templateHeight = productData.realWorldHeight || 18;
+      
+      // Template is drawn at [0, 0] in pixels on product canvas
+      // Convert to inches using the scale
+      // Since both canvases are aligned, pixel [0,0] = inch [0,0]
+      const templateXInches = 0;
+      const templateYInches = 0;
+      
+      // Create a transform matrix for the template
+      // Template has: position [0, 0], size [templateWidth, templateHeight], rotation 0
+      // This is equivalent to: translate(0, 0), scale(1, 1), rotate(0)
+      const templateMatrix = [
+        1, 0, 0,  // scaleX, skewY, 0
+        0, 1, 0,  // skewX, scaleY, 0
+        templateXInches * scale, templateYInches * scale, 1  // translateX, translateY, 1 (in pixels)
+      ];
+      
+      const templateDecomposed = fabric.util.qrDecompose(templateMatrix);
+      
+      allObjects.push({
+        type: 'template',
+        source: productData.imageUrl,
+        width: templateWidth,
+        height: templateHeight,
+        decomposed: templateDecomposed, // Store decomposed transform matrix
+        x: templateXInches, // For reference
+        y: templateYInches,  // For reference
+        angle: 0
+      });
     }
-
-    // 4. Export Overlay SVG (if present)
+    
+    // Overlay SVG - create absolute transform matrix
     if (productData.overlayUrl) {
-      try {
-        console.log('Exporting overlay SVG:', productData.overlayUrl);
-        const templateWidthInches = productData.realWorldWidth || 24;
-        const templateHeightInches = productData.realWorldHeight || 18;
-        const overlayModel = await svgToMakerModel(
-          productData.overlayUrl,
-          templateWidthInches,
-          templateHeightInches
-        );
-        
-        if (overlayModel) {
-          // Position overlay at same position as template
-          // Flip vertically and position at bottom-left
-          try {
-            maker.model.mirror(overlayModel, false, true, [templateWidthInches / 2, templateHeightInches / 2]);
-          } catch (mirrorErr) {
-            console.warn('Failed to mirror overlay model, continuing without mirror:', mirrorErr);
-          }
-          maker.model.move(overlayModel, [0, 0]);
-          
-          dxfDocument.models['overlay'] = overlayModel;
-          console.log('Overlay SVG exported successfully');
-        }
-      } catch (error) {
-        console.error('Failed to export overlay SVG:', error);
-        // Don't throw - continue with other elements
-      }
+      const overlayWidth = productData.realWorldWidth || 24;
+      const overlayHeight = productData.realWorldHeight || 18;
+      const overlayXInches = 0;
+      const overlayYInches = 0;
+      
+      const overlayMatrix = [
+        1, 0, 0,
+        0, 1, 0,
+        overlayXInches * scale, overlayYInches * scale, 1
+      ];
+      
+      const overlayDecomposed = fabric.util.qrDecompose(overlayMatrix);
+      
+      allObjects.push({
+        type: 'overlay',
+        source: productData.overlayUrl,
+        width: overlayWidth,
+        height: overlayHeight,
+        decomposed: overlayDecomposed,
+        x: overlayXInches,
+        y: overlayYInches,
+        angle: 0
+      });
     }
-
-    // 5. Export ProductBase Rectangles
+    
+    // ProductBase rectangles - create absolute transform matrices
     if (productData.productBase && Array.isArray(productData.productBase)) {
       productData.productBase.forEach((base, index) => {
         if (base.x !== undefined && base.y !== undefined && base.width && base.height) {
-          const baseModel = new maker.models.Rectangle(base.width, base.height);
+          // ProductBase uses top-left origin in Y-down coordinates
+          const baseXInches = base.x;
+          const baseYInches = base.y;
           
-          // Convert position: productBase uses top-left origin, DXF uses bottom-left
-          const dxf_X = base.x;
-          const dxf_Y = canvasHeightInches - base.y - base.height;
+          const baseMatrix = [
+            1, 0, 0,
+            0, 1, 0,
+            baseXInches * scale, baseYInches * scale, 1
+          ];
           
-          maker.model.move(baseModel, [dxf_X, dxf_Y]);
-          dxfDocument.models[`productBase-${base.id || index}`] = baseModel;
+          const baseDecomposed = fabric.util.qrDecompose(baseMatrix);
+          
+          allObjects.push({
+            type: 'productBase',
+            id: base.id || `base-${index}`,
+            width: base.width,
+            height: base.height,
+            decomposed: baseDecomposed,
+            x: baseXInches,
+            y: baseYInches,
+            angle: 0
+          });
         }
       });
     }
-
-    // 6. Load All Required Fonts
+    
+    // 3b. Fabric Canvas Objects (from fabricCanvas)
+    // These are Fabric.js objects with complex transforms
+    const fabricObjects = fabricCanvas.getObjects();
+    console.log(`Found ${fabricObjects.length} Fabric.js objects`);
+    
+    fabricObjects.forEach((obj, index) => {
+      // Get the final, calculated transformation matrix
+      // This accounts for groups, viewport transforms, etc.
+      const absoluteMatrix = obj.calcTransformMatrix();
+      
+      // Decompose the matrix to get absolute transform values
+      const decomposed = fabric.util.qrDecompose(absoluteMatrix);
+      
+      allObjects.push({
+        type: obj.type || 'unknown',
+        fabricObj: obj,
+        decomposed, // Store the decomposed matrix for convertFabricToMaker
+        elementId: obj.elementId || obj.id || `fabric-${index}`
+      });
+    });
+    
+    console.log(`Total objects to export: ${allObjects.length}`);
+    
+    // Step 4: Load all required fonts
     const uniqueFonts = [
       ...new Set(
-        objects
-          .filter(obj => obj.type === 'text')
-          .map(obj => obj.fontFamily || 'Arial')
+        allObjects
+          .filter(obj => obj.type === 'text' && obj.fabricObj)
+          .map(obj => obj.fabricObj.fontFamily || 'Arial')
       )
     ];
-
+    
     await Promise.all(uniqueFonts.map(getFont));
-
-    // 7. Iterate and Convert Each Canvas Object
-    for (const obj of objects) {
+    
+    // Step 5: Convert each object to Maker.js model and add to unified document
+    for (const obj of allObjects) {
       let makerModel = null;
-      let imageSrc = null;
-
-      // Object Type Conversion
-      if (obj.type === 'text') {
-        const fontFamily = obj.fontFamily || 'Arial';
-        const font = fontCache.get(fontFamily);
-
-        // Require font to be loaded - no fallbacks
-        if (!font) {
-          console.error(`Font not loaded: ${fontFamily}. Text "${obj.text || 'Text'}" will be skipped.`);
-          console.error(`Please ensure font file exists at /fonts/${fontMap[fontFamily] || fontFamily + '.ttf'}`);
-          continue; // Skip this text object
-        }
-
-        // Convert font size from pixels to inches
-        const fontSizeInches = unitConverter.pixelsToInches(obj.fontSize || 12, scale);
-
-        try {
-          // Get the path from opentype.js - this converts text to vector paths
-          const openTypePath = font.getPath(obj.text || 'Text', 0, 0, fontSizeInches);
+      
+      try {
+        if (obj.type === 'template' || obj.type === 'overlay') {
+          console.log(`\n=== Processing ${obj.type.toUpperCase()} ===`);
+          console.log(`Source: ${obj.source}`);
+          console.log(`Dimensions: ${obj.width}" x ${obj.height}"`);
+          console.log(`Absolute transform:`, obj.decomposed);
           
-          console.log(`Converting text "${obj.text}" to vector paths using opentype.js`, {
-            fontFamily,
-            fontSizeInches,
-            pathCommands: openTypePath.commands?.length || 0
+          // Convert SVG to maker.js model
+          // The SVG should be converted at its natural size, then we'll apply the transform
+          // For now, convert it to fit the template dimensions
+          console.log(`Converting SVG to Maker.js model...`);
+          makerModel = await svgToMakerModel(obj.source, obj.width, obj.height);
+          
+          if (!makerModel) {
+            console.error(`Failed to convert ${obj.type} SVG to model`);
+            continue;
+          }
+          
+          // Log model structure
+          const modelKeys = Object.keys(makerModel.models || {});
+          const pathKeys = Object.keys(makerModel.paths || {});
+          console.log(`${obj.type} model created:`, {
+            hasModels: !!makerModel.models,
+            hasPaths: !!makerModel.paths,
+            modelCount: modelKeys.length,
+            pathCount: pathKeys.length
           });
-
-          // Build SVG path data manually from opentype commands
-          // This gives us better control over the format for maker.js compatibility
+          
+          // Apply the absolute transform from decomposed matrix
+          // This is the same approach we use for Fabric.js objects
+          // 1. Apply origin offset (if needed - template uses top-left origin)
+          // 2. Apply rotation
+          // 3. Apply Y-flip and position
+          
+          // Template/overlay use top-left origin, so we need to offset
+          const originOffset = { x: 0, y: -obj.height }; // Move from top-left to bottom-left
+          maker.model.move(makerModel, [originOffset.x, originOffset.y]);
+          
+          // Apply rotation (should be 0 for template/overlay)
+          if (obj.decomposed.angle !== 0) {
+            maker.model.rotate(makerModel, -obj.decomposed.angle, [0, 0]);
+          }
+          
+          // Apply Y-flip and move to final position using decomposed transform
+          const finalX = obj.decomposed.translateX / scale;
+          const finalY = canvasHeightInches - (obj.decomposed.translateY / scale);
+          maker.model.move(makerModel, [finalX, finalY]);
+          
+          // Add to consolidated model
+          maker.model.addModel(mainMakerModel, makerModel, obj.type);
+          console.log(`${obj.type} positioned at [${finalX}, ${finalY}] (after Y-flip)`);
+          console.log(`=== End ${obj.type.toUpperCase()} processing ===\n`);
+          
+        } else if (obj.type === 'productBase') {
+          // Create rectangle
+          makerModel = new maker.models.Rectangle(obj.width, obj.height);
+          
+          // Convert Y coordinate: productBase uses top-left origin
+          const dxfX = obj.x;
+          const dxfY = convertYDownToYUp(obj.y + obj.height, canvasHeightInches);
+          
+          maker.model.move(makerModel, [dxfX, dxfY]);
+          
+          // Add to consolidated model
+          maker.model.addModel(mainMakerModel, makerModel, obj.id);
+          console.log(`ProductBase "${obj.id}" positioned at [${dxfX}, ${dxfY}]`);
+          
+        } else if (obj.type === 'text' && obj.fabricObj) {
+          // Convert text to vector paths using opentype.js
+          const fontFamily = obj.fabricObj.fontFamily || 'Arial';
+          const font = fontCache.get(fontFamily);
+          
+          if (!font) {
+            console.error(`Font not loaded: ${fontFamily}. Skipping text.`);
+            continue;
+          }
+          
+          // Get font size from decomposed scale or object property
+          const fontSizePx = obj.fabricObj.fontSize || 12;
+          const fontSizeInches = (fontSizePx * obj.decomposed.scaleY) / scale;
+          
+          const openTypePath = font.getPath(obj.fabricObj.text || 'Text', 0, 0, fontSizeInches);
+          
+          // Build SVG path data from opentype commands
           const commands = openTypePath.commands || [];
           const pathParts = [];
           let currentX = 0;
@@ -419,7 +736,6 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
           
           commands.forEach((cmd) => {
             if (cmd.type === 'M' || cmd.type === 'm') {
-              // MoveTo command
               if (cmd.type === 'M') {
                 currentX = cmd.x;
                 currentY = cmd.y;
@@ -430,7 +746,6 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
                 pathParts.push(`M ${currentX} ${currentY}`);
               }
             } else if (cmd.type === 'L' || cmd.type === 'l') {
-              // LineTo command
               if (cmd.type === 'L') {
                 currentX = cmd.x;
                 currentY = cmd.y;
@@ -441,7 +756,6 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
                 pathParts.push(`L ${currentX} ${currentY}`);
               }
             } else if (cmd.type === 'C' || cmd.type === 'c') {
-              // Cubic Bezier curve
               if (cmd.type === 'C') {
                 pathParts.push(`C ${cmd.x1} ${cmd.y1} ${cmd.x2} ${cmd.y2} ${cmd.x} ${cmd.y}`);
                 currentX = cmd.x;
@@ -456,7 +770,6 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
                 pathParts.push(`C ${x1} ${y1} ${x2} ${y2} ${currentX} ${currentY}`);
               }
             } else if (cmd.type === 'Q' || cmd.type === 'q') {
-              // Quadratic Bezier curve
               if (cmd.type === 'Q') {
                 pathParts.push(`Q ${cmd.x1} ${cmd.y1} ${cmd.x} ${cmd.y}`);
                 currentX = cmd.x;
@@ -469,220 +782,217 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
                 pathParts.push(`Q ${x1} ${y1} ${currentX} ${currentY}`);
               }
             } else if (cmd.type === 'Z' || cmd.type === 'z') {
-              // Close path
               pathParts.push('Z');
             }
           });
           
           const svgPathData = pathParts.join(' ');
-          
           if (!svgPathData || svgPathData.trim() === '') {
-            throw new Error('Empty SVG path data generated from opentype commands');
+            console.error('Empty SVG path data for text');
+            continue;
           }
           
-          console.log(`Built SVG path data from ${commands.length} commands (length: ${svgPathData.length}): ${svgPathData.substring(0, 150)}...`);
-
-          // Convert SVG path data to maker.js model
+          makerModel = maker.importer.fromSVGPathData(svgPathData);
+          
+          if (!makerModel || !makerModel.paths) {
+            console.error('Failed to convert text to maker model');
+            continue;
+          }
+          
+          // Get text path bounds to determine actual dimensions
+          // The text path from opentype.js starts at (0,0) which is the baseline
+          const textBounds = getModelBounds(makerModel);
+          const textWidth = textBounds.maxX - textBounds.minX;
+          const textHeight = textBounds.maxY - textBounds.minY;
+          
+          // Calculate the center point of the text path
+          const textCenterX = textBounds.minX + textWidth / 2;
+          const textCenterY = textBounds.minY + textHeight / 2;
+          
+          // Log original Fabric.js position for debugging
+          const fabricLeft = obj.fabricObj.left || 0;
+          const fabricTop = obj.fabricObj.top || 0;
+          console.log(`Text "${obj.fabricObj.text}" - Fabric position: [${fabricLeft}, ${fabricTop}] (pixels)`);
+          console.log(`Text "${obj.fabricObj.text}" - Decomposed translate: [${obj.decomposed.translateX}, ${obj.decomposed.translateY}] (pixels)`);
+          console.log(`Text "${obj.fabricObj.text}" - Origin: [${obj.fabricObj.originX}, ${obj.fabricObj.originY}]`);
+          console.log(`Text "${obj.fabricObj.text}" - Text path bounds:`, textBounds);
+          console.log(`Text "${obj.fabricObj.text}" - Text path center: [${textCenterX}, ${textCenterY}]`);
+          
+          // Convert Fabric origin position from pixels to inches, then to Y-up coordinate system
+          const originXInches = obj.decomposed.translateX / scale;
+          const originYInches = obj.decomposed.translateY / scale;
+          const finalX = originXInches; // X is the same in both systems
+          const finalY = canvasHeightInches - originYInches; // Y-flip: Y-up = canvasHeight - Y-down
+          
+          console.log(`Text "${obj.fabricObj.text}" - Origin position (Y-down, inches): [${originXInches}, ${originYInches}]`);
+          console.log(`Text "${obj.fabricObj.text}" - Final position (Y-up, inches): [${finalX}, ${finalY}]`);
+          
+          // Calculate where the origin point is relative to the text path
+          // The text path from opentype.js is in Y-up coordinates
+          // We need to find where the origin point (center/left/right, top/center/bottom) is in the text path
+          let originPointX = 0;
+          let originPointY = 0;
+          
+          // For X: where is the origin point relative to text bounds?
+          if (obj.fabricObj.originX === 'center') {
+            originPointX = textCenterX;
+          } else if (obj.fabricObj.originX === 'right') {
+            originPointX = textBounds.maxX;
+          } else {
+            originPointX = textBounds.minX;
+          }
+          
+          // For Y: where is the origin point relative to text bounds?
+          // Text path is in Y-up coordinates from opentype.js
+          // Fabric's originY in Y-down needs to be mapped to Y-up
+          if (obj.fabricObj.originY === 'center') {
+            originPointY = textCenterY;
+          } else if (obj.fabricObj.originY === 'top') {
+            // Fabric 'top' in Y-down = bottom in Y-up, which is minY
+            originPointY = textBounds.minY;
+          } else {
+            // Fabric 'bottom' (baseline) in Y-down = top in Y-up, which is maxY
+            originPointY = textBounds.maxY;
+          }
+          
+          // Calculate offset to move the origin point to the final position
+          const offsetX = finalX - originPointX;
+          const offsetY = finalY - originPointY;
+          
+          console.log(`Text "${obj.fabricObj.text}" - Origin point in text path: [${originPointX}, ${originPointY}]`);
+          console.log(`Text "${obj.fabricObj.text}" - Calculated offset: [${offsetX}, ${offsetY}]`);
+          
+          // Apply rotation first (around current origin)
+          if (obj.decomposed.angle !== 0) {
+            maker.model.rotate(makerModel, -obj.decomposed.angle, [0, 0]);
+          }
+          
+          // Move to final position
+          maker.model.move(makerModel, [offsetX, offsetY]);
+          
+          console.log(`Text "${obj.fabricObj.text}" - Final position: [${finalX}, ${finalY}]`);
+          
+          // Get bounds after positioning to verify
+          const boundsAfterFinal = getModelBounds(makerModel);
+          console.log(`Text "${obj.fabricObj.text}" - Bounds after final positioning:`, boundsAfterFinal);
+          
+          // Mirror text vertically (opentype.js uses Y-up, but Fabric uses Y-down)
+          // Mirror around the origin point which is at (finalX, finalY)
           try {
-            makerModel = maker.importer.fromSVGPathData(svgPathData);
-          } catch (svgParseError) {
-            console.error(`Maker.js failed to parse SVG path data:`, svgParseError);
-            console.error(`Problematic path data (first 300 chars): ${svgPathData.substring(0, 300)}`);
-            throw svgParseError;
+            maker.model.mirror(makerModel, false, true, [finalX, finalY]);
+            const boundsAfterMirror = getModelBounds(makerModel);
+            console.log(`Text "${obj.fabricObj.text}" - Bounds after mirror:`, boundsAfterMirror);
+          } catch (mirrorErr) {
+            console.warn('Failed to mirror text model:', mirrorErr);
           }
           
-          console.log(`Text path conversion result:`, {
-            text: obj.text,
-            hasModel: !!makerModel,
-            modelType: typeof makerModel,
-            hasPaths: !!(makerModel && makerModel.paths),
-            pathKeys: makerModel && makerModel.paths ? Object.keys(makerModel.paths) : []
-          });
+          // Get final bounds to verify position
+          const finalBounds = getModelBounds(makerModel);
+          console.log(`Text "${obj.fabricObj.text}" - Final bounds:`, finalBounds);
           
-          if (!makerModel) {
-            console.error(`Failed to convert text path to maker model for: "${obj.text}"`);
-            continue; // Skip this text object
+          // Add to consolidated model
+          maker.model.addModel(mainMakerModel, makerModel, obj.elementId);
+          console.log(`Text "${obj.fabricObj.text}" positioned at [${finalX}, ${finalY}]`);
+          
+        } else if ((obj.type === 'image' || obj.type === 'imagebox') && obj.fabricObj) {
+          // Get image source
+          let imageSrc = null;
+          if (obj.fabricObj.customData && obj.fabricObj.customData.originalSource) {
+            imageSrc = obj.fabricObj.customData.originalSource;
+          } else if (typeof obj.fabricObj.getSrc === 'function') {
+            imageSrc = obj.fabricObj.getSrc();
+          } else if (obj.fabricObj.src) {
+            imageSrc = obj.fabricObj.src;
           }
           
-          // Ensure the model has paths
-          if (!makerModel.paths || Object.keys(makerModel.paths).length === 0) {
-            console.error(`Text path model has no paths for: "${obj.text}"`, makerModel);
-            continue; // Skip this text object
+          if (!imageSrc) {
+            console.warn('No image source found, skipping');
+            continue;
           }
-        } catch (pathError) {
-          console.error(`Failed to create vector path for text "${obj.text}":`, pathError);
-          console.error('Path error details:', pathError.stack);
-          continue; // Skip this text object - no fallbacks
-        }
-      } else if (obj.type === 'image' || obj.type === 'imagebox') {
-        // Get image source URL
-        // Try to get original source from customData (for artwork)
-        if (obj.customData && obj.customData.originalSource) {
-          imageSrc = obj.customData.originalSource;
-        } else if (obj.getSrc) {
-          imageSrc = obj.getSrc();
-        } else if (obj.src) {
-          imageSrc = obj.src;
-        }
-        
-        const widthInches = unitConverter.pixelsToInches(obj.width * (obj.scaleX || 1), scale);
-        const heightInches = unitConverter.pixelsToInches(obj.height * (obj.scaleY || 1), scale);
-        
-        // Check if it's an SVG file
-        if (imageSrc && (imageSrc.endsWith('.svg') || imageSrc.startsWith('data:image/svg+xml'))) {
-          try {
-            // Convert SVG to actual paths
+          
+          // Get dimensions from decomposed transform
+          const widthPx = obj.fabricObj.width || 0;
+          const heightPx = obj.fabricObj.height || 0;
+          const widthInches = (widthPx * obj.decomposed.scaleX) / scale;
+          const heightInches = (heightPx * obj.decomposed.scaleY) / scale;
+          
+          // Check if SVG
+          if (imageSrc.endsWith('.svg') || imageSrc.startsWith('data:image/svg+xml')) {
+            // Convert SVG to maker.js model (creates model at 0,0)
             makerModel = await svgToMakerModel(imageSrc, widthInches, heightInches);
-            // Flip Y coordinates for SVG (top-left to bottom-left origin conversion)
-            if (makerModel) {
-              try {
-                maker.model.mirror(makerModel, false, true, [widthInches / 2, heightInches / 2]);
-              } catch (mirrorErr) {
-                console.warn('Failed to mirror artwork SVG model, continuing without mirror:', mirrorErr);
-              }
+            
+            // Apply origin offset to compensate for Fabric's origin
+            const originOffset = getMakerOriginOffset(obj.fabricObj, widthInches, heightInches);
+            maker.model.move(makerModel, [originOffset.x, originOffset.y]);
+            
+            // Mirror vertically around center to convert from Y-down to Y-up
+            // Do this BEFORE rotation so the mirror is around the model's center
+            const centerX = widthInches / 2;
+            const centerY = heightInches / 2;
+            try {
+              maker.model.mirror(makerModel, false, true, [centerX, centerY]);
+            } catch (mirrorErr) {
+              console.warn('Failed to mirror artwork model:', mirrorErr);
             }
-          } catch (error) {
-            console.warn('Failed to convert SVG artwork to paths, using rectangle:', error);
-            // Fallback to rectangle
-            makerModel = new maker.models.Rectangle(widthInches, heightInches);
+            
+            // Apply rotation
+            if (obj.decomposed.angle !== 0) {
+              maker.model.rotate(makerModel, -obj.decomposed.angle, [0, 0]);
+            }
+            
+            // Apply Y-flip and move to final position
+            const finalX = obj.decomposed.translateX / scale;
+            const finalY = canvasHeightInches - (obj.decomposed.translateY / scale);
+            maker.model.move(makerModel, [finalX, finalY]);
+          } else {
+            // Non-SVG: use convertFabricToMaker for rectangle
+            makerModel = convertFabricToMaker(obj.fabricObj, obj.decomposed, canvasHeightInches, scale);
           }
-        } else {
-          // For non-SVG images, create a rectangle placeholder
-          makerModel = new maker.models.Rectangle(widthInches, heightInches);
-        }
-      }
-
-      // Skip if makerModel is null (unsupported type)
-      if (!makerModel) {
-        continue;
-      }
-
-      // 8. Transformation & Coordinate System Conversion
-
-      // a. Apply Scale (if not already applied)
-      // For SVG models, scale is already applied in svgToMakerModel
-      // For text, we need to apply scale
-      if (obj.type === 'text' && (obj.scaleX !== 1 || obj.scaleY !== 1)) {
-        maker.model.scale(makerModel, obj.scaleX || 1, obj.scaleY || 1);
-      }
-      // For images, scale is already baked into width/height calculation
-
-      // b. Apply Rotation (note: negative for coordinate system conversion)
-      const angle = obj.angle || 0;
-      if (angle !== 0) {
-        maker.model.rotate(makerModel, -angle, [0, 0]);
-      }
-
-      // c. Apply Position with Coordinate System Flip
-      const leftInches = unitConverter.pixelsToInches(obj.left, scale);
-      const topInches = unitConverter.pixelsToInches(obj.top, scale);
-
-      // Calculate object dimensions for origin adjustment
-      let objWidthInches, objHeightInches;
-      
-      if (obj.type === 'text') {
-        // For text, estimate dimensions from font size and text length
-        const fontSizeInches = unitConverter.pixelsToInches(obj.fontSize || 12, scale);
-        const textLength = (obj.text || '').length;
-        // Rough estimate: average character width is about 0.6 * font size
-        objWidthInches = fontSizeInches * textLength * 0.6;
-        objHeightInches = fontSizeInches;
-      } else if (obj.type === 'image' || obj.type === 'imagebox') {
-        objWidthInches = unitConverter.pixelsToInches(obj.width * (obj.scaleX || 1), scale);
-        objHeightInches = unitConverter.pixelsToInches(obj.height * (obj.scaleY || 1), scale);
-      } else {
-        // Fallback for unknown types
-        objWidthInches = unitConverter.pixelsToInches(obj.width || 0, scale);
-        objHeightInches = unitConverter.pixelsToInches(obj.height || 0, scale);
-      }
-
-      // Account for object origin
-      const originX = obj.originX || 'left';
-      const originY = obj.originY || 'top';
-      
-      let adjustedLeft = leftInches;
-      let adjustedTop = topInches;
-      
-      if (originX === 'center') {
-        adjustedLeft = leftInches - (objWidthInches / 2);
-      }
-      
-      if (originY === 'center') {
-        adjustedTop = topInches - (objHeightInches / 2);
-      }
-
-      // Convert from Fabric's top-left (pixels) to DXF's bottom-left (inches)
-      // For text, opentype.js uses a coordinate system where Y increases upward
-      // and the baseline is at Y=0. We need to flip Y coordinates.
-      let dxf_X, dxf_Y;
-      
-      if (obj.type === 'text') {
-        // For text, we need to account for the baseline
-        // Opentype paths are created with baseline at Y=0, and Y increases upward
-        // We need to flip the Y coordinate and position correctly
-        dxf_X = adjustedLeft;
-        // Flip Y: canvasHeightInches - (top + height) but also flip the text path itself
-        // The text path needs to be mirrored vertically around its baseline
-        const textBaselineY = canvasHeightInches - adjustedTop;
-        
-        // Mirror the text model vertically (flip Y coordinates)
-        // Opentype.js uses Y-up coordinate system, DXF uses Y-up but we're converting from Fabric's Y-down
-        // We need to flip the text vertically around the baseline
-        try {
-          // Estimate the text height for mirroring (use font size as approximate height)
-          const estimatedTextHeight = fontSizeInches;
-          const mirrorPointY = textBaselineY;
           
-          // Mirror around the baseline (Y=0 in opentype becomes baseline in DXF)
-          maker.model.mirror(makerModel, false, true, [0, mirrorPointY]);
-        } catch (mirrorErr) {
-          console.warn(`Failed to mirror text model, continuing without mirror:`, mirrorErr);
-          // If mirroring fails, we'll position it anyway - it might still work
+          if (makerModel) {
+            // Add to consolidated model
+            maker.model.addModel(mainMakerModel, makerModel, obj.elementId);
+            const finalX = obj.decomposed.translateX / scale;
+            const finalY = canvasHeightInches - (obj.decomposed.translateY / scale);
+            console.log(`Artwork positioned at [${finalX}, ${finalY}]`);
+          } else {
+            console.warn('Failed to create artwork model');
+          }
+        } else if (obj.fabricObj) {
+          // Try to use convertFabricToMaker for other object types (rect, circle, path)
+          makerModel = convertFabricToMaker(obj.fabricObj, obj.decomposed, canvasHeightInches, scale);
+          
+          if (makerModel) {
+            // Add to consolidated model
+            maker.model.addModel(mainMakerModel, makerModel, obj.elementId);
+            const finalX = obj.decomposed.translateX / scale;
+            const finalY = canvasHeightInches - (obj.decomposed.translateY / scale);
+            console.log(`${obj.type} positioned at [${finalX}, ${finalY}]`);
+          } else {
+            console.warn(`Could not convert ${obj.type} object to Maker.js model`);
+          }
         }
-        
-        // Position at the left edge and baseline
-        dxf_X = adjustedLeft;
-        dxf_Y = textBaselineY;
-      } else {
-        dxf_X = adjustedLeft;
-        dxf_Y = canvasHeightInches - adjustedTop - objHeightInches;
+      } catch (error) {
+        console.error(`Failed to export ${obj.type} object:`, error);
+        // Continue with other objects
       }
-
-      // Move the model to its final position
-      maker.model.move(makerModel, [dxf_X, dxf_Y]);
-      
-      console.log(`Positioned ${obj.type} object "${obj.text || obj.elementId || 'unknown'}" at:`, {
-        dxf_X,
-        dxf_Y,
-        originalLeft: obj.left,
-        originalTop: obj.top
-      });
-
-      // d. Add to Document
-      const modelName = obj.elementId || obj.id || `element-${objects.indexOf(obj)}`;
-      dxfDocument.models[modelName] = makerModel;
-      
-      console.log(`Added ${obj.type} model "${modelName}" to DXF document`);
     }
-
-    // 9. Generate and Download the File
-    console.log('Generating DXF string from document with models:', Object.keys(dxfDocument.models));
+    
+    // Step 6: Export the single, consolidated model
+    console.log('Generating DXF from consolidated model with child models:', Object.keys(mainMakerModel.models || {}));
     
     try {
-      const dxfString = maker.exporter.toDXF(dxfDocument);
+      // Export the single, combined model
+      const dxfString = maker.exporter.toDXF(mainMakerModel);
       const filename = (productData.name || productData.id || 'design') + '-export.dxf';
-      
       triggerDownload(filename, dxfString);
-
       console.log('DXF export successful');
     } catch (dxfError) {
       console.error('Error generating DXF string:', dxfError);
-      console.error('DXF Document structure:', JSON.stringify(dxfDocument, null, 2));
       throw new Error(`Failed to generate DXF: ${dxfError.message}`);
     }
   } catch (error) {
     console.error('Error exporting to DXF:', error);
-    console.error('Error stack:', error.stack);
     throw error;
   }
 }
