@@ -24,7 +24,7 @@
         stroke-width: 2px;
       }
     </style>
-    <radialGradient id="radial-gradient" cx="26.2" cy="224.74" fx="26.2" fy="224.74" r="24.14" gradientTransform="translate(56.98 -2.12) rotate(14.08)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="radial-gradient" cx="713.07" cy="224.39" fx="713.07" fy="224.39" r="24.14" gradientTransform="translate(77.55 -169.28) rotate(14.08)" gradientUnits="userSpaceOnUse">
       <stop offset=".02" stop-color="#fff"/>
       <stop offset=".13" stop-color="#fff" stop-opacity=".8"/>
       <stop offset=".25" stop-color="#fff" stop-opacity=".59"/>
@@ -35,8 +35,10 @@
       <stop offset=".88" stop-color="#fff" stop-opacity=".02"/>
       <stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="radial-gradient-2" cx="713.07" cy="224.39" fx="713.07" fy="224.39" gradientTransform="translate(77.55 -169.28) rotate(14.08)" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient-2" cx="26.2" cy="224.74" fx="26.2" fy="224.74" gradientTransform="translate(56.98 -2.12) rotate(14.08)" xlink:href="#radial-gradient"/>
   </defs>
+  <ellipse class="cls-5" cx="723.93" cy="229.23" rx="13.86" ry="20.46" transform="translate(-35.37 238.3) rotate(-18.25)"/>
+  <ellipse class="cls-1" cx="37.06" cy="229.58" rx="13.86" ry="20.46" transform="translate(-76.67 26.73) rotate(-20.11)"/>
   <path class="cls-3" d="M93.97,281.35c-2.56-.88-4.24-1.84-4.64-2.96-.4-1.12-.64-3.28-1.68-3.76-1.04-.48-3.76-1.28-4.56-2.32-.8-1.04-2-4.32-.72-5.84,1.28-1.52,2.72-2.64,2.72-2.64v-3.36s8.16-10.89,11.77-20.17c3.6-9.29,4.08-21.37,1.04-25.78-2.42-3.51-2.76-3.86-2.8-3.86l.08-1.98s-3.44-2.88-3.36-4.48c.08-1.6.08-3.68,3.44-6,0,0,.48-2.08-.08-3.12-.56-1.04-1.04-1.6-1.04-1.6H28.49s-.48.56-1.04,1.6c-.56,1.04-.08,3.12-.08,3.12,3.36,2.32,3.36,4.4,3.44,6,.08,1.6-3.36,4.48-3.36,4.48l.08,1.98s-.38.35-2.8,3.86c-3.04,4.4-2.56,16.49,1.04,25.78,3.6,9.29,11.77,20.17,11.77,20.17v3.36s1.44,1.12,2.72,2.64c1.28,1.52.08,4.8-.72,5.84-.8,1.04-3.52,1.84-4.56,2.32-1.04.48-1.28,2.64-1.68,3.76-.4,1.12-2.08,2.08-4.64,2.96s-4.16,1.84-4.8,3.44.76,4.85.76,4.85h73.41s1.4-3.25.76-4.85-2.24-2.56-4.8-3.44Z"/>
   <path class="cls-3" d="M687.38,26.88c-1.7-1.78-3.09-6.73-3.09-6.73L405.06.5,125.84,20.15s-1.39,4.95-3.09,6.73c-1.7,1.78-6.11,2.63-6.11,2.63h576.86s-4.41-.85-6.11-2.63Z"/>
   <rect class="cls-3" x="116.63" y="29.51" width="576.86" height="260.13"/>
@@ -49,6 +51,4 @@
   <line class="cls-4" x1="714.24" y1="198.18" x2="782.12" y2="198.18"/>
   <line class="cls-4" x1="714.4" y1="210.64" x2="781.96" y2="210.64"/>
   <line class="cls-4" x1="720.16" y1="278.39" x2="776.2" y2="278.39"/>
-  <ellipse class="cls-5" cx="37.06" cy="229.58" rx="13.86" ry="20.46" transform="translate(-76.67 26.73) rotate(-20.11)"/>
-  <ellipse class="cls-1" cx="723.93" cy="229.23" rx="13.86" ry="20.46" transform="translate(-35.37 238.3) rotate(-18.25)"/>
 </svg>

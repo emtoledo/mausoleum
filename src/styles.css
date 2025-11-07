@@ -1982,39 +1982,20 @@ body:has(.canvas-layout) .footer-branding {
 /* Layout: Main grid with sidebar-column-layout */
 .design-studio-layout {
     display: grid;
-    grid-template-columns: 100px 1fr 3fr 1fr; /* 100px for the toolbar, 1 part for the left sidebar, 3 parts for the canvas, 1 part for the right sidebar */
-    grid-template-rows: 4fr 1fr; /* 4 parts for the canvas, 1 part for the footer */
+    grid-template-columns: 1fr 3fr 1fr; /* 1 part for the left gutter, 3 parts for the canvas, 1 part for the right gutter */
+    grid-template-rows: 1fr 4fr 1fr 1fr; /* 1 row top spacer, 4 parts for the canvas, 1 row for the material picker, 1 row for the footer */
     gap: 0;
     height: calc(100vh - 60px); /* Subtract toolbar height, could also just set this to 100% */
     width: 100%;
     background-color: #f0f0f0;
 }
 
-/* When material picker is hidden, adjust left sidebar */
-.design-studio-sidebar-left {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow-y: auto;
-}
 
-.design-studio-sidebar {
-    overflow-y: auto;
-}
-
-.design-studio-sidebar-left {
-    grid-column: 2;
-    padding: 16px;
-}
-
-.design-studio-sidebar-right {
-    grid-column: 4;
-    padding: 16px;
-}
 
 /* Canvas Container - Center column */
 .design-studio-canvas-container {
-    grid-column: 3;
+    grid-column: 2;
+    grid-row: 2;
     position: relative;
     background-color: #f0f0f0;
     overflow: hidden;
@@ -2062,7 +2043,10 @@ body:has(.canvas-layout) .footer-branding {
     align-items: center;
     justify-content: space-between;
     padding: 30px 30px;
-    height: 60px;
+    position: absolute;
+    top: 50px;
+    left: 10px;
+    width: 80px;
     flex-direction: column;
 }
 
@@ -2117,6 +2101,8 @@ body:has(.canvas-layout) .footer-branding {
     background: #fff;
     padding: 20px;
     position: absolute;
+    top: 85px;
+    left: 100px;
     z-index: 10;
     width: 400px;
     border: solid 1px #dbdbdb;
@@ -2143,12 +2129,10 @@ body:has(.canvas-layout) .footer-branding {
 
 /* Material Picker */
 .material-picker {
-    margin-bottom: 24px;
-    position: absolute;
-    top: 70%;
-    left: 50%;
+    grid-row: 3;
+    grid-column: 2;
     width: 400px;
-    margin-left: -200px;
+    margin:20px auto;
 }
 
 

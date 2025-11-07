@@ -187,12 +187,13 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
  * @returns {Promise<opentype.Font>} - The loaded font
  */
 // Map font family names to actual filenames (used in error messages)
+// Note: Filenames must match exactly what's in public/fonts/
 const fontMap = {
   'Arial': 'Arial.ttf',
-  'Times New Roman': 'TimesNewRoman.ttf',
-  'Helvetica': 'Helvetica.ttf',
+  'Times New Roman': 'Times New Roman.ttf', // File has spaces in name
+  'Helvetica': 'Helvetica.ttc', // Note: .ttc file (TrueType Collection)
   'Georgia': 'Georgia.ttf',
-  'Courier New': 'CourierNew.ttf',
+  'Courier New': 'CourierNew.ttf', // May need to check actual filename
   'Verdana': 'Verdana.ttf',
   'New York': 'NewYork.ttf'
 };
@@ -212,13 +213,17 @@ async function getFont(fontFamily) {
   // Check if we have a mapping for this font family
   let fontFilename = fontMap[fontFamily];
   
-  // If no mapping, try to generate filename by removing spaces
+  // If no mapping, try the font family name as-is (with spaces)
+  // Many font files keep spaces in their names
   if (!fontFilename) {
-    // Remove spaces and special characters for filename
-    fontFilename = `${fontFamily.replace(/\s+/g, '')}.ttf`;
+    fontFilename = `${fontFamily}.ttf`;
   }
   
-  const fontUrl = `/fonts/${fontFilename}`;
+  // Encode the filename to handle spaces and special characters in URLs
+  const encodedFilename = encodeURIComponent(fontFilename);
+  const fontUrl = `/fonts/${encodedFilename}`;
+  
+  console.log(`Attempting to load font: ${fontFamily} from ${fontUrl}`);
 
   try {
     // Use opentype.js to load the font file
@@ -398,16 +403,115 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
         try {
           // Get the path from opentype.js - this converts text to vector paths
           const openTypePath = font.getPath(obj.text || 'Text', 0, 0, fontSizeInches);
+          
+          console.log(`Converting text "${obj.text}" to vector paths using opentype.js`, {
+            fontFamily,
+            fontSizeInches,
+            pathCommands: openTypePath.commands?.length || 0
+          });
 
-          // Convert opentype path to maker.js model
-          makerModel = maker.importer.fromOpentypePath(openTypePath);
+          // Build SVG path data manually from opentype commands
+          // This gives us better control over the format for maker.js compatibility
+          const commands = openTypePath.commands || [];
+          const pathParts = [];
+          let currentX = 0;
+          let currentY = 0;
+          
+          commands.forEach((cmd) => {
+            if (cmd.type === 'M' || cmd.type === 'm') {
+              // MoveTo command
+              if (cmd.type === 'M') {
+                currentX = cmd.x;
+                currentY = cmd.y;
+                pathParts.push(`M ${cmd.x} ${cmd.y}`);
+              } else {
+                currentX += cmd.x;
+                currentY += cmd.y;
+                pathParts.push(`M ${currentX} ${currentY}`);
+              }
+            } else if (cmd.type === 'L' || cmd.type === 'l') {
+              // LineTo command
+              if (cmd.type === 'L') {
+                currentX = cmd.x;
+                currentY = cmd.y;
+                pathParts.push(`L ${cmd.x} ${cmd.y}`);
+              } else {
+                currentX += cmd.x;
+                currentY += cmd.y;
+                pathParts.push(`L ${currentX} ${currentY}`);
+              }
+            } else if (cmd.type === 'C' || cmd.type === 'c') {
+              // Cubic Bezier curve
+              if (cmd.type === 'C') {
+                pathParts.push(`C ${cmd.x1} ${cmd.y1} ${cmd.x2} ${cmd.y2} ${cmd.x} ${cmd.y}`);
+                currentX = cmd.x;
+                currentY = cmd.y;
+              } else {
+                const x1 = currentX + cmd.x1;
+                const y1 = currentY + cmd.y1;
+                const x2 = currentX + cmd.x2;
+                const y2 = currentY + cmd.y2;
+                currentX += cmd.x;
+                currentY += cmd.y;
+                pathParts.push(`C ${x1} ${y1} ${x2} ${y2} ${currentX} ${currentY}`);
+              }
+            } else if (cmd.type === 'Q' || cmd.type === 'q') {
+              // Quadratic Bezier curve
+              if (cmd.type === 'Q') {
+                pathParts.push(`Q ${cmd.x1} ${cmd.y1} ${cmd.x} ${cmd.y}`);
+                currentX = cmd.x;
+                currentY = cmd.y;
+              } else {
+                const x1 = currentX + cmd.x1;
+                const y1 = currentY + cmd.y1;
+                currentX += cmd.x;
+                currentY += cmd.y;
+                pathParts.push(`Q ${x1} ${y1} ${currentX} ${currentY}`);
+              }
+            } else if (cmd.type === 'Z' || cmd.type === 'z') {
+              // Close path
+              pathParts.push('Z');
+            }
+          });
+          
+          const svgPathData = pathParts.join(' ');
+          
+          if (!svgPathData || svgPathData.trim() === '') {
+            throw new Error('Empty SVG path data generated from opentype commands');
+          }
+          
+          console.log(`Built SVG path data from ${commands.length} commands (length: ${svgPathData.length}): ${svgPathData.substring(0, 150)}...`);
+
+          // Convert SVG path data to maker.js model
+          try {
+            makerModel = maker.importer.fromSVGPathData(svgPathData);
+          } catch (svgParseError) {
+            console.error(`Maker.js failed to parse SVG path data:`, svgParseError);
+            console.error(`Problematic path data (first 300 chars): ${svgPathData.substring(0, 300)}`);
+            throw svgParseError;
+          }
+          
+          console.log(`Text path conversion result:`, {
+            text: obj.text,
+            hasModel: !!makerModel,
+            modelType: typeof makerModel,
+            hasPaths: !!(makerModel && makerModel.paths),
+            pathKeys: makerModel && makerModel.paths ? Object.keys(makerModel.paths) : []
+          });
           
           if (!makerModel) {
             console.error(`Failed to convert text path to maker model for: "${obj.text}"`);
             continue; // Skip this text object
           }
+          
+          // Ensure the model has paths
+          if (!makerModel.paths || Object.keys(makerModel.paths).length === 0) {
+            console.error(`Text path model has no paths for: "${obj.text}"`, makerModel);
+            continue; // Skip this text object
+          }
         } catch (pathError) {
           console.error(`Failed to create vector path for text "${obj.text}":`, pathError);
+          console.error('Path error details:', pathError.stack);
           continue; // Skip this text object - no fallbacks
         }
       } else if (obj.type === 'image' || obj.type === 'imagebox') {
@@ -508,15 +612,57 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
       }
 
       // Convert from Fabric's top-left (pixels) to DXF's bottom-left (inches)
-      const dxf_X = adjustedLeft;
-      const dxf_Y = canvasHeightInches - adjustedTop - objHeightInches;
+      // For text, opentype.js uses a coordinate system where Y increases upward
+      // and the baseline is at Y=0. We need to flip Y coordinates.
+      let dxf_X, dxf_Y;
+      
+      if (obj.type === 'text') {
+        // For text, we need to account for the baseline
+        // Opentype paths are created with baseline at Y=0, and Y increases upward
+        // We need to flip the Y coordinate and position correctly
+        dxf_X = adjustedLeft;
+        // Flip Y: canvasHeightInches - (top + height) but also flip the text path itself
+        // The text path needs to be mirrored vertically around its baseline
+        const textBaselineY = canvasHeightInches - adjustedTop;
+        
+        // Mirror the text model vertically (flip Y coordinates)
+        // Opentype.js uses Y-up coordinate system, DXF uses Y-up but we're converting from Fabric's Y-down
+        // We need to flip the text vertically around the baseline
+        try {
+          // Estimate the text height for mirroring (use font size as approximate height)
+          const estimatedTextHeight = fontSizeInches;
+          const mirrorPointY = textBaselineY;
+          
+          // Mirror around the baseline (Y=0 in opentype becomes baseline in DXF)
+          maker.model.mirror(makerModel, false, true, [0, mirrorPointY]);
+        } catch (mirrorErr) {
+          console.warn(`Failed to mirror text model, continuing without mirror:`, mirrorErr);
+          // If mirroring fails, we'll position it anyway - it might still work
+        }
+        
+        // Position at the left edge and baseline
+        dxf_X = adjustedLeft;
+        dxf_Y = textBaselineY;
+      } else {
+        dxf_X = adjustedLeft;
+        dxf_Y = canvasHeightInches - adjustedTop - objHeightInches;
+      }
 
       // Move the model to its final position
       maker.model.move(makerModel, [dxf_X, dxf_Y]);
+      
+      console.log(`Positioned ${obj.type} object "${obj.text || obj.elementId || 'unknown'}" at:`, {
+        dxf_X,
+        dxf_Y,
+        originalLeft: obj.left,
+        originalTop: obj.top
+      });
 
       // d. Add to Document
       const modelName = obj.elementId || obj.id || `element-${objects.indexOf(obj)}`;
       dxfDocument.models[modelName] = makerModel;
+      
+      console.log(`Added ${obj.type} model "${modelName}" to DXF document`);
     }
 
     // 9. Generate and Download the File

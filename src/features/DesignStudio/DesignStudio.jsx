@@ -626,13 +626,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
         {/* Left Panel: Artwork (only show when toggled) */}
         {showArtworkLibrary && (
-          <div className="design-studio-sidebar-left">
             
             <ArtworkLibrary
               artwork={artwork}
               onSelectArtwork={handleAddArtwork}
             />
-          </div>
+          
         )}
 
         {/* Main/Center: Canvas */}
@@ -660,7 +659,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
         {/* Right Panel: Options (only show when an object is selected) */}
         {selectedElement && (
-          <div className="design-studio-sidebar design-studio-sidebar-right">
+
             <OptionsPanel
               selectedElement={selectedElement}
               onDeleteElement={handleDeleteElement}
@@ -669,7 +668,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               onFlipHorizontal={handleFlipHorizontal}
               onFlipVertical={handleFlipVertical}
             />
-          </div>
+     
         )}
 
 
