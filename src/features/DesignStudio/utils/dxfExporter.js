@@ -186,31 +186,50 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
  * @param {string} fontFamily - The font family name
  * @returns {Promise<opentype.Font>} - The loaded font
  */
+// Map font family names to actual filenames (used in error messages)
+const fontMap = {
+  'Arial': 'Arial.ttf',
+  'Times New Roman': 'TimesNewRoman.ttf',
+  'Helvetica': 'Helvetica.ttf',
+  'Georgia': 'Georgia.ttf',
+  'Courier New': 'CourierNew.ttf',
+  'Verdana': 'Verdana.ttf',
+  'New York': 'NewYork.ttf'
+};
+
+/**
+ * Asynchronously loads a font from the /public/fonts/ directory using opentype.js
+ * 
+ * @param {string} fontFamily - The font family name
+ * @returns {Promise<opentype.Font>} - The loaded font, or null if failed
+ */
 async function getFont(fontFamily) {
   if (fontCache.has(fontFamily)) {
-    return fontCache.get(fontFamily);
+    const cached = fontCache.get(fontFamily);
+    return cached; // Return cached font or null
   }
 
-  // Map font family names to actual filenames
-  const fontMap = {
-    'Arial': 'Arial.ttf',
-    'Times New Roman': 'TimesNewRoman.ttf',
-    'Helvetica': 'Helvetica.ttf',
-    'Georgia': 'Georgia.ttf',
-    'Courier New': 'CourierNew.ttf',
-    'Verdana': 'Verdana.ttf'
-  };
-
-  const fontFilename = fontMap[fontFamily] || `${fontFamily}.ttf`;
+  // Check if we have a mapping for this font family
+  let fontFilename = fontMap[fontFamily];
+  
+  // If no mapping, try to generate filename by removing spaces
+  if (!fontFilename) {
+    // Remove spaces and special characters for filename
+    fontFilename = `${fontFamily.replace(/\s+/g, '')}.ttf`;
+  }
+  
   const fontUrl = `/fonts/${fontFilename}`;
 
   try {
+    // Use opentype.js to load the font file
     const font = await opentype.load(fontUrl);
     fontCache.set(fontFamily, font);
+    console.log(`Successfully loaded font using opentype.js: ${fontFamily} from ${fontUrl}`);
     return font;
   } catch (err) {
-    console.error(`Failed to load font: ${fontUrl}`, err);
-    // Return null for missing fonts - caller will handle gracefully
+    console.error(`Failed to load font using opentype.js: ${fontUrl}`, err);
+    console.error(`Please ensure the font file exists at: public/fonts/${fontFilename}`);
+    // Cache null so we don't retry failed fonts
     fontCache.set(fontFamily, null);
     return null;
   }
@@ -366,20 +385,31 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
         const fontFamily = obj.fontFamily || 'Arial';
         const font = fontCache.get(fontFamily);
 
-        // Skip if font failed to load
+        // Require font to be loaded - no fallbacks
         if (!font) {
-          console.warn(`Font not loaded: ${fontFamily}`);
-          continue;
+          console.error(`Font not loaded: ${fontFamily}. Text "${obj.text || 'Text'}" will be skipped.`);
+          console.error(`Please ensure font file exists at /fonts/${fontMap[fontFamily] || fontFamily + '.ttf'}`);
+          continue; // Skip this text object
         }
 
         // Convert font size from pixels to inches
         const fontSizeInches = unitConverter.pixelsToInches(obj.fontSize || 12, scale);
 
-        // Get the path from opentype
-        const openTypePath = font.getPath(obj.text || 'Text', 0, 0, fontSizeInches);
+        try {
+          // Get the path from opentype.js - this converts text to vector paths
+          const openTypePath = font.getPath(obj.text || 'Text', 0, 0, fontSizeInches);
 
-        // Convert opentype path to maker.js model
-        makerModel = maker.importer.fromOpentypePath(openTypePath);
+          // Convert opentype path to maker.js model
+          makerModel = maker.importer.fromOpentypePath(openTypePath);
+          
+          if (!makerModel) {
+            console.error(`Failed to convert text path to maker model for: "${obj.text}"`);
+            continue; // Skip this text object
+          }
+        } catch (pathError) {
+          console.error(`Failed to create vector path for text "${obj.text}":`, pathError);
+          continue; // Skip this text object - no fallbacks
+        }
       } else if (obj.type === 'image' || obj.type === 'imagebox') {
         // Get image source URL
         // Try to get original source from customData (for artwork)
