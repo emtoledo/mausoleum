@@ -679,23 +679,84 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
           // 2. Apply rotation
           // 3. Apply Y-flip and position
           
-          // Template/overlay use top-left origin, so we need to offset
-          const originOffset = { x: 0, y: -obj.height }; // Move from top-left to bottom-left
-          maker.model.move(makerModel, [originOffset.x, originOffset.y]);
+          // Template/overlay use top-left origin in Fabric.js (Y-down)
+          // In DXF (Y-up), template should be positioned above productBase
+          // Template is 23" tall, canvas is 26" tall, productBase is 3" tall at bottom
+          // So template should be from Y=3 to Y=26 (bottom-left at Y=3, top at Y=26)
           
-          // Apply rotation (should be 0 for template/overlay)
+          // The model from svgToMakerModel is normalized to [0,0] with top-left at origin
+          // After normalization, the template spans from [0, 0] to [width, height] in Y-down coordinates
+          // We need to:
+          // 1. Apply origin offset to convert from top-left to bottom-left (move down by height)
+          // 2. Apply Y-flip to convert from Y-down to Y-up
+          // 3. Position at final location
+          
+          // Get initial bounds for debugging
+          const initialBounds = getModelBounds(makerModel);
+          console.log(`${obj.type} initial bounds:`, initialBounds);
+          
+          // Step 1: Apply origin offset - move from top-left to bottom-left
+          // Currently at [0, 0] with top-left at origin, move down by height
+          maker.model.move(makerModel, [0, -obj.height]);
+          
+          const boundsAfterOriginOffset = getModelBounds(makerModel);
+          console.log(`${obj.type} bounds after origin offset:`, boundsAfterOriginOffset);
+          
+          // Step 2: Apply rotation (should be 0 for template/overlay)
           if (obj.decomposed.angle !== 0) {
             maker.model.rotate(makerModel, -obj.decomposed.angle, [0, 0]);
+            const boundsAfterRotate = getModelBounds(makerModel);
+            console.log(`${obj.type} bounds after rotation:`, boundsAfterRotate);
           }
           
-          // Apply Y-flip and move to final position using decomposed transform
-          const finalX = obj.decomposed.translateX / scale;
-          const finalY = canvasHeightInches - (obj.decomposed.translateY / scale);
-          maker.model.move(makerModel, [finalX, finalY]);
+          // Step 3: Position using the actual transform from decomposed matrix
+          // The decomposed translateX/Y gives us the position of the origin point in pixels
+          // Convert to inches and apply Y-flip for DXF coordinate system
+          const originXInches = obj.decomposed.translateX / scale;
+          const originYInches = obj.decomposed.translateY / scale;
+          
+          // Convert from Y-down (Fabric) to Y-up (DXF)
+          // After origin offset, the template's bottom-left is at [0, 0] in Y-down
+          // The origin point (top-left in Fabric) is at [originXInches, originYInches] in Y-down
+          // In Y-up: Y-up = canvasHeight - Y-down
+          // So origin Y in Y-up = canvasHeight - originYInches
+          // But we've already offset by -obj.height, so the bottom-left is at [0, 0] in Y-down
+          // The origin (top-left) was at [originXInches, originYInches], so bottom-left was at [originXInches, originYInches + obj.height]
+          // After offset, bottom-left is at [0, 0], so we need to move to [originXInches, originYInches + obj.height]
+          // Then convert to Y-up: Y = canvasHeight - (originYInches + obj.height)
+          const finalX = originXInches;
+          const finalYDown = originYInches + obj.height; // Bottom Y in Y-down coordinates
+          const finalYUp = canvasHeightInches - finalYDown; // Convert to Y-up
+          
+          console.log(`${obj.type} origin position (Y-down): [${originXInches}, ${originYInches}]`);
+          console.log(`${obj.type} bottom position (Y-down): [${finalX}, ${finalYDown}]`);
+          console.log(`${obj.type} bottom position (Y-up): [${finalX}, ${finalYUp}]`);
+          
+          // Move to position in Y-down coordinates first
+          maker.model.move(makerModel, [finalX, finalYDown]);
+          
+          const boundsAfterPosition = getModelBounds(makerModel);
+          console.log(`${obj.type} bounds after positioning:`, boundsAfterPosition);
+          
+          // Step 4: Flip vertically to convert from Y-down to Y-up
+          // After positioning, template is at correct position but still in Y-down orientation
+          // We need to flip it around its horizontal centerline
+          const boundsBeforeFlip = getModelBounds(makerModel);
+          const centerX = (boundsBeforeFlip.minX + boundsBeforeFlip.maxX) / 2;
+          const centerY = (boundsBeforeFlip.minY + boundsBeforeFlip.maxY) / 2;
+          
+          try {
+            // Mirror around the center
+            maker.model.mirror(makerModel, false, true, [centerX, centerY]);
+            const boundsAfterFlip = getModelBounds(makerModel);
+            console.log(`${obj.type} bounds after flip:`, boundsAfterFlip);
+          } catch (mirrorErr) {
+            console.warn(`Failed to mirror ${obj.type}:`, mirrorErr);
+          }
           
           // Add to consolidated model
           maker.model.addModel(mainMakerModel, makerModel, obj.type);
-          console.log(`${obj.type} positioned at [${finalX}, ${finalY}] (after Y-flip)`);
+          console.log(`${obj.type} positioned at [${finalX}, ${finalYUp}] (after Y-flip)`);
           console.log(`=== End ${obj.type.toUpperCase()} processing ===\n`);
           
         } else if (obj.type === 'productBase') {
@@ -867,31 +928,35 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
             maker.model.rotate(makerModel, -obj.decomposed.angle, [0, 0]);
           }
           
+          // Wrap the text model in a parent model to ensure move operations work
+          // Some Maker.js operations don't work directly on models with only paths
+          const wrappedModel = { models: { text: makerModel } };
+          
           // Move to final position
-          maker.model.move(makerModel, [offsetX, offsetY]);
+          maker.model.move(wrappedModel, [offsetX, offsetY]);
           
           console.log(`Text "${obj.fabricObj.text}" - Final position: [${finalX}, ${finalY}]`);
           
           // Get bounds after positioning to verify
-          const boundsAfterFinal = getModelBounds(makerModel);
+          const boundsAfterFinal = getModelBounds(wrappedModel);
           console.log(`Text "${obj.fabricObj.text}" - Bounds after final positioning:`, boundsAfterFinal);
           
           // Mirror text vertically (opentype.js uses Y-up, but Fabric uses Y-down)
           // Mirror around the origin point which is at (finalX, finalY)
           try {
-            maker.model.mirror(makerModel, false, true, [finalX, finalY]);
-            const boundsAfterMirror = getModelBounds(makerModel);
+            maker.model.mirror(wrappedModel, false, true, [finalX, finalY]);
+            const boundsAfterMirror = getModelBounds(wrappedModel);
             console.log(`Text "${obj.fabricObj.text}" - Bounds after mirror:`, boundsAfterMirror);
           } catch (mirrorErr) {
             console.warn('Failed to mirror text model:', mirrorErr);
           }
           
           // Get final bounds to verify position
-          const finalBounds = getModelBounds(makerModel);
+          const finalBounds = getModelBounds(wrappedModel);
           console.log(`Text "${obj.fabricObj.text}" - Final bounds:`, finalBounds);
           
-          // Add to consolidated model
-          maker.model.addModel(mainMakerModel, makerModel, obj.elementId);
+          // Add wrapped model to consolidated model
+          maker.model.addModel(mainMakerModel, wrappedModel, obj.elementId);
           console.log(`Text "${obj.fabricObj.text}" positioned at [${finalX}, ${finalY}]`);
           
         } else if ((obj.type === 'image' || obj.type === 'imagebox') && obj.fabricObj) {

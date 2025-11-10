@@ -25,6 +25,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   const [fontSize, setFontSize] = useState(12);
   const [color, setColor] = useState('#000000');
   const [fontFamily, setFontFamily] = useState('Arial');
+  const [charSpacing, setCharSpacing] = useState(0); // Letter spacing in percent
 
   // Image properties state
   const [width, setWidth] = useState(0);
@@ -46,6 +47,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       setFontSize(12);
       setColor('#000000');
       setFontFamily('Arial');
+      setCharSpacing(0);
       setWidth(0);
       setHeight(0);
       setOpacity(1);
@@ -56,9 +58,16 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     // Update based on element type
     if (selectedElement.type === 'text') {
       setContent(selectedElement.get('text') || '');
-      setFontSize(selectedElement.get('fontSize') || 12);
+      const currentFontSize = selectedElement.get('fontSize') || 12;
+      setFontSize(currentFontSize);
       setColor(selectedElement.get('fill') || '#000000');
       setFontFamily(selectedElement.get('fontFamily') || 'Arial');
+      
+      // Convert charSpacing from pixels to percent (relative to fontSize)
+      // Fabric.js charSpacing is in pixels, we store as percent
+      const charSpacingPx = selectedElement.get('charSpacing') || 0;
+      const charSpacingPercent = currentFontSize > 0 ? (charSpacingPx / currentFontSize) * 100 : 0;
+      setCharSpacing(charSpacingPercent);
     } else if (selectedElement.type === 'image') {
       setWidth(selectedElement.get('width') || 0);
       setHeight(selectedElement.get('height') || 0);
@@ -115,6 +124,16 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     const newFont = e.target.value;
     setFontFamily(newFont);
     updateFabricObject('fontFamily', newFont);
+  };
+
+  const handleCharSpacingChange = (e) => {
+    const newSpacingPercent = Number(e.target.value);
+    setCharSpacing(newSpacingPercent);
+    
+    // Convert percent to pixels (relative to current fontSize)
+    const currentFontSize = selectedElement?.get('fontSize') || fontSize;
+    const charSpacingPx = (newSpacingPercent / 100) * currentFontSize;
+    updateFabricObject('charSpacing', charSpacingPx);
   };
 
   // Image property handlers
@@ -785,6 +804,26 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
                   {color.toUpperCase()}
                 </span>
               </div>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="text-char-spacing" className="form-label">
+              Letter Spacing
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <input
+                id="text-char-spacing"
+                type="number"
+                className="form-input"
+                value={charSpacing}
+                onChange={handleCharSpacingChange}
+                min="-50"
+                max="200"
+                step="1"
+                style={{ width: '70px' }}
+              />
+              <span style={{ fontSize: '14px', color: '#666', minWidth: '30px' }}>%</span>
             </div>
           </div>
 
