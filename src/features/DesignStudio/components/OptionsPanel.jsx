@@ -26,6 +26,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   const [color, setColor] = useState('#000000');
   const [fontFamily, setFontFamily] = useState('Arial');
   const [charSpacing, setCharSpacing] = useState(0); // Letter spacing in percent
+  const [textAlign, setTextAlign] = useState('left'); // Text alignment
 
   // Image properties state
   const [width, setWidth] = useState(0);
@@ -48,6 +49,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       setColor('#000000');
       setFontFamily('Arial');
       setCharSpacing(0);
+      setTextAlign('left');
       setWidth(0);
       setHeight(0);
       setOpacity(1);
@@ -62,6 +64,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       setFontSize(currentFontSize);
       setColor(selectedElement.get('fill') || '#000000');
       setFontFamily(selectedElement.get('fontFamily') || 'Arial');
+      setTextAlign(selectedElement.get('textAlign') || 'left');
       
       // Convert charSpacing from pixels to percent (relative to fontSize)
       // Fabric.js charSpacing is in pixels, we store as percent
@@ -134,6 +137,12 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     const currentFontSize = selectedElement?.get('fontSize') || fontSize;
     const charSpacingPx = (newSpacingPercent / 100) * currentFontSize;
     updateFabricObject('charSpacing', charSpacingPx);
+  };
+
+  const handleTextAlignChange = (e) => {
+    const newAlign = e.target.value;
+    setTextAlign(newAlign);
+    updateFabricObject('textAlign', newAlign);
   };
 
   // Image property handlers
@@ -720,6 +729,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               onChange={handleContentChange}
               rows="4"
               placeholder="Enter text content"
+              style={{ textAlign: textAlign }}
             />
           </div>
 
@@ -825,6 +835,22 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               />
               <span style={{ fontSize: '14px', color: '#666', minWidth: '30px' }}>%</span>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="text-align" className="form-label">
+              Alignment
+            </label>
+            <select
+              id="text-align"
+              className="form-input form-select"
+              value={textAlign}
+              onChange={handleTextAlignChange}
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
           </div>
 
 
