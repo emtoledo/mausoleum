@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as fabric from 'fabric';
 import { FabricImage } from 'fabric';
+import { pixelsToInches, inchesToPixels, calculateScale } from '../utils/unitConverter';
 
 /**
  * @param {fabric.Object} selectedElement - Currently selected Fabric.js object
@@ -17,9 +18,11 @@ import { FabricImage } from 'fabric';
  * @param {Function} onCenterVertical - Callback to center object vertically
  * @param {Function} onFlipHorizontal - Callback to flip object horizontally
  * @param {Function} onFlipVertical - Callback to flip object vertically
+ * @param {number} realWorldWidth - Real world width in inches for scale calculations
+ * @param {Object} canvasSize - Canvas size in pixels {width, height}
  * @returns {JSX.Element}
  */
-const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical }) => {
+const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical, realWorldWidth = 24, canvasSize = { width: 800 } }) => {
   // Text properties state
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
@@ -62,16 +65,32 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     // Update based on element type
     if (selectedElement.type === 'text') {
       setContent(selectedElement.get('text') || '');
-      const currentFontSize = selectedElement.get('fontSize') || 12;
-      setFontSize(currentFontSize);
+      // Calculate effective font size accounting for scale (when text is resized via handles)
+      const baseFontSizePx = selectedElement.get('fontSize') || 12;
+      const scaleY = selectedElement.get('scaleY') || 1;
+      const currentFontSizePx = baseFontSizePx * scaleY;
+      
+      // Convert font size from pixels to inches for display
+      let fontSizeInches = 12; // default fallback
+      try {
+        const canvasWidth = canvasSize.width || (selectedElement.canvas?.width || 800);
+        const scale = calculateScale(realWorldWidth, canvasWidth);
+        fontSizeInches = pixelsToInches(currentFontSizePx, scale);
+      } catch (error) {
+        console.warn('Could not convert font size to inches:', error);
+        // Fallback to pixel value if conversion fails
+        fontSizeInches = currentFontSizePx;
+      }
+      
+      setFontSize(fontSizeInches);
       setColor(selectedElement.get('fill') || '#000000');
       setFontFamily(selectedElement.get('fontFamily') || 'Arial');
       setTextAlign(selectedElement.get('textAlign') || 'left');
       
-      // Convert charSpacing from pixels to percent (relative to fontSize)
+      // Convert charSpacing from pixels to percent (relative to base fontSize, not scaled)
       // Fabric.js charSpacing is in pixels, we store as percent
       const charSpacingPx = selectedElement.get('charSpacing') || 0;
-      const charSpacingPercent = currentFontSize > 0 ? (charSpacingPx / currentFontSize) * 100 : 0;
+      const charSpacingPercent = baseFontSizePx > 0 ? (charSpacingPx / baseFontSizePx) * 100 : 0;
       setCharSpacing(charSpacingPercent);
       
       // Convert lineHeight from multiplier to percent
@@ -101,7 +120,49 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         setImageColor('#000000');
       }
     }
-  }, [selectedElement]);
+  }, [selectedElement, realWorldWidth, canvasSize]);
+
+  /**
+   * Listen for object modifications (resizing) to update font size display
+   */
+  useEffect(() => {
+    if (!selectedElement || selectedElement.type !== 'text' || !selectedElement.canvas) {
+      return;
+    }
+
+    const canvas = selectedElement.canvas;
+    
+    const handleObjectModified = (e) => {
+      const modifiedObject = e.target;
+      
+      // Only update if the modified object is the currently selected text object
+      if (modifiedObject === selectedElement && modifiedObject.type === 'text') {
+        // When text is resized, Fabric.js uses scaleX/scaleY, not fontSize directly
+        // Calculate effective font size: fontSize * scaleY (height is typically what matters for text)
+        const baseFontSizePx = modifiedObject.get('fontSize') || 12;
+        const scaleY = modifiedObject.get('scaleY') || 1;
+        const effectiveFontSizePx = baseFontSizePx * scaleY;
+        
+        // Convert effective font size from pixels to inches for display
+        try {
+          const canvasWidth = canvasSize.width || (canvas.width || 800);
+          const scale = calculateScale(realWorldWidth, canvasWidth);
+          const fontSizeInches = pixelsToInches(effectiveFontSizePx, scale);
+          setFontSize(fontSizeInches);
+        } catch (error) {
+          console.warn('Could not convert font size to inches after modification:', error);
+        }
+      }
+    };
+
+    // Listen for object modification events
+    canvas.on('object:modified', handleObjectModified);
+
+    // Cleanup: remove event listener
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+    };
+  }, [selectedElement, realWorldWidth, canvasSize]);
 
   /**
    * Update Fabric object and re-render canvas
@@ -128,9 +189,20 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   };
 
   const handleFontSizeChange = (e) => {
-    const newSize = Number(e.target.value);
-    setFontSize(newSize);
-    updateFabricObject('fontSize', newSize);
+    const newSizeInches = Number(e.target.value);
+    setFontSize(newSizeInches);
+    
+    // Convert from inches to pixels
+    try {
+      const canvasWidth = canvasSize.width || (selectedElement?.canvas?.width || 800);
+      const scale = calculateScale(realWorldWidth, canvasWidth);
+      const newSizePx = inchesToPixels(newSizeInches, scale);
+      updateFabricObject('fontSize', newSizePx);
+    } catch (error) {
+      console.warn('Could not convert font size from inches to pixels:', error);
+      // Fallback to using the value as pixels if conversion fails
+      updateFabricObject('fontSize', newSizeInches);
+    }
   };
 
   const handleColorChange = (e) => {
@@ -788,15 +860,18 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               <label htmlFor="text-font-size" className="form-label">
                 Size
               </label>
-              <input
-                id="text-font-size"
-                type="number"
-                className="form-input"
-                value={fontSize}
-                onChange={handleFontSizeChange}
-                min="1"
-                step="1"
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  id="text-font-size"
+                  type="number"
+                  className="form-input"
+                  value={typeof fontSize === 'number' ? fontSize.toFixed(2) : fontSize}
+                  onChange={handleFontSizeChange}
+                  min="0.1"
+                  step="0.1"
+                  style={{ width: '70px' }}
+                />
+              </div>
             </div>
 
             <div className="form-group">

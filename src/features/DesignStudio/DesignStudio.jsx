@@ -667,6 +667,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               onCenterVertical={handleCenterVertical}
               onFlipHorizontal={handleFlipHorizontal}
               onFlipVertical={handleFlipVertical}
+              realWorldWidth={initialData?.realWorldWidth || 24}
+              canvasSize={canvasSize}
             />
      
         )}
