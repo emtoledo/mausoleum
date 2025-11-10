@@ -2402,10 +2402,12 @@ body:has(.canvas-layout) .footer-branding {
     transition: all 0.1s ease;
     position: relative;
     border: 1px solid #ccc;
+    pointer-events: auto;
+    z-index: 1;
 }
 
 .options-panel-color-swatch.active {
-    border: 3px solid #007bff;
+    border: 2px solid #007bff;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 

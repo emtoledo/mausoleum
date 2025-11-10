@@ -133,13 +133,19 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       const customData = selectedElement.customData || {};
       const currentFill = customData.currentColor || '#000000';
       const currentOpacity = selectedElement.get('opacity') ?? 1;
+      const currentStroke = selectedElement.get('stroke') || null;
+      const currentStrokeWidth = selectedElement.get('strokeWidth') || 0;
       setImageColor(currentFill);
       
-      // Try to match current color/opacity to a ColorData entry
+      // Try to match current color/opacity/stroke to a ColorData entry
       const matchedColor = colorData.find(c => {
         const fillMatch = c.fillColor.toLowerCase() === currentFill.toLowerCase();
         const opacityMatch = Math.abs(c.opacity - currentOpacity) < 0.01;
-        return fillMatch && opacityMatch;
+        const strokeMatch = !c.strokeWidth || c.strokeWidth === 0 
+          ? (!currentStroke || currentStroke === 'transparent' || currentStrokeWidth === 0)
+          : (c.strokeColor.toLowerCase() === (currentStroke || '').toLowerCase() && 
+             Math.abs(c.strokeWidth - currentStrokeWidth) < 0.01);
+        return fillMatch && opacityMatch && strokeMatch;
       });
       setSelectedColorId(matchedColor ? matchedColor.id : null);
     }
@@ -234,42 +240,116 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     updateFabricObject('fill', newColor);
   };
 
-  const handleColorSwatchSelect = (colorItem) => {
+  const handleColorSwatchSelect = async (colorItem) => {
+    console.log('handleColorSwatchSelect called:', {
+      colorItem,
+      colorId: colorItem.id,
+      colorName: colorItem.name,
+      fillColor: colorItem.fillColor,
+      opacity: colorItem.opacity,
+      selectedElement: selectedElement ? {
+        type: selectedElement.type,
+        id: selectedElement.elementId
+      } : null
+    });
+    
     setSelectedColorId(colorItem.id);
     setColor(colorItem.fillColor);
     
-    if (selectedElement) {
-      // Apply fill color
-      selectedElement.set('fill', colorItem.fillColor);
+    if (!selectedElement) {
+      console.warn('No selectedElement, returning early');
+      return;
+    }
+    
+    // For images/artwork, use the same color change logic as handleImageColorChange
+    if (selectedElement.type === 'image') {
+      const canvas = selectedElement.canvas;
+      if (!canvas) {
+        console.warn('No canvas available for image color change');
+        return;
+      }
       
-      // Apply opacity
-      selectedElement.set('opacity', colorItem.opacity);
+      // Store the current active object before color change
+      const currentActiveObject = canvas.getActiveObject();
+      
+      // Use the existing image color change handler logic
+      await handleImageColorChange({ target: { value: colorItem.fillColor } });
+      
+      // After handleImageColorChange, the image may have been replaced
+      // Get the currently active object (which should be the new/replaced image)
+      let targetElement = canvas.getActiveObject();
+      
+      // If no active object, try to find the image we just modified
+      if (!targetElement) {
+        // Find the most recently added image object
+        const objects = canvas.getObjects();
+        const imageObjects = objects.filter(obj => obj.type === 'image');
+        if (imageObjects.length > 0) {
+          targetElement = imageObjects[imageObjects.length - 1];
+          canvas.setActiveObject(targetElement);
+        } else {
+          // Fallback to original selectedElement if still on canvas
+          if (canvas.getObjects().includes(selectedElement)) {
+            targetElement = selectedElement;
+          } else {
+            console.warn('Could not find target element after color change');
+            return;
+          }
+        }
+      }
+      
+      // Apply opacity from ColorData to the target element
+      targetElement.set('opacity', colorItem.opacity);
+      setOpacity(colorItem.opacity); // Update local state for UI
       
       // Apply stroke if specified
       if (colorItem.strokeWidth > 0) {
-        selectedElement.set('stroke', colorItem.strokeColor);
-        selectedElement.set('strokeWidth', colorItem.strokeWidth);
+        targetElement.set('stroke', colorItem.strokeColor);
+        targetElement.set('strokeWidth', colorItem.strokeWidth);
       } else {
-        selectedElement.set('stroke', null);
-        selectedElement.set('strokeWidth', 0);
+        targetElement.set('stroke', null);
+        targetElement.set('strokeWidth', 0);
       }
       
-      // For images, also update the customData
-      if (selectedElement.type === 'image') {
-        const customData = selectedElement.customData || {};
-        customData.currentColor = colorItem.fillColor;
-        customData.currentColorId = colorItem.id;
-        selectedElement.set('customData', customData);
-        setImageColor(colorItem.fillColor);
-      }
+      // Update customData with color info
+      const customData = targetElement.customData || {};
+      customData.currentColor = colorItem.fillColor;
+      customData.currentColorId = colorItem.id;
+      customData.currentOpacity = colorItem.opacity; // Store opacity in customData
+      customData.currentStrokeColor = colorItem.strokeColor;
+      customData.currentStrokeWidth = colorItem.strokeWidth;
+      targetElement.set('customData', customData);
+      setImageColor(colorItem.fillColor);
       
-      if (selectedElement.canvas) {
-        selectedElement.canvas.renderAll();
-      }
+      // Ensure the element is selected and rendered
+      canvas.setActiveObject(targetElement);
+      canvas.renderAll();
       
       if (onUpdateElement) {
-        onUpdateElement(selectedElement);
+        onUpdateElement(targetElement);
       }
+      return;
+    }
+    
+    // For text objects, apply fill, opacity, and stroke
+    selectedElement.set('fill', colorItem.fillColor);
+    selectedElement.set('opacity', colorItem.opacity);
+    
+    // Apply stroke if specified
+    if (colorItem.strokeWidth > 0) {
+      selectedElement.set('stroke', colorItem.strokeColor);
+      selectedElement.set('strokeWidth', colorItem.strokeWidth);
+    } else {
+      selectedElement.set('stroke', null);
+      selectedElement.set('strokeWidth', 0);
+    }
+    
+    if (selectedElement.canvas) {
+      selectedElement.canvas.renderAll();
+    }
+    
+    if (onUpdateElement) {
+      onUpdateElement(selectedElement);
     }
   };
 
@@ -317,11 +397,6 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     updateFabricObject('height', newHeight);
   };
 
-  const handleOpacityChange = (e) => {
-    const newOpacity = Number(e.target.value);
-    setOpacity(newOpacity);
-    updateFabricObject('opacity', newOpacity);
-  };
 
   const handleImageColorChange = async (e) => {
     const newColor = e.target.value;
@@ -947,7 +1022,20 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
                     <div
                       key={colorItem.id}
                       className={`options-panel-color-swatch ${isSelected ? 'active' : ''}`}
-                      onClick={() => handleColorSwatchSelect(colorItem)}
+                      onClick={(e) => {
+                        console.log('Swatch clicked:', {
+                          colorId: colorItem.id,
+                          colorName: colorItem.name,
+                          fillColor: colorItem.fillColor,
+                          opacity: colorItem.opacity,
+                          eventTarget: e.target,
+                          currentTarget: e.currentTarget,
+                          isSelected
+                        });
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleColorSwatchSelect(colorItem);
+                      }}
                       style={{
                         background: colorItem.opacity < 1 
                           ? `linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)`
@@ -958,7 +1046,8 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
                         opacity: colorItem.opacity,
                         border: !isSelected && colorItem.strokeWidth > 0 
                           ? `1px solid ${colorItem.strokeColor}`
-                          : undefined
+                          : undefined,
+                        pointerEvents: 'auto'
                       }}
                       title={colorItem.name}
                     />
@@ -1033,7 +1122,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     );
   }
 
-  // Render image properties panel
+  // Artwork properties panel
   if (selectedElement.type === 'image') {
     return (
       <div className="options-panel">
@@ -1121,23 +1210,6 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
           </div>
 
           <div className="form-group">
-            <label htmlFor="image-opacity" className="form-label">
-              Opacity
-            </label>
-            <input
-              id="image-opacity"
-              type="range"
-              className="form-input form-range"
-              value={opacity}
-              onChange={handleOpacityChange}
-              min="0"
-              max="1"
-              step="0.01"
-            />
-            <span className="form-range-value">{Math.round(opacity * 100)}%</span>
-          </div>
-
-          <div className="form-group">
             <label className="form-label">
               Color
             </label>
@@ -1148,7 +1220,20 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
                     <div
                       key={colorItem.id}
                       className={`options-panel-color-swatch ${isSelected ? 'active' : ''}`}
-                      onClick={() => handleColorSwatchSelect(colorItem)}
+                      onClick={(e) => {
+                        console.log('Swatch clicked:', {
+                          colorId: colorItem.id,
+                          colorName: colorItem.name,
+                          fillColor: colorItem.fillColor,
+                          opacity: colorItem.opacity,
+                          eventTarget: e.target,
+                          currentTarget: e.currentTarget,
+                          isSelected
+                        });
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleColorSwatchSelect(colorItem);
+                      }}
                       style={{
                         background: colorItem.opacity < 1 
                           ? `linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)`
@@ -1159,7 +1244,8 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
                         opacity: colorItem.opacity,
                         border: !isSelected && colorItem.strokeWidth > 0 
                           ? `1px solid ${colorItem.strokeColor}`
-                          : undefined
+                          : undefined,
+                        pointerEvents: 'auto'
                       }}
                       title={colorItem.name}
                     />
