@@ -26,6 +26,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   const [color, setColor] = useState('#000000');
   const [fontFamily, setFontFamily] = useState('Arial');
   const [charSpacing, setCharSpacing] = useState(0); // Letter spacing in percent
+  const [lineHeight, setLineHeight] = useState(100); // Line height in percent
   const [textAlign, setTextAlign] = useState('left'); // Text alignment
 
   // Image properties state
@@ -49,6 +50,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       setColor('#000000');
       setFontFamily('Arial');
       setCharSpacing(0);
+      setLineHeight(100);
       setTextAlign('left');
       setWidth(0);
       setHeight(0);
@@ -71,6 +73,20 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       const charSpacingPx = selectedElement.get('charSpacing') || 0;
       const charSpacingPercent = currentFontSize > 0 ? (charSpacingPx / currentFontSize) * 100 : 0;
       setCharSpacing(charSpacingPercent);
+      
+      // Convert lineHeight from multiplier to percent
+      // Fabric.js lineHeight is a multiplier (e.g., 1.2 = 120%), we store as percent
+      // Fabric.js default is 1.15 (115%), but we'll normalize it to 100% as the default
+      const lineHeightMultiplier = selectedElement.get('lineHeight');
+      // If lineHeight is close to Fabric's default (1.15) or undefined, normalize to 1.0 (100%)
+      if (lineHeightMultiplier === undefined || Math.abs(lineHeightMultiplier - 1.15) < 0.01) {
+        // Set it to 1.0 in Fabric.js to match our UI default of 100%
+        selectedElement.set('lineHeight', 1.0);
+        setLineHeight(100);
+      } else {
+        const lineHeightPercent = lineHeightMultiplier * 100;
+        setLineHeight(lineHeightPercent);
+      }
     } else if (selectedElement.type === 'image') {
       setWidth(selectedElement.get('width') || 0);
       setHeight(selectedElement.get('height') || 0);
@@ -137,6 +153,15 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     const currentFontSize = selectedElement?.get('fontSize') || fontSize;
     const charSpacingPx = (newSpacingPercent / 100) * currentFontSize;
     updateFabricObject('charSpacing', charSpacingPx);
+  };
+
+  const handleLineHeightChange = (e) => {
+    const newLineHeightPercent = Number(e.target.value);
+    setLineHeight(newLineHeightPercent);
+    
+    // Convert percent to multiplier (Fabric.js expects multiplier, e.g., 1.2 for 120%)
+    const lineHeightMultiplier = newLineHeightPercent / 100;
+    updateFabricObject('lineHeight', lineHeightMultiplier);
   };
 
   const handleTextAlignChange = (e) => {
@@ -757,83 +782,106 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="text-font-size" className="form-label">
-              Size
-            </label>
-            <input
-              id="text-font-size"
-              type="number"
-              className="form-input"
-              value={fontSize}
-              onChange={handleFontSizeChange}
-              min="1"
-              step="1"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="text-color" className="form-label">
-              Color
-            </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Size and Color in same row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div className="form-group">
+              <label htmlFor="text-font-size" className="form-label">
+                Size
+              </label>
               <input
-                ref={colorInputRef}
-                id="text-color"
-                type="color"
-                className="form-input form-input-color"
-                value={color}
-                onChange={handleColorChange}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                id="text-font-size"
+                type="number"
+                className="form-input"
+                value={fontSize}
+                onChange={handleFontSizeChange}
+                min="1"
+                step="1"
               />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
-                  onClick={() => colorInputRef.current?.click()}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    backgroundColor: color,
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    flexShrink: 0,
-                    cursor: 'pointer',
-                    transition: 'transform 0.1s ease'
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'scale(0.95)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                  title={`Click to change color: ${color}`}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="text-color" className="form-label">
+                Color
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  ref={colorInputRef}
+                  id="text-color"
+                  type="color"
+                  className="form-input form-input-color"
+                  value={color}
+                  onChange={handleColorChange}
+                  style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
                 />
-                <span style={{ fontFamily: 'monospace', fontSize: '14px', color: '#666' }}>
-                  {color.toUpperCase()}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    onClick={() => colorInputRef.current?.click()}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      backgroundColor: color,
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      flexShrink: 0,
+                      cursor: 'pointer',
+                      transition: 'transform 0.1s ease'
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = 'scale(0.95)';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    title={`Click to change color: ${color}`}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="text-char-spacing" className="form-label">
-              Letter Spacing
-            </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input
-                id="text-char-spacing"
-                type="number"
-                className="form-input"
-                value={charSpacing}
-                onChange={handleCharSpacingChange}
-                min="-50"
-                max="200"
-                step="1"
-                style={{ width: '70px' }}
-              />
-              <span style={{ fontSize: '14px', color: '#666', minWidth: '30px' }}>%</span>
+          {/* Letter Spacing and Line Height in same row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div className="form-group">
+              <label htmlFor="text-char-spacing" className="form-label">
+                Letter Spacing
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  id="text-char-spacing"
+                  type="number"
+                  className="form-input"
+                  value={charSpacing}
+                  onChange={handleCharSpacingChange}
+                  min="-50"
+                  max="200"
+                  step="1"
+                  style={{ width: '70px' }}
+                />
+                <span style={{ fontSize: '14px', color: '#666', minWidth: '30px' }}>%</span>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="text-line-height" className="form-label">
+                Line Height
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  id="text-line-height"
+                  type="number"
+                  className="form-input"
+                  value={lineHeight}
+                  onChange={handleLineHeightChange}
+                  min="50"
+                  max="300"
+                  step="1"
+                  style={{ width: '70px' }}
+                />
+                <span style={{ fontSize: '14px', color: '#666', minWidth: '30px' }}>%</span>
+              </div>
             </div>
           </div>
 
