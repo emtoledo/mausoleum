@@ -2394,6 +2394,25 @@ body:has(.canvas-layout) .footer-branding {
     padding: 24px;
 }
 
+.options-panel-color-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    position: relative;
+    border: 1px solid #ccc;
+}
+
+.options-panel-color-swatch.active {
+    border: 3px solid #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.options-panel-color-swatch:active {
+    transform: scale(0.95);
+}
+
 .form-group {
     display: flex;
     flex-direction: column;

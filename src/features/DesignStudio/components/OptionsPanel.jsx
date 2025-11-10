@@ -9,6 +9,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as fabric from 'fabric';
 import { FabricImage } from 'fabric';
 import { pixelsToInches, inchesToPixels, calculateScale } from '../utils/unitConverter';
+import { colorData } from '../../../data/ColorData';
 
 /**
  * @param {fabric.Object} selectedElement - Currently selected Fabric.js object
@@ -27,6 +28,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
   const [color, setColor] = useState('#000000');
+  const [selectedColorId, setSelectedColorId] = useState(null); // Selected color from ColorData
   const [fontFamily, setFontFamily] = useState('Arial');
   const [charSpacing, setCharSpacing] = useState(0); // Letter spacing in percent
   const [lineHeight, setLineHeight] = useState(100); // Line height in percent
@@ -55,6 +57,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       setCharSpacing(0);
       setLineHeight(100);
       setTextAlign('left');
+      setSelectedColorId(null);
       setWidth(0);
       setHeight(0);
       setOpacity(1);
@@ -83,7 +86,22 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       }
       
       setFontSize(fontSizeInches);
-      setColor(selectedElement.get('fill') || '#000000');
+      const currentFill = selectedElement.get('fill') || '#000000';
+      const currentOpacity = selectedElement.get('opacity') ?? 1;
+      const currentStroke = selectedElement.get('stroke') || null;
+      setColor(currentFill);
+      
+      // Try to match current color/opacity/stroke to a ColorData entry
+      const matchedColor = colorData.find(c => {
+        const fillMatch = c.fillColor.toLowerCase() === currentFill.toLowerCase();
+        const opacityMatch = Math.abs(c.opacity - currentOpacity) < 0.01;
+        const strokeMatch = !c.strokeWidth || c.strokeWidth === 0 
+          ? (!currentStroke || currentStroke === 'transparent')
+          : (c.strokeColor.toLowerCase() === (currentStroke || '').toLowerCase());
+        return fillMatch && opacityMatch && strokeMatch;
+      });
+      setSelectedColorId(matchedColor ? matchedColor.id : null);
+      
       setFontFamily(selectedElement.get('fontFamily') || 'Arial');
       setTextAlign(selectedElement.get('textAlign') || 'left');
       
@@ -113,12 +131,17 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       
       // Get color from customData (stored when color was changed)
       const customData = selectedElement.customData || {};
-      if (customData.currentColor) {
-        setImageColor(customData.currentColor);
-      } else {
-        // Default to black if no color stored
-        setImageColor('#000000');
-      }
+      const currentFill = customData.currentColor || '#000000';
+      const currentOpacity = selectedElement.get('opacity') ?? 1;
+      setImageColor(currentFill);
+      
+      // Try to match current color/opacity to a ColorData entry
+      const matchedColor = colorData.find(c => {
+        const fillMatch = c.fillColor.toLowerCase() === currentFill.toLowerCase();
+        const opacityMatch = Math.abs(c.opacity - currentOpacity) < 0.01;
+        return fillMatch && opacityMatch;
+      });
+      setSelectedColorId(matchedColor ? matchedColor.id : null);
     }
   }, [selectedElement, realWorldWidth, canvasSize]);
 
@@ -209,6 +232,45 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     const newColor = e.target.value;
     setColor(newColor);
     updateFabricObject('fill', newColor);
+  };
+
+  const handleColorSwatchSelect = (colorItem) => {
+    setSelectedColorId(colorItem.id);
+    setColor(colorItem.fillColor);
+    
+    if (selectedElement) {
+      // Apply fill color
+      selectedElement.set('fill', colorItem.fillColor);
+      
+      // Apply opacity
+      selectedElement.set('opacity', colorItem.opacity);
+      
+      // Apply stroke if specified
+      if (colorItem.strokeWidth > 0) {
+        selectedElement.set('stroke', colorItem.strokeColor);
+        selectedElement.set('strokeWidth', colorItem.strokeWidth);
+      } else {
+        selectedElement.set('stroke', null);
+        selectedElement.set('strokeWidth', 0);
+      }
+      
+      // For images, also update the customData
+      if (selectedElement.type === 'image') {
+        const customData = selectedElement.customData || {};
+        customData.currentColor = colorItem.fillColor;
+        customData.currentColorId = colorItem.id;
+        selectedElement.set('customData', customData);
+        setImageColor(colorItem.fillColor);
+      }
+      
+      if (selectedElement.canvas) {
+        selectedElement.canvas.renderAll();
+      }
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    }
   };
 
   const handleFontFamilyChange = (e) => {
@@ -875,44 +937,33 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             </div>
 
             <div className="form-group">
-              <label htmlFor="text-color" className="form-label">
+              <label className="form-label">
                 Color
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  ref={colorInputRef}
-                  id="text-color"
-                  type="color"
-                  className="form-input form-input-color"
-                  value={color}
-                  onChange={handleColorChange}
-                  style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-                />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div
-                    onClick={() => colorInputRef.current?.click()}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      backgroundColor: color,
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      flexShrink: 0,
-                      cursor: 'pointer',
-                      transition: 'transform 0.1s ease'
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = 'scale(0.95)';
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }}
-                    title={`Click to change color: ${color}`}
-                  />
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                {colorData.map((colorItem) => {
+                  const isSelected = selectedColorId === colorItem.id;
+                  return (
+                    <div
+                      key={colorItem.id}
+                      className={`options-panel-color-swatch ${isSelected ? 'active' : ''}`}
+                      onClick={() => handleColorSwatchSelect(colorItem)}
+                      style={{
+                        background: colorItem.opacity < 1 
+                          ? `linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)`
+                          : 'none',
+                        backgroundSize: colorItem.opacity < 1 ? '8px 8px' : 'auto',
+                        backgroundPosition: colorItem.opacity < 1 ? '0 0, 0 4px, 4px -4px, -4px 0px' : 'auto',
+                        backgroundColor: colorItem.fillColor,
+                        opacity: colorItem.opacity,
+                        border: !isSelected && colorItem.strokeWidth > 0 
+                          ? `1px solid ${colorItem.strokeColor}`
+                          : undefined
+                      }}
+                      title={colorItem.name}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1087,48 +1138,34 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
           </div>
 
           <div className="form-group">
-            <label htmlFor="image-color" className="form-label">
+            <label className="form-label">
               Color
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input
-                ref={imageColorInputRef}
-                id="image-color"
-                type="color"
-                className="form-input form-input-color"
-                value={imageColor}
-                onChange={handleImageColorChange}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
-                  onClick={() => imageColorInputRef.current?.click()}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    backgroundColor: imageColor,
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    flexShrink: 0,
-                    cursor: 'pointer',
-                    transition: 'transform 0.1s ease'
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'scale(0.95)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                  title={`Click to change color tint: ${imageColor}`}
-                />
-                <span style={{ fontFamily: 'monospace', fontSize: '14px', color: '#666' }}>
-                  {imageColor.toUpperCase()}
-                </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                {colorData.map((colorItem) => {
+                  const isSelected = selectedColorId === colorItem.id;
+                  return (
+                    <div
+                      key={colorItem.id}
+                      className={`options-panel-color-swatch ${isSelected ? 'active' : ''}`}
+                      onClick={() => handleColorSwatchSelect(colorItem)}
+                      style={{
+                        background: colorItem.opacity < 1 
+                          ? `linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)`
+                          : 'none',
+                        backgroundSize: colorItem.opacity < 1 ? '8px 8px' : 'auto',
+                        backgroundPosition: colorItem.opacity < 1 ? '0 0, 0 4px, 4px -4px, -4px 0px' : 'auto',
+                        backgroundColor: colorItem.fillColor,
+                        opacity: colorItem.opacity,
+                        border: !isSelected && colorItem.strokeWidth > 0 
+                          ? `1px solid ${colorItem.strokeColor}`
+                          : undefined
+                      }}
+                      title={colorItem.name}
+                    />
+                  );
+                })}
               </div>
-            </div>
           </div>
         </div>
       </div>
