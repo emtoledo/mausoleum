@@ -1046,48 +1046,25 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             </div>
 
             <div className="form-group">
-              <label className="form-label">
-                Color
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                {colorData.map((colorItem) => {
-                  const isSelected = selectedColorId === colorItem.id;
-                  return (
-                    <div
-                      key={colorItem.id}
-                      className={`options-panel-color-swatch ${isSelected ? 'active' : ''}`}
-                      onClick={(e) => {
-                        console.log('Swatch clicked:', {
-                          colorId: colorItem.id,
-                          colorName: colorItem.name,
-                          fillColor: colorItem.fillColor,
-                          opacity: colorItem.opacity,
-                          eventTarget: e.target,
-                          currentTarget: e.currentTarget,
-                          isSelected
-                        });
-                        e.stopPropagation();
-                        e.preventDefault();
-                        handleColorSwatchSelect(colorItem);
-                      }}
-                      style={{
-                        background: colorItem.opacity < 1 
-                          ? `linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)`
-                          : 'none',
-                        backgroundSize: colorItem.opacity < 1 ? '8px 8px' : 'auto',
-                        backgroundPosition: colorItem.opacity < 1 ? '0 0, 0 4px, 4px -4px, -4px 0px' : 'auto',
-                        backgroundColor: colorItem.fillColor,
-                        opacity: colorItem.opacity,
-                        border: !isSelected && colorItem.strokeWidth > 0 
-                          ? `1px solid ${colorItem.strokeColor}`
-                          : undefined,
-                        pointerEvents: 'auto'
-                      }}
-                      title={colorItem.name}
-                    />
-                  );
-                })}
-              </div>
+
+            <div className="form-group">
+            <label htmlFor="text-align" className="form-label">
+              Alignment
+            </label>
+            <select
+              id="text-align"
+              className="form-input form-select"
+              value={textAlign}
+              onChange={handleTextAlignChange}
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+
+
+              
             </div>
           </div>
 
@@ -1134,21 +1111,49 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="text-align" className="form-label">
-              Alignment
-            </label>
-            <select
-              id="text-align"
-              className="form-input form-select"
-              value={textAlign}
-              onChange={handleTextAlignChange}
-            >
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </div>
+
+          <label className="form-label">
+                Color
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                {colorData.map((colorItem) => {
+                  const isSelected = selectedColorId === colorItem.id;
+                  return (
+                    <div
+                      key={colorItem.id}
+                      className={`options-panel-color-swatch ${isSelected ? 'active' : ''}`}
+                      onClick={(e) => {
+                        console.log('Swatch clicked:', {
+                          colorId: colorItem.id,
+                          colorName: colorItem.name,
+                          fillColor: colorItem.fillColor,
+                          opacity: colorItem.opacity,
+                          eventTarget: e.target,
+                          currentTarget: e.currentTarget,
+                          isSelected
+                        });
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleColorSwatchSelect(colorItem);
+                      }}
+                      style={{
+                        background: colorItem.opacity < 1 
+                          ? `linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)`
+                          : 'none',
+                        backgroundSize: colorItem.opacity < 1 ? '8px 8px' : 'auto',
+                        backgroundPosition: colorItem.opacity < 1 ? '0 0, 0 4px, 4px -4px, -4px 0px' : 'auto',
+                        backgroundColor: colorItem.fillColor,
+                        opacity: colorItem.opacity,
+                        border: !isSelected && colorItem.strokeWidth > 0 
+                          ? `1px solid ${colorItem.strokeColor}`
+                          : undefined,
+                        pointerEvents: 'auto'
+                      }}
+                      title={colorItem.name}
+                    />
+                  );
+                })}
+              </div>
 
 
         </div>

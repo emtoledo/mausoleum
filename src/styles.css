@@ -82,9 +82,6 @@ body {
     backdrop-filter: blur(10px);
 }
 
-.form-group {
-    margin-bottom: 25px;
-}
 
 .form-group label {
     display: block;
