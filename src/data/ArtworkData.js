@@ -1,5 +1,5 @@
 // This file catalogues your artwork for the UI
-import flower1 from '../assets/images/artwork/ACANTHS.DXF';
+import border2 from '../assets/images/artwork/ACANTHS.DXF';
 import flower2 from '../assets/images/artwork/flower2.svg';
 import flower3 from '../assets/images/artwork/flower3.svg';
 import flower4 from '../assets/images/artwork/flower4.svg';
@@ -11,9 +11,9 @@ import border1 from '../assets/images/artwork/BFLORSH.DXF';
 export const artwork = [
   {
     id: 'art-001',
-    name: 'Flower 1',
-    category: 'Floral',
-    imageUrl: flower1,
+    name: 'ACANTHS',
+    category: 'Border',
+    imageUrl: border2,
     // Pre-define real-world size for consistent insertion
     defaultWidth: 5 // 3 inches
   },
