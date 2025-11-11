@@ -6,7 +6,7 @@ import flower4 from '../assets/images/artwork/flower4.svg';
 import flower5 from '../assets/images/artwork/flower5.svg';
 import flower6 from '../assets/images/artwork/flower6.svg';
 import flower7 from '../assets/images/artwork/flower7.svg';
-
+import border1 from '../assets/images/artwork/BFLORSH.DXF';
 
 export const artwork = [
   {
@@ -57,6 +57,13 @@ export const artwork = [
     name: 'Flower 7',
     category: 'Floral',
     imageUrl: flower7,
+    defaultWidth: 6 // 2.5 inches
+  },
+  {
+    id: 'art-border',
+    name: 'BFLORSH',
+    category: 'Border',
+    imageUrl: border1,
     defaultWidth: 6 // 2.5 inches
   }
 ];

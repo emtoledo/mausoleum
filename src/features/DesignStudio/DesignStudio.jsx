@@ -7,6 +7,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FabricImage, FabricText } from 'fabric';
+import * as makerjs from 'makerjs';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { pixelsToInches, calculateScale, inchesToPixels } from './utils/unitConverter';
 import DesignStudioToolbar from './components/DesignStudioToolbar';
@@ -14,6 +15,7 @@ import MaterialPicker from './components/MaterialPicker';
 import ArtworkLibrary from './components/ArtworkLibrary';
 import OptionsPanel from './components/OptionsPanel';
 import exportToDxf from './utils/dxfExporter';
+import { importDxfToFabric } from '../../utils/dxfImporter';
 
 /**
  * @param {Object} initialData - Template/product data with dimensions, editZones, and designElements
@@ -177,77 +179,173 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
     console.log('Adding artwork:', art);
     
-    try {
-      // Fabric v6 uses fromURL as a Promise-based static method
-      const img = await FabricImage.fromURL(art.imageUrl);
-      
-      if (!img) {
-        console.error('Failed to load artwork image:', art.imageUrl);
-        return;
-      }
+    // Check if this is a DXF file
+    const isDxfFile = art.imageUrl && (
+      art.imageUrl.toLowerCase().endsWith('.dxf') ||
+      art.imageUrl.endsWith('.DXF')
+    );
 
-      console.log('Image loaded successfully:', img);
-
-      // Calculate scale factor based on template dimensions
-      const realWorldWidth = initialData.realWorldWidth || 24; // inches
-      const canvasWidth = fabricInstance.width || 800;
-      const scale = calculateScale(realWorldWidth, canvasWidth);
-      
-      // Get the artwork's default width in real-world inches
-      const artworkWidthInches = art.defaultWidth || 2.5; // Default to 2.5 inches
-      const artworkWidthPixels = artworkWidthInches * scale;
-      
-      // Calculate the aspect ratio to maintain proportions
-      const aspectRatio = img.height / img.width;
-      const artworkHeightPixels = artworkWidthPixels * aspectRatio;
-      
-      // Calculate the scale factors for the image
-      const scaleX = artworkWidthPixels / img.width;
-      const scaleY = artworkHeightPixels / img.height;
-
-      // Calculate center position for the artwork
-      const canvasHeight = fabricInstance.height || 600;
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
-
-      // Set position and scale
-      img.set({
-        left: centerX,
-        top: centerY,
-        scaleX: scaleX,
-        scaleY: scaleY,
-        originX: 'center',
-        originY: 'center',
-        selectable: true,
-        hasControls: true,
-        hasBorders: true,
-        lockMovementX: false,
-        lockMovementY: false,
-        lockRotation: false,
-        lockScalingX: false,
-        lockScalingY: false,
-        // Store artwork metadata for potential export
-        customData: {
-          type: 'artwork',
-          artworkId: art.id,
-          artworkName: art.name,
-          defaultWidthInches: artworkWidthInches,
-          originalSource: art.imageUrl // Store original source URL for color changes
+    if (isDxfFile) {
+      // Handle DXF file import
+      try {
+        console.log('Detected DXF file, importing...');
+        
+        // Fetch the DXF file content as text
+        const response = await fetch(art.imageUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch DXF file: ${response.statusText}`);
         }
-      });
+        const dxfString = await response.text();
+        
+        // Import DXF to Fabric.js group
+        const group = await importDxfToFabric({
+          dxfString,
+          fabricCanvas: fabricInstance,
+          importUnit: makerjs.unitType.Inches
+        });
+        
+        if (!group) {
+          console.error('Failed to import DXF file');
+          return;
+        }
 
-      // Add to canvas and render
-      fabricInstance.add(img);
-      fabricInstance.setActiveObject(img);
-      fabricInstance.renderAll();
+        console.log('DXF imported successfully:', group);
 
-      // Close the artwork library after selecting artwork
-      setShowArtworkLibrary(false);
+        // Calculate scale factor based on template dimensions
+        const realWorldWidth = initialData.realWorldWidth || 24; // inches
+        const canvasWidth = fabricInstance.width || 800;
+        const scale = calculateScale(realWorldWidth, canvasWidth);
+        
+        // Get the artwork's default width in real-world inches
+        const artworkWidthInches = art.defaultWidth || 6; // Default to 6 inches for DXF
+        const artworkWidthPixels = artworkWidthInches * scale;
+        
+        // Get the current group dimensions
+        const groupWidth = group.width * group.scaleX;
+        const groupHeight = group.height * group.scaleY;
+        
+        // Calculate scale factors to match the target width
+        const scaleX = artworkWidthPixels / groupWidth;
+        const scaleY = scaleX; // Maintain aspect ratio
+        
+        // Calculate center position for the artwork
+        const canvasHeight = fabricInstance.height || 600;
+        const centerX = canvasWidth / 2;
+        const centerY = canvasHeight / 2;
 
-      console.log('Artwork object added to canvas:', img);
-      console.log(`Artwork scaled to ${artworkWidthInches}" width (${artworkWidthPixels}px)`);
-    } catch (error) {
-      console.error('Error loading artwork:', error);
+        // Update group properties
+        group.set({
+          left: centerX,
+          top: centerY,
+          scaleX: scaleX,
+          scaleY: scaleY,
+          originX: 'center',
+          originY: 'center',
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          lockMovementX: false,
+          lockMovementY: false,
+          lockRotation: false,
+          lockScalingX: false,
+          lockScalingY: false,
+          // Store artwork metadata for potential export
+          customData: {
+            type: 'artwork',
+            artworkId: art.id,
+            artworkName: art.name,
+            defaultWidthInches: artworkWidthInches,
+            originalSource: art.imageUrl,
+            isDxf: true
+          }
+        });
+
+        // Re-render canvas
+        fabricInstance.setActiveObject(group);
+        fabricInstance.renderAll();
+
+        // Close the artwork library after selecting artwork
+        setShowArtworkLibrary(false);
+
+        console.log('DXF artwork added to canvas:', group);
+        console.log(`DXF artwork scaled to ${artworkWidthInches}" width (${artworkWidthPixels}px)`);
+      } catch (error) {
+        console.error('Error importing DXF artwork:', error);
+      }
+    } else {
+      // Handle regular image artwork
+      try {
+        // Fabric v6 uses fromURL as a Promise-based static method
+        const img = await FabricImage.fromURL(art.imageUrl);
+        
+        if (!img) {
+          console.error('Failed to load artwork image:', art.imageUrl);
+          return;
+        }
+
+        console.log('Image loaded successfully:', img);
+
+        // Calculate scale factor based on template dimensions
+        const realWorldWidth = initialData.realWorldWidth || 24; // inches
+        const canvasWidth = fabricInstance.width || 800;
+        const scale = calculateScale(realWorldWidth, canvasWidth);
+        
+        // Get the artwork's default width in real-world inches
+        const artworkWidthInches = art.defaultWidth || 2.5; // Default to 2.5 inches
+        const artworkWidthPixels = artworkWidthInches * scale;
+        
+        // Calculate the aspect ratio to maintain proportions
+        const aspectRatio = img.height / img.width;
+        const artworkHeightPixels = artworkWidthPixels * aspectRatio;
+        
+        // Calculate the scale factors for the image
+        const scaleX = artworkWidthPixels / img.width;
+        const scaleY = artworkHeightPixels / img.height;
+
+        // Calculate center position for the artwork
+        const canvasHeight = fabricInstance.height || 600;
+        const centerX = canvasWidth / 2;
+        const centerY = canvasHeight / 2;
+
+        // Set position and scale
+        img.set({
+          left: centerX,
+          top: centerY,
+          scaleX: scaleX,
+          scaleY: scaleY,
+          originX: 'center',
+          originY: 'center',
+          selectable: true,
+          hasControls: true,
+          hasBorders: true,
+          lockMovementX: false,
+          lockMovementY: false,
+          lockRotation: false,
+          lockScalingX: false,
+          lockScalingY: false,
+          // Store artwork metadata for potential export
+          customData: {
+            type: 'artwork',
+            artworkId: art.id,
+            artworkName: art.name,
+            defaultWidthInches: artworkWidthInches,
+            originalSource: art.imageUrl // Store original source URL for color changes
+          }
+        });
+
+        // Add to canvas and render
+        fabricInstance.add(img);
+        fabricInstance.setActiveObject(img);
+        fabricInstance.renderAll();
+
+        // Close the artwork library after selecting artwork
+        setShowArtworkLibrary(false);
+
+        console.log('Artwork object added to canvas:', img);
+        console.log(`Artwork scaled to ${artworkWidthInches}" width (${artworkWidthPixels}px)`);
+      } catch (error) {
+        console.error('Error loading artwork:', error);
+      }
     }
   }, [fabricInstance, initialData]);
 
