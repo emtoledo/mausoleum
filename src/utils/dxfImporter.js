@@ -14,7 +14,7 @@ import * as fabric from 'fabric';
  * @param {Object} dxfData - Parsed DXF data from dxf-parser
  * @returns {Object} - Maker.js model
  */
-function convertDxfToMakerModel(dxfData) {
+export function convertDxfToMakerModel(dxfData) {
   const model = { paths: {}, models: {} };
   
   if (!dxfData.entities || !Array.isArray(dxfData.entities)) {
@@ -303,6 +303,36 @@ export async function importDxfToFabric({ dxfString, fabricCanvas, importUnit })
   } catch (error) {
     console.error('Error importing DXF:', error);
     return Promise.reject(error);
+  }
+}
+
+/**
+ * Convert DXF string to SVG string for preview/display purposes
+ * 
+ * @param {string} dxfString - The raw text content of the DXF file
+ * @param {makerjs.unitType} importUnit - The makerjs.unitType to use (e.g., makerjs.unitType.Inches)
+ * @returns {Promise<string>} Promise that resolves with SVG string
+ */
+export async function convertDxfToSvg(dxfString, importUnit = makerjs.unitType.Inches) {
+  try {
+    // Parse the DXF string using dxf-parser
+    const parser = new DxfParser();
+    const dxfData = parser.parseSync(dxfString);
+    
+    if (!dxfData || !dxfData.entities) {
+      throw new Error('DXF file contains no entities');
+    }
+    
+    // Convert DXF entities to Maker.js model
+    const makerModel = convertDxfToMakerModel(dxfData);
+    
+    // Convert the model to an SVG string, using Pixel units for display
+    const svgString = makerjs.exporter.toSVG(makerModel, { units: makerjs.unitType.Pixel });
+    
+    return svgString;
+  } catch (error) {
+    console.error('Error converting DXF to SVG:', error);
+    throw error;
   }
 }
 

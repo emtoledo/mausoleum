@@ -6,7 +6,9 @@
  * When an artwork is clicked, calls onSelectArtwork with the selected artwork.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { convertDxfToSvg } from '../../../utils/dxfImporter';
+import * as makerjs from 'makerjs';
 
 /**
  * @param {Array} artwork - Array of artwork objects from ArtworkData
@@ -18,6 +20,60 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
   // Internal state for filtering
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  
+  // State to store converted DXF preview URLs (DXF -> SVG data URLs)
+  const [dxfPreviewUrls, setDxfPreviewUrls] = useState({});
+
+  /**
+   * Check if an artwork item is a DXF file
+   */
+  const isDxfFile = (imageUrl) => {
+    return imageUrl && (
+      imageUrl.toLowerCase().endsWith('.dxf') ||
+      imageUrl.endsWith('.DXF')
+    );
+  };
+
+  /**
+   * Convert DXF files to SVG for preview
+   */
+  useEffect(() => {
+    const convertDxfFiles = async () => {
+      const conversions = {};
+      
+      for (const item of artwork) {
+        if (isDxfFile(item.imageUrl)) {
+          try {
+            // Fetch the DXF file
+            const response = await fetch(item.imageUrl);
+            if (!response.ok) {
+              console.warn(`Failed to fetch DXF file for preview: ${item.imageUrl}`);
+              continue;
+            }
+            
+            const dxfString = await response.text();
+            
+            // Convert DXF to SVG
+            const svgString = await convertDxfToSvg(dxfString, makerjs.unitType.Inches);
+            
+            // Convert SVG string to data URL for use in img src
+            const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+            conversions[item.id] = svgDataUrl;
+          } catch (error) {
+            console.error(`Error converting DXF to SVG for ${item.name}:`, error);
+          }
+        }
+      }
+      
+      if (Object.keys(conversions).length > 0) {
+        setDxfPreviewUrls(conversions);
+      }
+    };
+    
+    if (artwork && artwork.length > 0) {
+      convertDxfFiles();
+    }
+  }, [artwork]);
 
   /**
    * Get unique categories from artwork array
@@ -154,9 +210,15 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
             >
               <div className="artwork-item-image">
                 <img 
-                  src={item.imageUrl} 
+                  src={dxfPreviewUrls[item.id] || item.imageUrl} 
                   alt={item.name}
                   loading="lazy"
+                  onError={(e) => {
+                    // Fallback if DXF conversion failed or image fails to load
+                    if (isDxfFile(item.imageUrl) && !dxfPreviewUrls[item.id]) {
+                      e.target.style.display = 'none';
+                    }
+                  }}
                 />
               </div>
               <div className="artwork-item-info">
