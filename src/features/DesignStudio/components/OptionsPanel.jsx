@@ -124,7 +124,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         const lineHeightPercent = lineHeightMultiplier * 100;
         setLineHeight(lineHeightPercent);
       }
-    } else if (selectedElement.type === 'image') {
+    } else if (selectedElement.type === 'image' || selectedElement.type === 'group' || selectedElement.type === 'path') {
       setWidth(selectedElement.get('width') || 0);
       setHeight(selectedElement.get('height') || 0);
       setOpacity(selectedElement.get('opacity') || 1);
@@ -261,8 +261,8 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       return;
     }
     
-    // For images/artwork, use the same color change logic as handleImageColorChange
-    if (selectedElement.type === 'image') {
+    // For images/artwork/groups/paths, use the same color change logic
+    if (selectedElement.type === 'image' || selectedElement.type === 'group' || selectedElement.type === 'path') {
       const canvas = selectedElement.canvas;
       if (!canvas) {
         console.warn('No canvas available for image color change');
@@ -272,7 +272,41 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       // Store the current active object before color change
       const currentActiveObject = canvas.getActiveObject();
       
-      // Use the existing image color change handler logic
+      // For groups and paths (DXF artwork), apply color/stroke directly
+      if (selectedElement.type === 'group' || selectedElement.type === 'path') {
+        // Apply fill, opacity, and stroke directly to the group
+        selectedElement.set('fill', colorItem.fillColor);
+        selectedElement.set('opacity', colorItem.opacity);
+        
+        // Apply stroke if specified
+        if (colorItem.strokeWidth > 0) {
+          selectedElement.set('stroke', colorItem.strokeColor);
+          selectedElement.set('strokeWidth', colorItem.strokeWidth);
+        } else {
+          selectedElement.set('stroke', null);
+          selectedElement.set('strokeWidth', 0);
+        }
+        
+        // Update customData with color info
+        const customData = selectedElement.customData || {};
+        customData.currentColor = colorItem.fillColor;
+        customData.currentColorId = colorItem.id;
+        customData.currentOpacity = colorItem.opacity;
+        customData.currentStrokeColor = colorItem.strokeColor;
+        customData.currentStrokeWidth = colorItem.strokeWidth;
+        selectedElement.set('customData', customData);
+        setImageColor(colorItem.fillColor);
+        setOpacity(colorItem.opacity);
+        
+        canvas.renderAll();
+        
+        if (onUpdateElement) {
+          onUpdateElement(selectedElement);
+        }
+        return;
+      }
+      
+      // For images, use the existing image color change handler logic
       await handleImageColorChange({ target: { value: colorItem.fillColor } });
       
       // After handleImageColorChange, the image may have been replaced
@@ -1122,12 +1156,15 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     );
   }
 
-  // Artwork properties panel
-  if (selectedElement.type === 'image') {
+  // Artwork properties panel (for image, group, and path types)
+  if (selectedElement.type === 'image' || selectedElement.type === 'group' || selectedElement.type === 'path') {
+    const panelTitle = selectedElement.type === 'group' || selectedElement.type === 'path' 
+      ? 'Artwork Properties' 
+      : 'Image Properties';
     return (
       <div className="options-panel">
         <div className="options-panel-header">
-          <h3 className="options-panel-title">Image Properties</h3>
+          <h3 className="options-panel-title">{panelTitle}</h3>
           <button
             type="button"
             className="options-panel-delete-button"

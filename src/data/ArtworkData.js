@@ -1,5 +1,5 @@
 // This file catalogues your artwork for the UI
-import flower1 from '../assets/images/artwork/flower1.svg';
+import flower1 from '../assets/images/artwork/ACANTHS.DXF';
 import flower2 from '../assets/images/artwork/flower2.svg';
 import flower3 from '../assets/images/artwork/flower3.svg';
 import flower4 from '../assets/images/artwork/flower4.svg';
