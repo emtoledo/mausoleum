@@ -197,11 +197,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         }
         const dxfString = await response.text();
         
-        // Import DXF to Fabric.js group
+        // Import DXF to Fabric.js group (with optional texture layer)
         const group = await importDxfToFabric({
           dxfString,
           fabricCanvas: fabricInstance,
-          importUnit: makerjs.unitType.Inches
+          importUnit: makerjs.unitType.Inches,
+          textureUrl: art.textureUrl || null
         });
         
         if (!group) {

@@ -274,20 +274,59 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       
       // For groups and paths (DXF artwork), apply color/stroke directly
       if (selectedElement.type === 'group' || selectedElement.type === 'path') {
-        // Apply fill, opacity, and stroke directly to the group
-        selectedElement.set('fill', colorItem.fillColor);
-        selectedElement.set('opacity', colorItem.opacity);
+        // Check if this is a group with a texture layer
+        // Texture layer groups have 2 children: [textureLayer, originalGroup]
+        let targetGroup = selectedElement;
         
-        // Apply stroke if specified
-        if (colorItem.strokeWidth > 0) {
-          selectedElement.set('stroke', colorItem.strokeColor);
-          selectedElement.set('strokeWidth', colorItem.strokeWidth);
-        } else {
-          selectedElement.set('stroke', null);
-          selectedElement.set('strokeWidth', 0);
+        if (selectedElement.type === 'group' && selectedElement._objects && selectedElement._objects.length === 2) {
+          // Check if first child has a pattern fill (texture layer indicator)
+          const firstChild = selectedElement._objects[0];
+          const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
+          
+          if (hasPatternFill) {
+            // This is a texture layer group - apply color only to the original group (second child)
+            targetGroup = selectedElement._objects[1];
+            console.log('Applying color to original group (texture layer detected)');
+          }
         }
         
-        // Update customData with color info
+        // Apply fill, opacity, and stroke to the target group
+        // For groups, we need to apply to all child paths recursively
+        if (targetGroup.type === 'group' && targetGroup._objects) {
+          // Recursively apply color to all paths in the group
+          const applyColorToPaths = (obj) => {
+            if (obj.type === 'group' && obj._objects) {
+              obj._objects.forEach(child => applyColorToPaths(child));
+            } else if (obj.type === 'path') {
+              obj.set('fill', colorItem.fillColor);
+              obj.set('opacity', colorItem.opacity);
+              
+              if (colorItem.strokeWidth > 0) {
+                obj.set('stroke', colorItem.strokeColor);
+                obj.set('strokeWidth', colorItem.strokeWidth);
+              } else {
+                obj.set('stroke', null);
+                obj.set('strokeWidth', 0);
+              }
+            }
+          };
+          
+          applyColorToPaths(targetGroup);
+        } else {
+          // Single path or non-group object
+          targetGroup.set('fill', colorItem.fillColor);
+          targetGroup.set('opacity', colorItem.opacity);
+          
+          if (colorItem.strokeWidth > 0) {
+            targetGroup.set('stroke', colorItem.strokeColor);
+            targetGroup.set('strokeWidth', colorItem.strokeWidth);
+          } else {
+            targetGroup.set('stroke', null);
+            targetGroup.set('strokeWidth', 0);
+          }
+        }
+        
+        // Update customData on the parent group (for texture layer groups) or the element itself
         const customData = selectedElement.customData || {};
         customData.currentColor = colorItem.fillColor;
         customData.currentColorId = colorItem.id;
