@@ -14,7 +14,7 @@ export const templates = {
     realWorldWidth: 60, // inches
     realWorldHeight: 23, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
-    defaultMaterialId: 'mat-002', // Default material ID (Black Granite)
+    defaultMaterialId: 'mat-001', 
     canvas: {
       width: 60, // inches - overall canvas width
       height: 26 // inches - overall canvas height

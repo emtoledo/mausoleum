@@ -10,6 +10,7 @@ import * as fabric from 'fabric';
 import { FabricImage } from 'fabric';
 import { pixelsToInches, inchesToPixels, calculateScale } from '../utils/unitConverter';
 import { colorData } from '../../../data/ColorData';
+import { artwork } from '../../../data/ArtworkData';
 
 /**
  * @param {fabric.Object} selectedElement - Currently selected Fabric.js object
@@ -274,6 +275,14 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       
       // For groups and paths (DXF artwork), apply color/stroke directly
       if (selectedElement.type === 'group' || selectedElement.type === 'path') {
+        // Check if this artwork is of category 'Panels' - if so, strokeWidth should be 0
+        const artworkId = selectedElement.customData?.artworkId;
+        const artworkItem = artworkId ? artwork.find(a => a.id === artworkId) : null;
+        const isPanelArtwork = artworkItem?.category === 'Panels';
+        
+        // Override strokeWidth to 0 for Panels category
+        const effectiveStrokeWidth = isPanelArtwork ? 0 : colorItem.strokeWidth;
+        
         // Check if this is a group with a texture layer
         // Texture layer groups have 2 children: [textureLayer, originalGroup]
         let targetGroup = selectedElement;
@@ -301,9 +310,9 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               obj.set('fill', colorItem.fillColor);
               obj.set('opacity', colorItem.opacity);
               
-              if (colorItem.strokeWidth > 0) {
+              if (effectiveStrokeWidth > 0) {
                 obj.set('stroke', colorItem.strokeColor);
-                obj.set('strokeWidth', colorItem.strokeWidth);
+                obj.set('strokeWidth', effectiveStrokeWidth);
               } else {
                 obj.set('stroke', null);
                 obj.set('strokeWidth', 0);
@@ -317,9 +326,9 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
           targetGroup.set('fill', colorItem.fillColor);
           targetGroup.set('opacity', colorItem.opacity);
           
-          if (colorItem.strokeWidth > 0) {
+          if (effectiveStrokeWidth > 0) {
             targetGroup.set('stroke', colorItem.strokeColor);
-            targetGroup.set('strokeWidth', colorItem.strokeWidth);
+            targetGroup.set('strokeWidth', effectiveStrokeWidth);
           } else {
             targetGroup.set('stroke', null);
             targetGroup.set('strokeWidth', 0);
@@ -332,7 +341,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         customData.currentColorId = colorItem.id;
         customData.currentOpacity = colorItem.opacity;
         customData.currentStrokeColor = colorItem.strokeColor;
-        customData.currentStrokeWidth = colorItem.strokeWidth;
+        customData.currentStrokeWidth = effectiveStrokeWidth;
         selectedElement.set('customData', customData);
         setImageColor(colorItem.fillColor);
         setOpacity(colorItem.opacity);
