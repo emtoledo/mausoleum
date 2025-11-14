@@ -451,8 +451,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         const canvasWidth = canvasSize.width || fabricInstance.width;
         const scale = calculateScale(realWorldWidth, canvasWidth);
         
-        // Nudge increment: 0.5 inches
-        const nudgeInches = 0.5;
+        // Nudge increment: 0.125 inches
+        const nudgeInches = 0.125;
         const nudgePixels = inchesToPixels(nudgeInches, scale);
 
         e.preventDefault();
