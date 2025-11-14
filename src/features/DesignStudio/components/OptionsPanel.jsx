@@ -1268,36 +1268,44 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
           </button>
         </div>
         
+
         <div className="options-panel-form">
-          <div className="form-group">
-            <label htmlFor="image-width" className="form-label">
-              Width
-            </label>
-            <input
-              id="image-width"
-              type="number"
-              className="form-input"
-              value={width}
-              onChange={handleWidthChange}
-              min="1"
-              step="1"
-            />
+
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+
+            <div className="form-group">
+              <label htmlFor="image-width" className="form-label">
+                Width
+              </label>
+              <input
+                id="image-width"
+                type="number"
+                className="form-input"
+                value={width}
+                onChange={handleWidthChange}
+                min="1"
+                step="1"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="image-height" className="form-label">
+                Height
+              </label>
+              <input
+                id="image-height"
+                type="number"
+                className="form-input"
+                value={height}
+                onChange={handleHeightChange}
+                min="1"
+                step="1"
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="image-height" className="form-label">
-              Height
-            </label>
-            <input
-              id="image-height"
-              type="number"
-              className="form-input"
-              value={height}
-              onChange={handleHeightChange}
-              min="1"
-              step="1"
-            />
-          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}></div>
 
           <div className="form-group">
             <label className="form-label">
