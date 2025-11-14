@@ -126,8 +126,31 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         setLineHeight(lineHeightPercent);
       }
     } else if (selectedElement.type === 'image' || selectedElement.type === 'group' || selectedElement.type === 'path') {
-      setWidth(selectedElement.get('width') || 0);
-      setHeight(selectedElement.get('height') || 0);
+      // Calculate effective dimensions accounting for scale (when artwork is resized via handles)
+      const baseWidthPx = selectedElement.get('width') || 0;
+      const baseHeightPx = selectedElement.get('height') || 0;
+      const scaleX = selectedElement.get('scaleX') || 1;
+      const scaleY = selectedElement.get('scaleY') || 1;
+      const effectiveWidthPx = baseWidthPx * scaleX;
+      const effectiveHeightPx = baseHeightPx * scaleY;
+      
+      // Convert dimensions from pixels to inches for display
+      let widthInches = 0;
+      let heightInches = 0;
+      try {
+        const canvasWidth = canvasSize.width || (selectedElement.canvas?.width || 800);
+        const scale = calculateScale(realWorldWidth, canvasWidth);
+        widthInches = pixelsToInches(effectiveWidthPx, scale);
+        heightInches = pixelsToInches(effectiveHeightPx, scale);
+      } catch (error) {
+        console.warn('Could not convert dimensions to inches:', error);
+        // Fallback to pixel values if conversion fails
+        widthInches = effectiveWidthPx;
+        heightInches = effectiveHeightPx;
+      }
+      
+      setWidth(widthInches);
+      setHeight(heightInches);
       setOpacity(selectedElement.get('opacity') || 1);
       
       // Get color from customData (stored when color was changed)
@@ -181,6 +204,56 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
           setFontSize(fontSizeInches);
         } catch (error) {
           console.warn('Could not convert font size to inches after modification:', error);
+        }
+      }
+    };
+
+    // Listen for object modification events
+    canvas.on('object:modified', handleObjectModified);
+
+    // Cleanup: remove event listener
+    return () => {
+      canvas.off('object:modified', handleObjectModified);
+    };
+  }, [selectedElement, realWorldWidth, canvasSize]);
+
+  /**
+   * Listen for object modifications (resizing) to update width/height display for artwork
+   */
+  useEffect(() => {
+    if (!selectedElement || 
+        (selectedElement.type !== 'image' && selectedElement.type !== 'group' && selectedElement.type !== 'path') ||
+        !selectedElement.canvas) {
+      return;
+    }
+
+    const canvas = selectedElement.canvas;
+    
+    const handleObjectModified = (e) => {
+      const modifiedObject = e.target;
+      
+      // Only update if the modified object is the currently selected artwork object
+      if (modifiedObject === selectedElement && 
+          (modifiedObject.type === 'image' || modifiedObject.type === 'group' || modifiedObject.type === 'path')) {
+        // When artwork is resized, Fabric.js uses scaleX/scaleY
+        // Calculate effective dimensions: base * scale
+        const baseWidthPx = modifiedObject.get('width') || 0;
+        const baseHeightPx = modifiedObject.get('height') || 0;
+        const scaleX = modifiedObject.get('scaleX') || 1;
+        const scaleY = modifiedObject.get('scaleY') || 1;
+        const effectiveWidthPx = baseWidthPx * scaleX;
+        const effectiveHeightPx = baseHeightPx * scaleY;
+        
+        // Convert effective dimensions from pixels to inches for display
+        try {
+          const canvasWidth = canvasSize.width || (canvas.width || 800);
+          const scale = calculateScale(realWorldWidth, canvasWidth);
+          const widthInches = pixelsToInches(effectiveWidthPx, scale);
+          const heightInches = pixelsToInches(effectiveHeightPx, scale);
+          setWidth(widthInches);
+          setHeight(heightInches);
+        } catch (error) {
+          console.warn('Could not convert dimensions to inches after modification:', error);
         }
       }
     };
@@ -468,15 +541,65 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
   // Image property handlers
   const handleWidthChange = (e) => {
-    const newWidth = Number(e.target.value);
-    setWidth(newWidth);
-    updateFabricObject('width', newWidth);
+    const newWidthInches = Number(e.target.value);
+    setWidth(newWidthInches);
+    
+    if (!selectedElement || !selectedElement.canvas) return;
+    
+    // Convert inches to pixels
+    try {
+      const canvasWidth = canvasSize.width || (selectedElement.canvas.width || 800);
+      const scale = calculateScale(realWorldWidth, canvasWidth);
+      const newWidthPx = inchesToPixels(newWidthInches, scale);
+      
+      // Calculate scale factor based on base width
+      const baseWidthPx = selectedElement.get('width') || 1;
+      const newScaleX = baseWidthPx > 0 ? newWidthPx / baseWidthPx : 1;
+      
+      // Update scaleX to achieve the desired width
+      selectedElement.set('scaleX', newScaleX);
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    } catch (error) {
+      console.warn('Could not convert width from inches to pixels:', error);
+      // Fallback to direct pixel value
+      updateFabricObject('width', newWidthInches);
+    }
   };
 
   const handleHeightChange = (e) => {
-    const newHeight = Number(e.target.value);
-    setHeight(newHeight);
-    updateFabricObject('height', newHeight);
+    const newHeightInches = Number(e.target.value);
+    setHeight(newHeightInches);
+    
+    if (!selectedElement || !selectedElement.canvas) return;
+    
+    // Convert inches to pixels
+    try {
+      const canvasWidth = canvasSize.width || (selectedElement.canvas.width || 800);
+      const scale = calculateScale(realWorldWidth, canvasWidth);
+      const newHeightPx = inchesToPixels(newHeightInches, scale);
+      
+      // Calculate scale factor based on base height
+      const baseHeightPx = selectedElement.get('height') || 1;
+      const newScaleY = baseHeightPx > 0 ? newHeightPx / baseHeightPx : 1;
+      
+      // Update scaleY to achieve the desired height
+      selectedElement.set('scaleY', newScaleY);
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    } catch (error) {
+      console.warn('Could not convert height from inches to pixels:', error);
+      // Fallback to direct pixel value
+      updateFabricObject('height', newHeightInches);
+    }
   };
 
 
@@ -1276,31 +1399,31 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
             <div className="form-group">
               <label htmlFor="image-width" className="form-label">
-                Width
+                Width (inches)
               </label>
               <input
                 id="image-width"
                 type="number"
                 className="form-input"
-                value={width}
+                value={width || 0}
                 onChange={handleWidthChange}
-                min="1"
-                step="1"
+                min="0.1"
+                step="0.1"
               />
             </div>
 
             <div className="form-group">
               <label htmlFor="image-height" className="form-label">
-                Height
+                Height (inches)
               </label>
               <input
                 id="image-height"
                 type="number"
                 className="form-input"
-                value={height}
+                value={height || 0}
                 onChange={handleHeightChange}
-                min="1"
-                step="1"
+                min="0.1"
+                step="0.1"
               />
             </div>
           </div>
