@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import { useProjects } from '../hooks/useProjects';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import { useProjectFlow } from '../context/ProjectFlowContext';
@@ -12,6 +13,7 @@ const AllProjectsView = () => {
   const { projects, loading, error, refreshProjects } = useProjects();
   const { deleteProject } = useProjectMutations();
   const { openWizard } = useProjectFlow();
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, project: null });
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - Project clicked:', project);
@@ -24,23 +26,32 @@ const AllProjectsView = () => {
     openWizard(refreshProjects);
   };
 
-  const handleDeleteProject = async (projectId, e) => {
+  const handleDeleteProject = (project, e) => {
     e.stopPropagation(); // Prevent triggering project click
-    
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      try {
-        const result = await deleteProject(projectId);
-        if (result.success) {
-          refreshProjects();
-          console.log('Project deleted successfully');
-        } else {
-          alert('Error deleting project. Please try again.');
-        }
-      } catch (error) {
-        console.error('Error deleting project:', error);
+    setDeleteConfirm({ isOpen: true, project });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm.project) return;
+
+    try {
+      const result = await deleteProject(deleteConfirm.project.id);
+      if (result.success) {
+        refreshProjects();
+        console.log('Project deleted successfully');
+      } else {
         alert('Error deleting project. Please try again.');
       }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      alert('Error deleting project. Please try again.');
+    } finally {
+      setDeleteConfirm({ isOpen: false, project: null });
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm({ isOpen: false, project: null });
   };
 
   const formatLastEdited = (lastEdited) => {
@@ -149,7 +160,7 @@ const AllProjectsView = () => {
                   <Button 
                     variant="danger"
                     size="small"
-                    onClick={(e) => handleDeleteProject(project.id, e)}
+                    onClick={(e) => handleDeleteProject(project, e)}
                     className="delete-project-btn"
                   >
                     Delete
@@ -161,6 +172,17 @@ const AllProjectsView = () => {
         </div>
       </div>
 
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Project"
+        message={`Are you sure you want to delete project ${deleteConfirm.project?.title || ''}?`}
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+      />
     </div>
   );
 };

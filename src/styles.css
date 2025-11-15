@@ -274,6 +274,66 @@ body {
     z-index: 1000;
 }
 
+/* Confirm Modal Styles */
+.confirm-modal .modal {
+    width: 450px;
+    max-width: 90vw;
+}
+
+.confirm-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.confirm-modal-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.confirm-modal-message {
+    font-size: 16px;
+    color: #666;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.confirm-modal-cancel {
+    min-width: 100px;
+}
+
+.confirm-modal-confirm {
+    min-width: 120px;
+}
+
+.confirm-modal-confirm.alert {
+    background-color: #dc3545;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirm-modal-confirm.alert:hover {
+    background-color: #c82333;
+}
+
+.confirm-modal-confirm.alert:active {
+    background-color: #bd2130;
+}
+
 .new-memorial-form {
     background-color: #f8f8f8;
     border-radius: 12px;
