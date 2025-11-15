@@ -422,6 +422,63 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     fabricInstance.renderAll();
   }, [fabricInstance, selectedElement]);
 
+  /**
+   * Handler: Bring Selected Element To Front
+   */
+  const handleBringToFront = useCallback(() => {
+    if (!fabricInstance || !selectedElement) return;
+
+    // Get all objects
+    const objects = fabricInstance.getObjects();
+    const index = objects.indexOf(selectedElement);
+    
+    if (index === -1) return;
+    
+    // Remove object from its current position
+    fabricInstance.remove(selectedElement);
+    // Add it back (this puts it at the end of the objects array, on top)
+    fabricInstance.add(selectedElement);
+    // Keep it selected
+    fabricInstance.setActiveObject(selectedElement);
+    fabricInstance.renderAll();
+  }, [fabricInstance, selectedElement]);
+
+  /**
+   * Handler: Send Selected Element To Back
+   */
+  const handleSendToBack = useCallback(() => {
+    if (!fabricInstance || !selectedElement) return;
+
+    // Get all objects
+    const objects = fabricInstance.getObjects();
+    const index = objects.indexOf(selectedElement);
+    
+    if (index === -1) return;
+    
+    // Remove object from its current position
+    fabricInstance.remove(selectedElement);
+    
+    // Get remaining objects
+    const remainingObjects = fabricInstance.getObjects();
+    
+    // Remove all remaining objects temporarily
+    remainingObjects.forEach(obj => {
+      fabricInstance.remove(obj);
+    });
+    
+    // Add selected element first (bottom of z-index)
+    fabricInstance.add(selectedElement);
+    
+    // Add all other objects back (on top)
+    remainingObjects.forEach(obj => {
+      fabricInstance.add(obj);
+    });
+    
+    // Keep it selected
+    fabricInstance.setActiveObject(selectedElement);
+    fabricInstance.renderAll();
+  }, [fabricInstance, selectedElement]);
+
   // Keyboard event handler for Delete key and arrow key nudge
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -766,6 +823,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               onCenterVertical={handleCenterVertical}
               onFlipHorizontal={handleFlipHorizontal}
               onFlipVertical={handleFlipVertical}
+              onBringToFront={handleBringToFront}
+              onSendToBack={handleSendToBack}
               realWorldWidth={initialData?.realWorldWidth || 24}
               canvasSize={canvasSize}
             />

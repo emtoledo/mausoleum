@@ -20,11 +20,13 @@ import { artwork } from '../../../data/ArtworkData';
  * @param {Function} onCenterVertical - Callback to center object vertically
  * @param {Function} onFlipHorizontal - Callback to flip object horizontally
  * @param {Function} onFlipVertical - Callback to flip object vertically
+ * @param {Function} onBringToFront - Callback to bring object to front of z-index stack
+ * @param {Function} onSendToBack - Callback to send object to back of z-index stack
  * @param {number} realWorldWidth - Real world width in inches for scale calculations
  * @param {Object} canvasSize - Canvas size in pixels {width, height}
  * @returns {JSX.Element}
  */
-const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical, realWorldWidth = 24, canvasSize = { width: 800 } }) => {
+const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical, onBringToFront, onSendToBack, realWorldWidth = 24, canvasSize = { width: 800 } }) => {
   // Text properties state
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
@@ -1156,6 +1158,29 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
           </button>
         </div>
         
+        {/* Arrange buttons */}
+        <div className="options-panel-actions">
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onBringToFront}
+            title="To Front"
+            style={{ padding: '8px 12px 6px 12px' }}
+          >
+            <img src="/images/tofront_icon.png" alt="Text" className="options-panel-icon" style={{ width: '27px', height: '17px' }} />
+          </button>
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onSendToBack}
+            title="To Back"
+            style={{ padding: '4px 12px 6px 12px' }}
+          >
+            <img src="/images/toback_icon.png" alt="Text" className="options-panel-icon" style={{ width: '25px', height: '16px' }} />
+          </button>
+        </div>
+
+
         <div className="options-panel-form">
           <div className="form-group">
             <label htmlFor="text-content" className="form-label">
@@ -1392,6 +1417,28 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         </div>
         
 
+        {/* Arrange buttons */}
+        <div className="options-panel-actions">
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onBringToFront}
+            title="To Front"
+            style={{ padding: '8px 12px 6px 12px' }}
+          >
+            <img src="/images/tofront_icon.png" alt="Text" className="options-panel-icon" style={{ width: '27px', height: '17px' }} />
+          </button>
+          <button
+            type="button"
+            className="options-panel-action-button"
+            onClick={onSendToBack}
+            title="To Back"
+            style={{ padding: '4px 12px 6px 12px' }}
+          >
+            <img src="/images/toback_icon.png" alt="Text" className="options-panel-icon" style={{ width: '25px', height: '16px' }} />
+          </button>
+        </div>
+
         <div className="options-panel-form">
 
 
@@ -1399,7 +1446,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
             <div className="form-group">
               <label htmlFor="image-width" className="form-label">
-                Width (inches)
+                Width
               </label>
               <input
                 id="image-width"
@@ -1414,7 +1461,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
             <div className="form-group">
               <label htmlFor="image-height" className="form-label">
-                Height (inches)
+                Height
               </label>
               <input
                 id="image-height"
