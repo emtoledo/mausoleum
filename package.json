@@ -10,6 +10,7 @@
     "eject": "react-scripts eject"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.81.1",
     "dxf-parser": "^1.1.2",
     "fabric": "^6.7.1",
     "lucide-react": "^0.548.0",

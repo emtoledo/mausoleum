@@ -1,13 +1,21 @@
-// Local database service using localStorage
+// Database service with Supabase backend and localStorage fallback
 import templateService from './templateService';
+import supabaseService from './supabaseService';
 
 class DataService {
   constructor() {
     this.storageKey = 'valhalla_memorial_projects';
+    // Use Supabase if configured, otherwise fallback to localStorage
+    this.useSupabase = supabaseService.isConfigured();
   }
 
-  // Get all projects from localStorage
-  getAllProjects() {
+  // Get all projects (from Supabase or localStorage)
+  async getAllProjects() {
+    if (this.useSupabase) {
+      return await supabaseService.getAllProjects();
+    }
+    
+    // Fallback to localStorage
     try {
       const projects = localStorage.getItem(this.storageKey);
       return projects ? JSON.parse(projects) : [];
@@ -17,10 +25,15 @@ class DataService {
     }
   }
 
-  // Save a new project
+  // Save a new project (to Supabase or localStorage)
   async saveProject(project) {
+    if (this.useSupabase) {
+      return await supabaseService.saveProject(project);
+    }
+    
+    // Fallback to localStorage
     try {
-      const projects = this.getAllProjects();
+      const projects = await this.getAllProjects();
       const projectId = this.generateId();
       
       // If selectedTemplate is provided, use it; otherwise initialize default template
@@ -105,7 +118,7 @@ class DataService {
       projects.push(newProject);
       localStorage.setItem(this.storageKey, JSON.stringify(projects));
       
-      console.log('Project saved:', newProject);
+      console.log('Project saved to localStorage:', newProject);
       return newProject;
     } catch (error) {
       console.error('Error saving project:', error);
@@ -143,10 +156,15 @@ class DataService {
     }
   }
 
-  // Delete a project
-  deleteProject(id) {
+  // Delete a project (from Supabase or localStorage)
+  async deleteProject(id) {
+    if (this.useSupabase) {
+      return await supabaseService.deleteProject(id);
+    }
+    
+    // Fallback to localStorage
     try {
-      const projects = this.getAllProjects();
+      const projects = await this.getAllProjects();
       const filteredProjects = projects.filter(project => project.id !== id);
       localStorage.setItem(this.storageKey, JSON.stringify(filteredProjects));
       return true;

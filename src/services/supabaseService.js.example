@@ -1,0 +1,274 @@
+/**
+ * Supabase Service
+ * 
+ * This is an example implementation showing how to replace
+ * localStorage-based dataService with Supabase.
+ * 
+ * To use:
+ * 1. Copy this file to supabaseService.js
+ * 2. Install @supabase/supabase-js
+ * 3. Set up environment variables
+ * 4. Replace dataService imports with supabaseService
+ */
+
+import { supabase } from '../lib/supabase';
+
+class SupabaseService {
+  /**
+   * Get all projects for the current user
+   */
+  async getAllProjects() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          project_details (*)
+        `)
+        .eq('user_account_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform to match existing data structure
+      return data.map(project => ({
+        id: project.id,
+        title: project.title,
+        createdAt: project.created_at,
+        updatedAt: project.updated_at,
+        lastEdited: project.last_edited,
+        template: project.project_details ? {
+          templateId: project.project_details.template_id,
+          templateName: project.project_details.template_name,
+          previewImage: project.project_details.preview_image_url,
+          imageUrl: project.project_details.template_image_url,
+          overlayUrl: project.project_details.template_overlay_url,
+          realWorldWidth: project.project_details.real_world_width,
+          realWorldHeight: project.project_details.real_world_height,
+          availableMaterials: project.project_details.available_materials || [],
+          defaultMaterialId: project.project_details.default_material_id,
+          canvas: {
+            width: project.project_details.canvas_width,
+            height: project.project_details.canvas_height
+          },
+          editZones: project.project_details.edit_zones || [],
+          productBase: project.project_details.product_base || [],
+          customizations: {
+            designElements: project.project_details.design_elements || [],
+            colors: project.project_details.customizations?.colors || {},
+            fonts: project.project_details.customizations?.fonts || {},
+            layout: project.project_details.customizations?.layout || {}
+          },
+          configured: true
+        } : null
+      }));
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a single project by ID
+   */
+  async getProjectById(projectId) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          project_details (*)
+        `)
+        .eq('id', projectId)
+        .eq('user_account_id', user.id)
+        .single();
+
+      if (error) throw error;
+      if (!data) return null;
+
+      // Transform to match existing structure
+      return {
+        id: data.id,
+        title: data.title,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        lastEdited: data.last_edited,
+        template: data.project_details ? {
+          templateId: data.project_details.template_id,
+          templateName: data.project_details.template_name,
+          previewImage: data.project_details.preview_image_url,
+          imageUrl: data.project_details.template_image_url,
+          overlayUrl: data.project_details.template_overlay_url,
+          realWorldWidth: data.project_details.real_world_width,
+          realWorldHeight: data.project_details.real_world_height,
+          availableMaterials: data.project_details.available_materials || [],
+          defaultMaterialId: data.project_details.default_material_id,
+          canvas: {
+            width: data.project_details.canvas_width,
+            height: data.project_details.canvas_height
+          },
+          editZones: data.project_details.edit_zones || [],
+          productBase: data.project_details.product_base || [],
+          customizations: {
+            designElements: data.project_details.design_elements || [],
+            colors: data.project_details.customizations?.colors || {},
+            fonts: data.project_details.customizations?.fonts || {},
+            layout: data.project_details.customizations?.layout || {}
+          },
+          configured: true
+        } : null
+      };
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new project
+   */
+  async saveProject(projectData) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Create project
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .insert({
+          user_account_id: user.id,
+          title: projectData.title,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (projectError) throw projectError;
+
+      // Create project details if template is provided
+      if (projectData.selectedTemplate) {
+        const template = projectData.selectedTemplate;
+        
+        const { error: detailsError } = await supabase
+          .from('project_details')
+          .insert({
+            project_id: project.id,
+            template_id: template.id,
+            template_name: template.name,
+            template_category: template.category,
+            preview_image_url: template.previewImage,
+            template_image_url: template.imageUrl,
+            template_overlay_url: template.overlayUrl,
+            real_world_width: template.realWorldWidth,
+            real_world_height: template.realWorldHeight,
+            canvas_width: template.canvas?.width,
+            canvas_height: template.canvas?.height,
+            edit_zones: template.editZones || [],
+            product_base: template.productBase || [],
+            design_elements: [],
+            customizations: {}
+          });
+
+        if (detailsError) throw detailsError;
+      }
+
+      // Return the created project
+      return await this.getProjectById(project.id);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a project
+   */
+  async updateProject(projectId, updateData) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Update project
+      const projectUpdates = {};
+      if (updateData.title) projectUpdates.title = updateData.title;
+      if (updateData.lastEdited) projectUpdates.last_edited = updateData.lastEdited;
+      projectUpdates.updated_at = new Date().toISOString();
+
+      if (Object.keys(projectUpdates).length > 0) {
+        const { error: projectError } = await supabase
+          .from('projects')
+          .update(projectUpdates)
+          .eq('id', projectId)
+          .eq('user_account_id', user.id);
+
+        if (projectError) throw projectError;
+      }
+
+      // Update project details if provided
+      if (updateData.template) {
+        const template = updateData.template;
+        const detailsUpdates = {
+          updated_at: new Date().toISOString()
+        };
+
+        if (template.customizations?.designElements) {
+          detailsUpdates.design_elements = template.customizations.designElements;
+        }
+        if (template.customizations) {
+          detailsUpdates.customizations = {
+            colors: template.customizations.colors || {},
+            fonts: template.customizations.fonts || {},
+            layout: template.customizations.layout || {}
+          };
+        }
+
+        const { error: detailsError } = await supabase
+          .from('project_details')
+          .update(detailsUpdates)
+          .eq('project_id', projectId);
+
+        if (detailsError) throw detailsError;
+      }
+
+      // Return updated project
+      return await this.getProjectById(projectId);
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a project
+   */
+  async deleteProject(projectId) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Delete project (cascade will delete project_details)
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId)
+        .eq('user_account_id', user.id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
+  }
+}
+
+// Export singleton instance
+const supabaseService = new SupabaseService();
+export default supabaseService;
+

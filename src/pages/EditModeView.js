@@ -106,6 +106,7 @@ const EditModeView = ({ onHandlersReady }) => {
 
       const result = await updateProject(projectId, {
         template: updatedTemplate,
+        material: updatedProjectData.material, // Include selected material
         lastEdited: new Date().toISOString()
       });
 
