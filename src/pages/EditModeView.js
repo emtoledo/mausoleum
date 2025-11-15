@@ -5,7 +5,7 @@ import { useProjectMutations } from '../hooks/useProjectMutations';
 import DesignStudio from '../features/DesignStudio/DesignStudio';
 import { materials } from '../data/MaterialsData.js';
 import { artwork } from '../data/ArtworkData.js';
-import { templates } from '../data/TemplateData.js';
+import { templates } from '../data/TemplateData';
 
 const EditModeView = ({ onHandlersReady }) => {
   const { projectId } = useParams();

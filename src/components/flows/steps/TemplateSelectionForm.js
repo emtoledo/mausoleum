@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { templates } from '../../../data/TemplateData.js';
+import { templates } from '../../../data/TemplateData';
 import Button from '../../ui/Button';
 
 const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, isCreating }) => {
