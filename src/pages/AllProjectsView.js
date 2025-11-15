@@ -15,7 +15,8 @@ const AllProjectsView = () => {
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - Project clicked:', project);
-    navigate(`/projects/${project.id}/templates`);
+    // Navigate directly to edit mode since each project has only one template
+    navigate(`/projects/${project.id}/edit`);
   };
 
   const handleCreateNewProject = () => {
@@ -57,9 +58,13 @@ const AllProjectsView = () => {
   };
 
   const getProjectThumbnail = (project) => {
-    // Check if project has templates (new format)
-    if (project.templates && project.templates.length > 0) {
+    // Check if project has single template (new format)
+    if (project.template) {
       // Use previewImage if available, otherwise fallback to baseImage
+      return project.template.previewImage || project.template.baseImage;
+    }
+    // Legacy support: check templates array
+    if (project.templates && project.templates.length > 0) {
       return project.templates[0].previewImage || project.templates[0].baseImage;
     }
     // Fallback to selectedTemplates (legacy format)

@@ -10,7 +10,6 @@ import Button from './components/ui/Button';
 // Pages
 import LoginPage from './pages/LoginPage';
 import AllProjectsView from './pages/AllProjectsView';
-import TemplateGridView from './pages/TemplateGridView';
 import EditModeView from './pages/EditModeView';
 import AccountSettingsView from './pages/AccountSettingsView';
 import NotFoundPage from './pages/NotFoundPage';
@@ -98,15 +97,7 @@ const App = () => {
                 </ProtectedRoute>
               } />
               
-              <Route path="/projects/:projectId/templates" element={
-                <ProtectedRoute>
-                  <BaseScreenLayout>
-                    <TemplateGridView />
-                  </BaseScreenLayout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/projects/:projectId/edit/:templateId" element={
+              <Route path="/projects/:projectId/edit" element={
                 <ProtectedRoute>
                   <BaseScreenLayout>
                     <EditModeView />

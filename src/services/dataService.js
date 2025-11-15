@@ -23,61 +23,68 @@ class DataService {
       const projects = this.getAllProjects();
       const projectId = this.generateId();
       
-      // If selectedTemplate is provided, use it; otherwise initialize default templates
-      let templates;
+      // If selectedTemplate is provided, use it; otherwise initialize default template
+      let template;
       if (project.selectedTemplate) {
         console.log('DataService - Using selectedTemplate:', project.selectedTemplate);
-        // Convert selected template to project template format
-        const template = project.selectedTemplate;
-        templates = [{
-          templateId: template.id,
-          templateName: template.name,
-          previewImage: template.previewImage,
-          imageUrl: template.imageUrl,
-          overlayUrl: template.overlayUrl,
-          realWorldWidth: template.realWorldWidth,
-          realWorldHeight: template.realWorldHeight,
-          availableMaterials: template.availableMaterials,
-          defaultMaterialId: template.defaultMaterialId,
-          canvas: template.canvas,
-          editZones: template.editZones,
-          productBase: template.productBase,
-          designElements: template.designElements || [],
-          selected: true,
+        // Convert selected template to project template format (single template)
+        const selectedTemplate = project.selectedTemplate;
+        template = {
+          templateId: selectedTemplate.id,
+          templateName: selectedTemplate.name,
+          previewImage: selectedTemplate.previewImage,
+          imageUrl: selectedTemplate.imageUrl,
+          overlayUrl: selectedTemplate.overlayUrl,
+          realWorldWidth: selectedTemplate.realWorldWidth,
+          realWorldHeight: selectedTemplate.realWorldHeight,
+          availableMaterials: selectedTemplate.availableMaterials,
+          defaultMaterialId: selectedTemplate.defaultMaterialId,
+          canvas: selectedTemplate.canvas,
+          editZones: selectedTemplate.editZones,
+          productBase: selectedTemplate.productBase,
+          designElements: selectedTemplate.designElements || [],
           configured: false,
           customizations: {
-            designElements: template.designElements || [],
+            designElements: selectedTemplate.designElements || [],
             colors: {},
             fonts: {},
             layout: {}
           }
-        }];
-        console.log('DataService - Converted template:', templates);
+        };
+        console.log('DataService - Converted template:', template);
+      } else if (project.template) {
+        // Use existing template if provided
+        template = project.template;
+      } else if (project.templates && project.templates.length > 0) {
+        // Legacy support: use first template from array
+        console.log('DataService - Using first template from legacy templates array');
+        template = project.templates[0];
       } else if (project.selectedTemplates && project.selectedTemplates.length > 0) {
-        // Legacy support for selectedTemplates array
-        console.log('DataService - Using selectedTemplates (legacy):', project.selectedTemplates);
-        templates = project.selectedTemplates.map(template => ({
-          templateId: template.id,
-          templateName: template.name,
-          baseImage: template.baseImage,
-          previewImage: template.previewImage,
-          text: template.text,
-          type: template.type,
-          style: template.style,
-          category: template.category || template.type,
-          selected: false,
+        // Legacy support for selectedTemplates array - use first one
+        console.log('DataService - Using first template from selectedTemplates (legacy)');
+        const legacyTemplate = project.selectedTemplates[0];
+        template = {
+          templateId: legacyTemplate.id,
+          templateName: legacyTemplate.name,
+          baseImage: legacyTemplate.baseImage,
+          previewImage: legacyTemplate.previewImage,
+          text: legacyTemplate.text,
+          type: legacyTemplate.type,
+          style: legacyTemplate.style,
+          category: legacyTemplate.category || legacyTemplate.type,
           configured: false,
           customizations: {
-            text: template.text,
+            text: legacyTemplate.text,
             colors: {},
             fonts: {},
             layout: {}
           }
-        }));
+        };
       } else {
         console.log('DataService - No selectedTemplate, using default initialization');
-        // Use default template initialization
-        templates = await templateService.initializeProjectTemplates(projectId);
+        // Use default template initialization - get first template
+        const defaultTemplates = await templateService.initializeProjectTemplates(projectId);
+        template = defaultTemplates[0] || null;
       }
       
       const newProject = {
@@ -86,14 +93,15 @@ class DataService {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastEdited: new Date().toISOString(),
-        templates: templates,
+        template: template,
         ...project
       };
       
-      // Remove selectedTemplate/selectedTemplates from the project object since we've converted it to templates
+      // Remove selectedTemplate/selectedTemplates/templates from the project object since we've converted it to single template
       delete newProject.selectedTemplate;
       delete newProject.selectedTemplates;
       delete newProject.selectedTemplateId;
+      delete newProject.templates;
       
       projects.push(newProject);
       localStorage.setItem(this.storageKey, JSON.stringify(projects));

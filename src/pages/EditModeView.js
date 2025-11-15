@@ -8,7 +8,7 @@ import { artwork } from '../data/ArtworkData.js';
 import { templates } from '../data/TemplateData.js';
 
 const EditModeView = ({ onHandlersReady }) => {
-  const { projectId, templateId } = useParams();
+  const { projectId } = useParams();
   const navigate = useNavigate();
   const { getProject, updateProject } = useProjectMutations();
   
@@ -38,18 +38,16 @@ const EditModeView = ({ onHandlersReady }) => {
       if (result.success) {
         setProject(result.data);
         
-        // Find the selected template
-        if (result.data.templates) {
-          const template = result.data.templates.find(t => t.templateId === templateId);
-          if (template) {
-            setSelectedTemplate(template);
-          } else {
-            console.log('Template not found. Available templates:', result.data.templates);
-            console.log('Looking for templateId:', templateId);
-            setError('Template not found');
-          }
+        // Get the single template for this project
+        if (result.data.template) {
+          // New format: single template object
+          setSelectedTemplate(result.data.template);
+        } else if (result.data.templates && result.data.templates.length > 0) {
+          // Legacy format: use first template from array
+          console.log('EditModeView - Using first template from legacy templates array');
+          setSelectedTemplate(result.data.templates[0]);
         } else {
-          setError('No templates found for this project');
+          setError('No template found for this project');
         }
       } else {
         setError(result.error);
@@ -63,7 +61,7 @@ const EditModeView = ({ onHandlersReady }) => {
   };
 
   const handleBack = () => {
-    navigate(`/projects/${projectId}/templates`);
+    navigate('/projects');
   };
 
   const handleProjectTitleClick = () => {
@@ -96,29 +94,25 @@ const EditModeView = ({ onHandlersReady }) => {
     console.log('Saving project:', updatedProjectData);
     
     try {
-      // Update the template's customizations with the saved design elements
-      const updatedTemplates = project.templates.map(t => {
-        if (t.templateId === selectedTemplate.templateId) {
-          return {
-            ...t,
-            customizations: {
-              ...t.customizations,
-              designElements: updatedProjectData.designElements || []
-            },
-            configured: true
-          };
-        }
-        return t;
-      });
+      // Update the single template's customizations with the saved design elements
+      const updatedTemplate = {
+        ...selectedTemplate,
+        customizations: {
+          ...selectedTemplate.customizations,
+          designElements: updatedProjectData.designElements || []
+        },
+        configured: true
+      };
 
       const result = await updateProject(projectId, {
-        templates: updatedTemplates,
+        template: updatedTemplate,
         lastEdited: new Date().toISOString()
       });
 
       if (result.success) {
         // Update local project state
         setProject(result.data);
+        setSelectedTemplate(result.data.template || updatedTemplate);
         alert('Project saved successfully!');
       } else {
         alert('Failed to save project. Please try again.');
@@ -145,7 +139,7 @@ const EditModeView = ({ onHandlersReady }) => {
     return (
       <div className="canvas-layout">
         <div className="error-message">Error: {error}</div>
-        <Button onClick={handleBack}>Back to Templates</Button>
+        <Button onClick={handleBack}>Back to Projects</Button>
       </div>
     );
   }
@@ -154,7 +148,7 @@ const EditModeView = ({ onHandlersReady }) => {
     return (
       <div className="canvas-layout">
         <div className="error-message">Template not found</div>
-        <Button onClick={handleBack}>Back to Templates</Button>
+        <Button onClick={handleBack}>Back to Projects</Button>
       </div>
     );
   }
@@ -165,7 +159,7 @@ const EditModeView = ({ onHandlersReady }) => {
     return (
       <div className="canvas-layout">
         <div className="error-message">Failed to load template data</div>
-        <Button onClick={handleBack}>Back to Templates</Button>
+        <Button onClick={handleBack}>Back to Projects</Button>
       </div>
     );
   }

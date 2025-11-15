@@ -84,8 +84,8 @@ const ProjectCreationWizard = () => {
         setWizardData({});
         closeWizard();
         
-        // Navigate directly to DesignStudio with the selected template
-        navigate(`/projects/${result.data.id}/edit/${selectedTemplate.id}`);
+        // Navigate directly to DesignStudio (no templateId needed since each project has one template)
+        navigate(`/projects/${result.data.id}/edit`);
       } else {
         console.error('Failed to create project:', result.error);
         alert('Failed to create project. Please try again.');

@@ -31,20 +31,27 @@ const AppHeader = ({
   const { openWizard } = useProjectFlow();
 
   // Auto-detect if we're in EditModeView
-  const isEditMode = location.pathname.includes('/edit/');
+  const isEditMode = location.pathname.includes('/edit');
   
   // Get current template info for EditMode
   const getCurrentTemplateInfo = () => {
-    if (isEditMode && params.projectId && params.templateId) {
+    if (isEditMode && params.projectId) {
       try {
         const project = dataService.getProjectById(params.projectId);
-        if (project && project.templates) {
-          const template = project.templates.find(t => t.templateId === params.templateId);
-          if (template) {
-            const templateIndex = project.templates.findIndex(t => t.templateId === params.templateId);
+        if (project) {
+          // New format: single template
+          if (project.template) {
+            return {
+              template: project.template,
+              optionNumber: 1
+            };
+          }
+          // Legacy format: templates array
+          if (project.templates && project.templates.length > 0) {
+            const template = project.templates[0];
             return {
               template,
-              optionNumber: templateIndex + 1
+              optionNumber: 1
             };
           }
         }
