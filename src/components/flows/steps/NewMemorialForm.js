@@ -3,32 +3,32 @@ import Input from '../../ui/Input';
 import Button from '../../ui/Button';
 
 const NewMemorialForm = ({ data, onNext, onCancel, isFirstStep, isLastStep }) => {
-  const [customerName, setCustomerName] = useState(data.customerName || '');
+  const [projectName, setProjectName] = useState(data.projectName || '');
   const [isValid, setIsValid] = useState(false);
 
   const handleInputChange = (e) => {
     const value = e.target.value;
-    setCustomerName(value);
+    setProjectName(value);
     setIsValid(value.trim().length > 0);
   };
 
   const handleNext = () => {
     if (isValid) {
-      onNext({ customerName: customerName.trim() });
+      onNext({ projectName: projectName.trim() });
     }
   };
 
   return (
     <div className="step-form">
-      <div className="form-title">New Memorial</div>
+      <div className="form-title">New Project</div>
       
       <div className="form-group">
         <Input
           type="text"
-          value={customerName}
+          value={projectName}
           onChange={handleInputChange}
-          placeholder="Customer Name"
-          label="Customer Name"
+          placeholder="Project Name"
+          label="Project Name"
           required
           autoFocus
         />

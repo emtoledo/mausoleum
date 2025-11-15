@@ -10,7 +10,7 @@ import { templates } from '../data/TemplateData.js';
 const EditModeView = ({ onHandlersReady }) => {
   const { projectId, templateId } = useParams();
   const navigate = useNavigate();
-  const { getProject } = useProjectMutations();
+  const { getProject, updateProject } = useProjectMutations();
   
   const [project, setProject] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -74,22 +74,59 @@ const EditModeView = ({ onHandlersReady }) => {
   const getInitialData = () => {
     if (!selectedTemplate || !project) return null;
 
-    // Find the template configuration from templates data
-    const templateConfig = templates['template-001']; // Use first template for now
+    // Find the template configuration from templates data using templateId
+    const templateConfig = templates[selectedTemplate.templateId];
     
+    if (!templateConfig) {
+      console.error('Template config not found for templateId:', selectedTemplate.templateId);
+      return null;
+    }
+    
+    // Merge template config with any saved customizations
     return {
       ...templateConfig,
       realWorldWidth: templateConfig.realWorldWidth || 24,
       realWorldHeight: templateConfig.realWorldHeight || 18,
       editZones: templateConfig.editZones || [],
-      designElements: selectedTemplate.customizations?.designElements || []
+      designElements: selectedTemplate.customizations?.designElements || templateConfig.designElements || []
     };
   };
 
   const handleSave = async (updatedProjectData) => {
     console.log('Saving project:', updatedProjectData);
-    // TODO: Implement actual save logic
-    alert('Project saved successfully!');
+    
+    try {
+      // Update the template's customizations with the saved design elements
+      const updatedTemplates = project.templates.map(t => {
+        if (t.templateId === selectedTemplate.templateId) {
+          return {
+            ...t,
+            customizations: {
+              ...t.customizations,
+              designElements: updatedProjectData.designElements || []
+            },
+            configured: true
+          };
+        }
+        return t;
+      });
+
+      const result = await updateProject(projectId, {
+        templates: updatedTemplates,
+        lastEdited: new Date().toISOString()
+      });
+
+      if (result.success) {
+        // Update local project state
+        setProject(result.data);
+        alert('Project saved successfully!');
+      } else {
+        alert('Failed to save project. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving project:', error);
+      alert('An error occurred while saving the project.');
+    }
   };
 
   const handleClose = () => {

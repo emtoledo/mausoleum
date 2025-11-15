@@ -6,9 +6,6 @@ import { useProjectMutations } from '../../hooks/useProjectMutations';
 
 // Import step components
 import NewMemorialForm from './steps/NewMemorialForm';
-import MemorialDetailsForm from './steps/MemorialDetailsForm';
-import MemorialTypeForm from './steps/MemorialTypeForm';
-import MemorialStyleForm from './steps/MemorialStyleForm';
 import TemplateSelectionForm from './steps/TemplateSelectionForm';
 
 const ProjectCreationWizard = () => {
@@ -20,10 +17,7 @@ const ProjectCreationWizard = () => {
   const [isCreating, setIsCreating] = useState(false);
 
   const steps = [
-    { component: NewMemorialForm, title: 'New Memorial' },
-    { component: MemorialDetailsForm, title: 'Memorial Details' },
-    { component: MemorialTypeForm, title: 'Memorial Type' },
-    { component: MemorialStyleForm, title: 'Memorial Style' },
+    { component: NewMemorialForm, title: 'New Project' },
     { component: TemplateSelectionForm, title: 'Template Selection' }
   ];
 
@@ -63,18 +57,21 @@ const ProjectCreationWizard = () => {
     
     try {
       // Prepare project data for creation
+      const selectedTemplate = finalWizardData.selectedTemplate;
+      
+      if (!selectedTemplate) {
+        alert('No template selected. Please select a template.');
+        setIsCreating(false);
+        return;
+      }
+
       const projectData = {
-        title: finalWizardData.customerName,
-        markerHeadline: finalWizardData.markerHeadline,
-        year: finalWizardData.year,
-        epitaph: finalWizardData.epitaph,
-        memorialType: finalWizardData.memorialType,
-        memorialStyle: finalWizardData.memorialStyle,
-        selectedTemplates: finalWizardData.selectedTemplates || [] // Pass selected templates
+        title: finalWizardData.projectName,
+        selectedTemplate: selectedTemplate, // Pass the full template object
+        selectedTemplateId: finalWizardData.selectedTemplateId
       };
 
       console.log('ProjectCreationWizard - Creating project with data:', projectData);
-      console.log('ProjectCreationWizard - selectedTemplates:', projectData.selectedTemplates);
       
       // Create the project
       const result = await createProject(projectData);
@@ -87,8 +84,8 @@ const ProjectCreationWizard = () => {
         setWizardData({});
         closeWizard();
         
-        // Navigate to the template grid for the new project
-        navigate(`/projects/${result.data.id}/templates`);
+        // Navigate directly to DesignStudio with the selected template
+        navigate(`/projects/${result.data.id}/edit/${selectedTemplate.id}`);
       } else {
         console.error('Failed to create project:', result.error);
         alert('Failed to create project. Please try again.');

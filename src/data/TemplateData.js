@@ -4,6 +4,7 @@
 // Import product images (using relative paths from src/data/ to src/assets/)
 import markerImg1 from '../assets/images/templates/estate1.svg';
 import markerImg1Overlay from '../assets/images/templates/estate1_overlay.svg';
+import markerPreview1 from '../assets/images/previews/estate1.png';
 
 export const templates = {
   'template-001': {
@@ -11,6 +12,7 @@ export const templates = {
     name: 'Estate Collection 1',
     imageUrl: markerImg1,
     overlayUrl: markerImg1Overlay,    
+    previewImage: markerPreview1,
     realWorldWidth: 60, // inches
     realWorldHeight: 23, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],

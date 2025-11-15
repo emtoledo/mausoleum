@@ -1,117 +1,61 @@
-import React, { useState, useEffect } from 'react';
-import templateService from '../../../services/templateService';
+import React, { useState } from 'react';
+import { templates } from '../../../data/TemplateData.js';
 import Button from '../../ui/Button';
 
 const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, isCreating }) => {
-  const [availableTemplates, setAvailableTemplates] = useState([]);
-  const [selectedTemplates, setSelectedTemplates] = useState(data.selectedTemplates || []);
-  const [loading, setLoading] = useState(true);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(data.selectedTemplateId || null);
 
-  useEffect(() => {
-    console.log('TemplateSelectionForm - useEffect triggered with data:', data);
-    loadTemplates();
-  }, [data.memorialType, data.memorialStyle]);
-
-  const loadTemplates = async () => {
-    try {
-      setLoading(true);
-      
-      console.log('TemplateSelectionForm - Loading templates with data:', data);
-      
-      // Validate that we have the required data
-      if (!data.memorialType || !data.memorialStyle) {
-        console.error('Missing memorial type or style:', {
-          memorialType: data.memorialType,
-          memorialStyle: data.memorialStyle
-        });
-        setAvailableTemplates([]);
-        return;
-      }
-
-      console.log('Calling getTemplatesForMemorial with:', data.memorialType, data.memorialStyle);
-      const templates = await templateService.getTemplatesForMemorial(
-        data.memorialType, 
-        data.memorialStyle
-      );
-      
-      console.log('Available templates returned:', templates);
-      
-      if (templates && templates.length > 0) {
-        setAvailableTemplates(templates);
-      } else {
-        console.log('No templates found for the specified type and style, loading all templates as fallback');
-        // Fallback: load all available templates
-        const allTemplates = await templateService.getAllTemplates();
-        setAvailableTemplates(allTemplates);
-      }
-    } catch (error) {
-      console.error('Error loading templates:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTemplateToggle = (templateId) => {
-    setSelectedTemplates(prev => {
-      if (prev.includes(templateId)) {
-        return prev.filter(id => id !== templateId);
-      } else {
-        return [...prev, templateId];
-      }
-    });
+  const handleTemplateSelect = (templateId) => {
+    setSelectedTemplateId(templateId);
   };
 
   const handleNext = () => {
-    if (selectedTemplates.length === 0) {
-      alert('Please select at least one template.');
+    if (!selectedTemplateId) {
+      alert('Please select a template.');
       return;
     }
 
-    // Get the selected template objects
-    const selectedTemplateObjects = availableTemplates.filter(template => 
-      selectedTemplates.includes(template.id)
-    );
+    // Get the selected template object
+    const selectedTemplate = templates[selectedTemplateId];
+    
+    if (!selectedTemplate) {
+      alert('Selected template not found.');
+      return;
+    }
 
-    console.log('TemplateSelectionForm - Selected template IDs:', selectedTemplates);
-    console.log('TemplateSelectionForm - Selected template objects:', selectedTemplateObjects);
-    console.log('TemplateSelectionForm - Available templates:', availableTemplates);
+    console.log('TemplateSelectionForm - Selected template:', selectedTemplate);
 
-    onNext({ selectedTemplates: selectedTemplateObjects });
+    onNext({ selectedTemplate, selectedTemplateId });
   };
 
-  if (loading) {
-    return (
-      <div className="step-form">
-        <div className="form-title">Select Memorial</div>
-        <div className="loading-message">Loading templates...</div>
-      </div>
-    );
-  }
+  // Convert templates object to array
+  const templatesArray = Object.values(templates);
 
   return (
     <div className="step-form">
-      <div className="form-title">Select Memorial</div>
+      <div className="form-title">Select Template</div>
       
       <div className="template-grid-container">
         <div className="template-grid">
-          {availableTemplates.map((template) => (
+          {templatesArray.map((template) => (
             <div 
               key={template.id} 
-              className={`template-item ${selectedTemplates.includes(template.id) ? 'selected' : ''}`}
-              onClick={() => handleTemplateToggle(template.id)}
+              className={`template-item ${selectedTemplateId === template.id ? 'selected' : ''}`}
+              onClick={() => handleTemplateSelect(template.id)}
             >
               <div className="template-preview">
                 <img 
-                  src={templateService.getPreviewImagePath(template.previewImage)} 
+                  src={template.previewImage} 
                   alt={template.name}
                   className="template-preview-image"
                 />
               </div>
               <div className="template-checkbox">
                 <input
-                  type="checkbox"
-                  checked={selectedTemplates.includes(template.id)}
-                  onChange={() => handleTemplateToggle(template.id)}
+                  type="radio"
+                  name="template"
+                  checked={selectedTemplateId === template.id}
+                  onChange={() => handleTemplateSelect(template.id)}
                   className="template-checkbox-input"
                 />
               </div>
@@ -131,9 +75,9 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
         <Button 
           variant="primary"
           onClick={handleNext}
-          disabled={selectedTemplates.length === 0 || isCreating}
+          disabled={!selectedTemplateId || isCreating}
         >
-          {isCreating ? 'Creating Project...' : 'Complete'}
+          {isCreating ? 'Creating Project...' : 'Continue'}
         </Button>
       </div>
     </div>

@@ -59,11 +59,12 @@ const AllProjectsView = () => {
   const getProjectThumbnail = (project) => {
     // Check if project has templates (new format)
     if (project.templates && project.templates.length > 0) {
-      return project.templates[0].baseImage;
+      // Use previewImage if available, otherwise fallback to baseImage
+      return project.templates[0].previewImage || project.templates[0].baseImage;
     }
     // Fallback to selectedTemplates (legacy format)
     if (project.selectedTemplates && project.selectedTemplates.length > 0) {
-      return project.selectedTemplates[0].baseImage;
+      return project.selectedTemplates[0].previewImage || project.selectedTemplates[0].baseImage;
     }
     // Default thumbnail
     return 'template_1.png';
@@ -119,7 +120,7 @@ const AllProjectsView = () => {
               >
                 <div className="project-thumbnail">
                   <img 
-                    src={templateService.getTemplateImagePath(getProjectThumbnail(project))} 
+                    src={getProjectThumbnail(project)} 
                     alt={`${project.title} thumbnail`}
                     className="thumbnail-image"
                   />
