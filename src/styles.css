@@ -1830,7 +1830,7 @@ body:has(.canvas-layout) .footer-branding {
 
 .project-thumbnail {
     width: 110px;
-    height: 50px;
+    height: 60px;
     border-radius: 6px;
     overflow: hidden;
     display: flex;

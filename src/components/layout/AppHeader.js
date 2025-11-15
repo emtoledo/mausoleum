@@ -157,11 +157,9 @@ const AppHeader = ({
     console.log('More options clicked');
   };
 
-  // Handler for page title click in EditMode
+  // Handler for page title click
   const handlePageTitleClick = () => {
-    if (isEditMode && params.projectId) {
-      navigate(`/projects/${params.projectId}/templates`);
-    } else if (onPageTitleClick) {
+    if (onPageTitleClick) {
       onPageTitleClick();
     }
   };
@@ -173,17 +171,27 @@ const AppHeader = ({
           <img src="/images/allprojects_icon.png" alt="All Projects" className="menu-icon-image" />
         </div>
         <div className="breadcrumb">
-          <span className={`breadcrumb-item ${(onPageTitleClick || isEditMode) ? 'clickable' : ''}`} onClick={handlePageTitleClick}>
-            {getPageTitle()}
-          </span>
-          {(showFullBreadcrumb || isEditMode) && (onPageTitleClick || isEditMode) && (
+          {isEditMode ? (
+            // In DesignStudio: show only non-clickable project title
+            <span className="breadcrumb-item">
+              {getPageTitle()}
+            </span>
+          ) : (
+            // Other pages: show clickable title with optional breadcrumb
             <>
-              <span className="breadcrumb-separator">
-                <img src="/images/breadcrumb_icon.png" alt=">" className="breadcrumb-icon" />
+              <span className={`breadcrumb-item ${onPageTitleClick ? 'clickable' : ''}`} onClick={handlePageTitleClick}>
+                {getPageTitle()}
               </span>
-              <span className="breadcrumb-item active">
-                {isEditMode && templateInfo ? `Option ${templateInfo.optionNumber}` : currentPage}
-              </span>
+              {showFullBreadcrumb && onPageTitleClick && (
+                <>
+                  <span className="breadcrumb-separator">
+                    <img src="/images/breadcrumb_icon.png" alt=">" className="breadcrumb-icon" />
+                  </span>
+                  <span className="breadcrumb-item active">
+                    {currentPage}
+                  </span>
+                </>
+              )}
             </>
           )}
         </div>
