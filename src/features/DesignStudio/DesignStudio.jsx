@@ -16,6 +16,7 @@ import ArtworkLibrary from './components/ArtworkLibrary';
 import OptionsPanel from './components/OptionsPanel';
 import exportToDxf from './utils/dxfExporter';
 import { importDxfToFabric } from '../../utils/dxfImporter';
+import AlertMessage from '../../components/ui/AlertMessage';
 
 /**
  * @param {Object} initialData - Template/product data with dimensions, editZones, and designElements
@@ -41,6 +42,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [isExporting, setIsExporting] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
+  const [saveAlert, setSaveAlert] = useState(null);
 
   // Update canvas size when container dimensions change
   useEffect(() => {
@@ -370,15 +372,45 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Center Selected Element Horizontally
    */
   const handleCenterHorizontal = useCallback(() => {
-    if (!fabricInstance || !selectedElement) return;
+    if (!fabricInstance || !selectedElement || !initialData) return;
 
-    const centerX = fabricInstance.width / 2;
-    selectedElement.set({
-      left: centerX
-    });
+    const canvasWidth = fabricInstance.width;
+    const canvasHeight = fabricInstance.height;
+    
+    let centerX = canvasWidth / 2; // Default to canvas center
+    
+    // Check if editZones are defined
+    if (initialData.editZones && initialData.editZones.length > 0) {
+      const editZone = initialData.editZones[0];
+      const realWorldWidth = initialData.realWorldWidth || 24;
+      const realWorldHeight = initialData.realWorldHeight || 18;
+      
+      // Calculate scale for converting inches to pixels
+      const scaleX = canvasWidth / realWorldWidth;
+      const scaleY = canvasHeight / realWorldHeight;
+      
+      // Convert editZone coordinates from inches to pixels
+      const editZoneLeft = editZone.x * scaleX;
+      const editZoneWidth = editZone.width * scaleX;
+      
+      // Calculate center X of the edit zone
+      centerX = editZoneLeft + (editZoneWidth / 2);
+    }
+    
+    // Account for object origin point
+    const originX = selectedElement.originX || 'left';
+    if (originX === 'center') {
+      // Object is already centered at its origin, so centerX is correct
+      selectedElement.set({ left: centerX });
+    } else {
+      // Object origin is at left, need to adjust for object width
+      const objWidth = Math.abs(selectedElement.width * selectedElement.scaleX);
+      selectedElement.set({ left: centerX - (objWidth / 2) });
+    }
+    
     selectedElement.setCoords();
     fabricInstance.renderAll();
-  }, [fabricInstance, selectedElement]);
+  }, [fabricInstance, selectedElement, initialData]);
 
   /**
    * Handler: Center Selected Element Vertically
@@ -694,9 +726,19 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         await onSave(updatedProjectData);
       }
 
+      // Show success alert
+      setSaveAlert({
+        type: 'success',
+        message: 'Design Saved'
+      });
+
     } catch (error) {
       console.error('Error saving project:', error);
-      alert('Failed to save project. Please try again.');
+      // Show error alert
+      setSaveAlert({
+        type: 'danger',
+        message: 'Failed to save project. Please try again.'
+      });
     } finally {
       setIsSaving(false);
     }
@@ -941,6 +983,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
         {/* Modal: Material Picker */}
       </div>
+
+      {/* Alert Message */}
+      {saveAlert && (
+        <AlertMessage
+          type={saveAlert.type}
+          message={saveAlert.message}
+          duration={5000}
+          onClose={() => setSaveAlert(null)}
+        />
+      )}
     </div>
   );
 };

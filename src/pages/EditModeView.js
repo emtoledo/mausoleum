@@ -113,13 +113,13 @@ const EditModeView = ({ onHandlersReady }) => {
         // Update local project state
         setProject(result.data);
         setSelectedTemplate(result.data.template || updatedTemplate);
-        alert('Project saved successfully!');
+        // Success message is handled by AlertMessage component in DesignStudio
       } else {
-        alert('Failed to save project. Please try again.');
+        // Error message is handled by AlertMessage component in DesignStudio
       }
     } catch (error) {
       console.error('Error saving project:', error);
-      alert('An error occurred while saving the project.');
+      // Error message is handled by AlertMessage component in DesignStudio
     }
   };
 
