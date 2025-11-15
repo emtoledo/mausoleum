@@ -26,22 +26,49 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const selectedObject = useRef(null);
+  const constraintOverlay = useRef(null); // Reference to constraint border overlay
+  const isObjectMoving = useRef(false);
 
   /**
-   * Constrain an object within the canvas boundaries
+   * Constrain an object within the canvas boundaries or edit zones
    * 
    * @param {fabric.Object} obj - The object to constrain
    */
   const constrainObjectInCanvas = useCallback((obj) => {
-    if (!obj || !fabricCanvasInstance.current) return;
+    if (!obj || !fabricCanvasInstance.current || !initialData) return;
 
-    // Get canvas dimensions
-    const canvasWidth = fabricCanvasInstance.current.width;
-    const canvasHeight = fabricCanvasInstance.current.height;
-    const canvasLeft = 0;
-    const canvasTop = 0;
-    const canvasRight = canvasWidth;
-    const canvasBottom = canvasHeight;
+    const canvas = fabricCanvasInstance.current;
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    // Check if editZones are defined in initialData
+    let constraintLeft = 0;
+    let constraintTop = 0;
+    let constraintRight = canvasWidth;
+    let constraintBottom = canvasHeight;
+    
+    if (initialData.editZones && initialData.editZones.length > 0) {
+      // Use the first editZone (or could combine multiple zones)
+      const editZone = initialData.editZones[0];
+      const realWorldWidth = initialData.realWorldWidth || 24;
+      const realWorldHeight = initialData.realWorldHeight || 18;
+      
+      // Calculate scale for converting inches to pixels
+      const scaleX = canvasWidth / realWorldWidth;
+      const scaleY = canvasHeight / realWorldHeight;
+      
+      // Convert editZone coordinates from inches to pixels
+      constraintLeft = editZone.x * scaleX;
+      constraintTop = editZone.y * scaleY;
+      constraintRight = constraintLeft + (editZone.width * scaleX);
+      constraintBottom = constraintTop + (editZone.height * scaleY);
+    } else {
+      // Fall back to canvas boundaries
+      constraintLeft = 0;
+      constraintTop = 0;
+      constraintRight = canvasWidth;
+      constraintBottom = canvasHeight;
+    }
 
     // Get object dimensions (accounting for scale)
     const objWidth = Math.abs(obj.width * obj.scaleX);
@@ -75,45 +102,47 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     let newTop = obj.top;
 
     // Constrain horizontally
-    if (objLeft < canvasLeft) {
+    if (objLeft < constraintLeft) {
       if (originX === 'center') {
-        newLeft = canvasLeft + (objWidth / 2);
+        newLeft = constraintLeft + (objWidth / 2);
       } else {
-        newLeft = canvasLeft;
+        newLeft = constraintLeft;
       }
-    } else if (objRight > canvasRight) {
+    } else if (objRight > constraintRight) {
       if (originX === 'center') {
-        newLeft = canvasRight - (objWidth / 2);
+        newLeft = constraintRight - (objWidth / 2);
       } else {
-        newLeft = canvasRight - objWidth;
+        newLeft = constraintRight - objWidth;
       }
     }
 
     // Constrain vertically
-    if (objTop < canvasTop) {
+    if (objTop < constraintTop) {
       if (originY === 'center') {
-        newTop = canvasTop + (objHeight / 2);
+        newTop = constraintTop + (objHeight / 2);
       } else {
-        newTop = canvasTop;
+        newTop = constraintTop;
       }
-    } else if (objBottom > canvasBottom) {
+    } else if (objBottom > constraintBottom) {
       if (originY === 'center') {
-        newTop = canvasBottom - (objHeight / 2);
+        newTop = constraintBottom - (objHeight / 2);
       } else {
-        newTop = canvasBottom - objHeight;
+        newTop = constraintBottom - objHeight;
       }
     }
 
-    // Constrain scale if object would exceed canvas
+    // Constrain scale if object would exceed constraint area
+    const constraintWidth = constraintRight - constraintLeft;
+    const constraintHeight = constraintBottom - constraintTop;
     let constrainedScaleX = obj.scaleX;
     let constrainedScaleY = obj.scaleY;
 
-    if (objWidth > canvasWidth) {
-      constrainedScaleX = (canvasWidth / obj.width) * Math.sign(obj.scaleX || 1);
+    if (objWidth > constraintWidth) {
+      constrainedScaleX = (constraintWidth / obj.width) * Math.sign(obj.scaleX || 1);
     }
 
-    if (objHeight > canvasHeight) {
-      constrainedScaleY = (canvasHeight / obj.height) * Math.sign(obj.scaleY || 1);
+    if (objHeight > constraintHeight) {
+      constrainedScaleY = (constraintHeight / obj.height) * Math.sign(obj.scaleY || 1);
     }
 
     // Apply constraints
@@ -126,7 +155,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     
     // Update coordinates after constraint
     obj.setCoords();
-  }, [fabricCanvasInstance]);
+  }, [fabricCanvasInstance, initialData]);
 
   /**
    * Draw the product canvas with template image and material fill
@@ -707,15 +736,89 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         }
       });
 
+      // Function to show constraint border overlay
+      const showConstraintBorder = () => {
+        if (!initialData || !canvas) return;
+        
+        // Remove existing overlay if it exists
+        if (constraintOverlay.current) {
+          canvas.remove(constraintOverlay.current);
+        }
+        
+        // Check if editZones are defined
+        if (initialData.editZones && initialData.editZones.length > 0) {
+          const editZone = initialData.editZones[0];
+          const realWorldWidth = initialData.realWorldWidth || 24;
+          const realWorldHeight = initialData.realWorldHeight || 18;
+          
+          // Calculate scale for converting inches to pixels
+          const scaleX = canvas.width / realWorldWidth;
+          const scaleY = canvas.height / realWorldHeight;
+          
+          // Convert editZone coordinates from inches to pixels
+          const x = editZone.x * scaleX;
+          const y = editZone.y * scaleY;
+          const width = editZone.width * scaleX;
+          const height = editZone.height * scaleY;
+          
+          // Create rectangle overlay for constraint border
+          const borderRect = new fabric.Rect({
+            left: x,
+            top: y,
+            width: width,
+            height: height,
+            fill: 'transparent',
+            stroke: '#9CBCED',
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            strokeDashArray: [0] // Solid line
+          });
+          
+          // Add to canvas
+          canvas.add(borderRect);
+          
+          // Move border to the beginning of the objects array (bottom of z-index)
+          // This ensures it renders behind all other objects
+          const objects = canvas.getObjects();
+          const borderIndex = objects.indexOf(borderRect);
+          if (borderIndex > 0) {
+            // Remove from current position
+            objects.splice(borderIndex, 1);
+            // Insert at the beginning
+            objects.unshift(borderRect);
+            // Update canvas objects array
+            canvas._objects = objects;
+          }
+          
+          constraintOverlay.current = borderRect;
+          canvas.renderAll();
+        }
+      };
+      
+      // Function to hide constraint border overlay
+      const hideConstraintBorder = () => {
+        if (constraintOverlay.current && canvas) {
+          canvas.remove(constraintOverlay.current);
+          constraintOverlay.current = null;
+          canvas.renderAll();
+        }
+      };
+
       // Object modification event listeners
       canvas.on('object:moving', (e) => {
         const obj = e.target;
+        isObjectMoving.current = true;
         constrainObjectInCanvas(obj);
+        showConstraintBorder();
       });
 
       canvas.on('object:scaling', (e) => {
         const obj = e.target;
+        isObjectMoving.current = true;
         constrainObjectInCanvas(obj);
+        showConstraintBorder();
       });
 
       canvas.on('object:rotating', (e) => {
@@ -726,7 +829,17 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       // Object modification completion
       canvas.on('object:modified', (e) => {
         const obj = e.target;
+        isObjectMoving.current = false;
+        hideConstraintBorder();
         console.log('Object modified:', obj);
+      });
+      
+      // Also hide border when mouse is released (in case object:modified doesn't fire)
+      canvas.on('mouse:up', () => {
+        if (isObjectMoving.current) {
+          isObjectMoving.current = false;
+          hideConstraintBorder();
+        }
       });
     }
 

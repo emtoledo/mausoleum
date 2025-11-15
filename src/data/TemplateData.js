@@ -22,8 +22,7 @@ export const templates = {
     editZones: [
       {
         id: 'main-zone',
-        x: 0, y: 0, width: 60, height: 31,
-        allows: ['text', 'artwork']
+        x: 10, y: 2.5, width: 40, height: 15.5
       }
     ],
     productBase: [

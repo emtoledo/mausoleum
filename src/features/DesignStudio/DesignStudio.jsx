@@ -384,15 +384,45 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Center Selected Element Vertically
    */
   const handleCenterVertical = useCallback(() => {
-    if (!fabricInstance || !selectedElement) return;
+    if (!fabricInstance || !selectedElement || !initialData) return;
 
-    const centerY = fabricInstance.height / 2;
-    selectedElement.set({
-      top: centerY
-    });
+    const canvasWidth = fabricInstance.width;
+    const canvasHeight = fabricInstance.height;
+    
+    let centerY = canvasHeight / 2; // Default to canvas center
+    
+    // Check if editZones are defined
+    if (initialData.editZones && initialData.editZones.length > 0) {
+      const editZone = initialData.editZones[0];
+      const realWorldWidth = initialData.realWorldWidth || 24;
+      const realWorldHeight = initialData.realWorldHeight || 18;
+      
+      // Calculate scale for converting inches to pixels
+      const scaleX = canvasWidth / realWorldWidth;
+      const scaleY = canvasHeight / realWorldHeight;
+      
+      // Convert editZone coordinates from inches to pixels
+      const editZoneTop = editZone.y * scaleY;
+      const editZoneHeight = editZone.height * scaleY;
+      
+      // Calculate center Y of the edit zone
+      centerY = editZoneTop + (editZoneHeight / 2);
+    }
+    
+    // Account for object origin point
+    const originY = selectedElement.originY || 'top';
+    if (originY === 'center') {
+      // Object is already centered at its origin, so centerY is correct
+      selectedElement.set({ top: centerY });
+    } else {
+      // Object origin is at top, need to adjust for object height
+      const objHeight = Math.abs(selectedElement.height * selectedElement.scaleY);
+      selectedElement.set({ top: centerY - (objHeight / 2) });
+    }
+    
     selectedElement.setCoords();
     fabricInstance.renderAll();
-  }, [fabricInstance, selectedElement]);
+  }, [fabricInstance, selectedElement, initialData]);
 
   /**
    * Handler: Flip Selected Element Horizontally
@@ -505,8 +535,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       if (selectedElement && fabricInstance && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
         // Calculate scale to convert inches to pixels
         const realWorldWidth = initialData.realWorldWidth || 24;
-        const canvasWidth = canvasSize.width || fabricInstance.width;
-        const scale = calculateScale(realWorldWidth, canvasWidth);
+        const canvasWidthForScale = canvasSize.width || fabricInstance.width;
+        const scale = calculateScale(realWorldWidth, canvasWidthForScale);
         
         // Nudge increment: 0.125 inches
         const nudgeInches = 0.125;
@@ -532,6 +562,64 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             break;
         }
 
+        // Apply constraint logic (same as in useFabricCanvas)
+        const canvasWidth = fabricInstance.width;
+        const canvasHeight = fabricInstance.height;
+        
+        let constraintLeft = 0;
+        let constraintTop = 0;
+        let constraintRight = canvasWidth;
+        let constraintBottom = canvasHeight;
+        
+        if (initialData.editZones && initialData.editZones.length > 0) {
+          const editZone = initialData.editZones[0];
+          const realWorldWidth = initialData.realWorldWidth || 24;
+          const realWorldHeight = initialData.realWorldHeight || 18;
+          
+          const scaleX = canvasWidth / realWorldWidth;
+          const scaleY = canvasHeight / realWorldHeight;
+          
+          constraintLeft = editZone.x * scaleX;
+          constraintTop = editZone.y * scaleY;
+          constraintRight = constraintLeft + (editZone.width * scaleX);
+          constraintBottom = constraintTop + (editZone.height * scaleY);
+        }
+        
+        // Get object dimensions
+        const objWidth = Math.abs(selectedElement.width * selectedElement.scaleX);
+        const objHeight = Math.abs(selectedElement.height * selectedElement.scaleY);
+        const originX = selectedElement.originX || 'left';
+        const originY = selectedElement.originY || 'top';
+        
+        // Calculate bounding box
+        let objLeft, objTop, objRight, objBottom;
+        if (originX === 'center') {
+          objLeft = newLeft - (objWidth / 2);
+          objRight = newLeft + (objWidth / 2);
+        } else {
+          objLeft = newLeft;
+          objRight = newLeft + objWidth;
+        }
+        if (originY === 'center') {
+          objTop = newTop - (objHeight / 2);
+          objBottom = newTop + (objHeight / 2);
+        } else {
+          objTop = newTop;
+          objBottom = newTop + objHeight;
+        }
+        
+        // Constrain position
+        if (objLeft < constraintLeft) {
+          newLeft = originX === 'center' ? constraintLeft + (objWidth / 2) : constraintLeft;
+        } else if (objRight > constraintRight) {
+          newLeft = originX === 'center' ? constraintRight - (objWidth / 2) : constraintRight - objWidth;
+        }
+        if (objTop < constraintTop) {
+          newTop = originY === 'center' ? constraintTop + (objHeight / 2) : constraintTop;
+        } else if (objBottom > constraintBottom) {
+          newTop = originY === 'center' ? constraintBottom - (objHeight / 2) : constraintBottom - objHeight;
+        }
+        
         // Update object position
         selectedElement.set({
           left: newLeft,
