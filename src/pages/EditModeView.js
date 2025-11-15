@@ -86,7 +86,7 @@ const EditModeView = ({ onHandlersReady }) => {
       realWorldWidth: templateConfig.realWorldWidth || 24,
       realWorldHeight: templateConfig.realWorldHeight || 18,
       editZones: templateConfig.editZones || [],
-      designElements: selectedTemplate.customizations?.designElements || templateConfig.designElements || []
+      designElements: selectedTemplate.customizations?.designElements || []
     };
   };
 

@@ -10,13 +10,14 @@ export const templates = {
   'template-001': {
     id: 'template-001',
     name: 'Estate Collection 1',
+    productCategory: 'Estate Collection',
     imageUrl: markerImg1,
     overlayUrl: markerImg1Overlay,    
     previewImage: markerPreview1,
     realWorldWidth: 60, // inches
     realWorldHeight: 23, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
-    defaultMaterialId: 'mat-001', 
+    defaultMaterialId: 'mat-002', 
     canvas: {
       width: 60, // inches - overall canvas width
       height: 26 // inches - overall canvas height
@@ -32,14 +33,6 @@ export const templates = {
         id: 'default-base',
         x: 0, y: 23, width: 60, height: 3,
         material: 'mat-006'
-      }
-    ],    
-    // Pre-populated elements for this template
-    designElements: [
-      {
-        id: 'el-1', type: 'text', content: 'In Loving Memory',
-        font: 'Times New Roman', fontSize: 2,
-        x: 12, y: 5, zIndex: 1
       }
     ]
   }

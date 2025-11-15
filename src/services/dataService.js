@@ -42,10 +42,9 @@ class DataService {
           canvas: selectedTemplate.canvas,
           editZones: selectedTemplate.editZones,
           productBase: selectedTemplate.productBase,
-          designElements: selectedTemplate.designElements || [],
           configured: false,
           customizations: {
-            designElements: selectedTemplate.designElements || [],
+            designElements: [],
             colors: {},
             fonts: {},
             layout: {}
