@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectFlowProvider, useProjectFlow } from './context/ProjectFlowContext';
 import BaseScreenLayout from './components/layout/BaseScreenLayout';
 import IntroFlowLayout from './components/layout/IntroFlowLayout';
@@ -9,6 +9,7 @@ import Button from './components/ui/Button';
 
 // Pages
 import LoginPage from './pages/LoginPage';
+import SignUpPage from './pages/SignUpPage';
 import AllProjectsView from './pages/AllProjectsView';
 import EditModeView from './pages/EditModeView';
 import AccountSettingsView from './pages/AccountSettingsView';
@@ -16,7 +17,13 @@ import NotFoundPage from './pages/NotFoundPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
+  const { isAuthenticated, loading } = useAuth();
+  
+  // Show nothing while checking auth
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
@@ -75,6 +82,7 @@ const App = () => {
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignUpPage />} />
               
               {/* Protected Routes */}
               <Route path="/" element={

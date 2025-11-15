@@ -5,13 +5,15 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
 
-const LoginPage = () => {
+const SignUpPage = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { signUp, isAuthenticated } = useAuth();
   
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -19,9 +21,9 @@ const LoginPage = () => {
   // Redirect to projects if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/projects');
+      navigate('/projects', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated]); // Remove navigate from dependencies - it's stable
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -42,6 +44,10 @@ const LoginPage = () => {
   const validateForm = () => {
     const newErrors = {};
     
+    if (!formData.name || formData.name.trim().length === 0) {
+      newErrors.name = 'Name is required';
+    }
+    
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -52,6 +58,12 @@ const LoginPage = () => {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
     }
     
     setErrors(newErrors);
@@ -68,13 +80,13 @@ const LoginPage = () => {
     setLoading(true);
     
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await signUp(formData.email, formData.password, formData.name);
       
       if (result.success) {
-        // Navigate directly to AllProjectsView after successful login
+        // Navigate directly to AllProjectsView after successful sign-up
         navigate('/projects');
       } else {
-        setErrors({ general: result.error || 'Login failed' });
+        setErrors({ general: result.error || 'Sign up failed' });
         setLoading(false);
       }
     } catch (error) {
@@ -83,13 +95,24 @@ const LoginPage = () => {
     }
   };
 
-
   return (
     <IntroFlowLayout>
       <div className="login-container">
         <div className="brand-title">VALHALLA MEMORIAL</div>
 
         <form className="login-form" onSubmit={handleSubmit}>
+          <Input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleInputChange}
+            placeholder="Full Name"
+            label="Full Name"
+            error={errors.name}
+            required
+            autoFocus
+          />
+
           <Input
             type="email"
             name="email"
@@ -99,7 +122,6 @@ const LoginPage = () => {
             label="Email"
             error={errors.email}
             required
-            autoFocus
           />
 
           <Input
@@ -113,6 +135,17 @@ const LoginPage = () => {
             required
           />
 
+          <Input
+            type="password"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleInputChange}
+            placeholder="Confirm Password"
+            label="Confirm Password"
+            error={errors.confirmPassword}
+            required
+          />
+
           {errors.general && (
             <div className="error-message">{errors.general}</div>
           )}
@@ -123,11 +156,11 @@ const LoginPage = () => {
             disabled={loading}
             className="login-button"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Creating Account...' : 'Create Account'}
           </Button>
 
           <div className="signup-link">
-            <p>Don't have an account? <Link to="/signup">Create New Account</Link></p>
+            <p>Already have an account? <Link to="/login">Login</Link></p>
           </div>
         </form>
       </div>
@@ -135,4 +168,5 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default SignUpPage;
+

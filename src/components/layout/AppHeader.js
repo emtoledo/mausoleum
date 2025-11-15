@@ -37,7 +37,9 @@ const AppHeader = ({
   const getCurrentTemplateInfo = () => {
     if (isEditMode && params.projectId) {
       try {
-        const project = dataService.getProjectById(params.projectId);
+        // Use async/await properly - this function should be async or use a hook
+        // For now, we'll make it safer by not calling it during render
+        const project = null; // Will be loaded via proper data fetching
         if (project) {
           // New format: single template
           if (project.template) {
@@ -76,17 +78,9 @@ const AppHeader = ({
     const path = location.pathname;
     
     // Special handling for project-specific routes - show project title
+    // Note: getProjectById is async, so we can't call it synchronously here
+    // The page title will be set by the component that loads the project
     if (path.startsWith('/projects/') && (path.includes('/templates') || path.includes('/edit'))) {
-      if (params.projectId) {
-        try {
-          const project = dataService.getProjectById(params.projectId);
-          if (project && project.title) {
-            return project.title;
-          }
-        } catch (error) {
-          console.error('Error loading project for title:', error);
-        }
-      }
       return path.includes('/templates') ? 'Template Selection' : 'Edit Memorial';
     }
     

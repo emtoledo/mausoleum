@@ -105,6 +105,63 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const signUp = async (email, password, name) => {
+    try {
+      if (useSupabaseAuth) {
+        // Use Supabase Auth to create account
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name
+            }
+          }
+        });
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+
+        if (data.user) {
+          // Update user metadata with name
+          if (name) {
+            await supabase.auth.updateUser({
+              data: { full_name: name }
+            });
+          }
+          
+          setIsAuthenticated(true);
+          setUser(data.user);
+          return { success: true, user: data.user };
+        }
+
+        return { success: false, error: 'Sign up failed' };
+      } else {
+        // Fallback to localStorage (demo mode)
+        if (email && password && password.length >= 6 && name) {
+          const userData = { 
+            email, 
+            id: Date.now().toString(),
+            name: name
+          };
+          
+          setIsAuthenticated(true);
+          setUser(userData);
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('user', JSON.stringify(userData));
+          
+          return { success: true };
+        } else {
+          return { success: false, error: 'Invalid credentials' };
+        }
+      }
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { success: false, error: 'Sign up failed' };
+    }
+  };
+
   const logout = async () => {
     if (useSupabaseAuth) {
       // Sign out from Supabase
@@ -133,6 +190,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    signUp,
     logout
   };
 

@@ -23,15 +23,19 @@ class SupabaseService {
     // Fallback to localStorage if Supabase not configured
     if (!this.isConfigured()) {
       console.log('Supabase not configured, using localStorage fallback');
-      return dataService.getAllProjects();
+      return this.getAllProjectsFromLocalStorage();
     }
 
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !user) {
-        console.log('Not authenticated, using localStorage fallback');
-        return dataService.getAllProjects();
+        // Only log once per session to avoid spam
+        if (!this._loggedAuthFallback) {
+          console.log('Not authenticated with Supabase, using localStorage fallback');
+          this._loggedAuthFallback = true;
+        }
+        return this.getAllProjectsFromLocalStorage();
       }
 
       const { data, error } = await supabase
@@ -44,15 +48,35 @@ class SupabaseService {
         .order('updated_at', { ascending: false });
 
       if (error) {
-        console.error('Supabase error, falling back to localStorage:', error);
-        return dataService.getAllProjects();
+        console.error('Supabase query error, falling back to localStorage:', error);
+        return this.getAllProjectsFromLocalStorage();
+      }
+
+      // If no data, return empty array (not an error)
+      if (!data || data.length === 0) {
+        console.log('No projects found in Supabase, returning empty array');
+        return [];
       }
 
       // Transform to match existing data structure
       return data.map(project => this.transformProject(project));
     } catch (error) {
       console.error('Error fetching projects from Supabase:', error);
-      return dataService.getAllProjects();
+      return this.getAllProjectsFromLocalStorage();
+    }
+  }
+
+  /**
+   * Get projects from localStorage (avoids circular dependency)
+   */
+  getAllProjectsFromLocalStorage() {
+    try {
+      const storageKey = 'valhalla_memorial_projects';
+      const projects = localStorage.getItem(storageKey);
+      return projects ? JSON.parse(projects) : [];
+    } catch (error) {
+      console.error('Error loading projects from localStorage:', error);
+      return [];
     }
   }
 
@@ -83,13 +107,19 @@ class SupabaseService {
         .single();
 
       if (error) {
-        console.error('Supabase error, falling back to localStorage:', error);
-        return dataService.getProjectById(projectId);
+        console.error('Supabase error loading project:', error);
+        return await dataService.getProjectById(projectId);
       }
 
-      if (!data) return null;
+      if (!data) {
+        console.log('Project not found in Supabase');
+        return null;
+      }
 
-      return this.transformProject(data);
+      console.log('Supabase project loaded:', data);
+      const transformed = this.transformProject(data);
+      console.log('Transformed project:', transformed);
+      return transformed;
     } catch (error) {
       console.error('Error fetching project from Supabase:', error);
       return dataService.getProjectById(projectId);
@@ -133,7 +163,9 @@ class SupabaseService {
       if (projectData.selectedTemplate) {
         const template = projectData.selectedTemplate;
         
-        const { error: detailsError } = await supabase
+        console.log('Creating project_details with template:', template);
+        
+        const { data: detailsData, error: detailsError } = await supabase
           .from('project_details')
           .insert({
             project_id: project.id,
@@ -155,12 +187,20 @@ class SupabaseService {
             selected_material_name: null,
             design_elements: [],
             customizations: {}
-          });
+          })
+          .select()
+          .single();
 
         if (detailsError) {
           console.error('Supabase error creating project details:', detailsError);
-          // Continue anyway - project is created
+          console.error('Details error details:', JSON.stringify(detailsError, null, 2));
+          // Don't continue - this is critical
+          throw new Error(`Failed to create project details: ${detailsError.message}`);
         }
+        
+        console.log('Project details created successfully:', detailsData);
+      } else {
+        console.warn('No selectedTemplate provided when creating project');
       }
 
       // Return the created project
@@ -291,6 +331,20 @@ class SupabaseService {
    * Transform Supabase project data to match existing structure
    */
   transformProject(project) {
+    console.log('Transforming project:', project);
+    console.log('Project details:', project.project_details);
+    
+    // Handle both array and single object formats from Supabase
+    const projectDetails = Array.isArray(project.project_details) 
+      ? project.project_details[0] 
+      : project.project_details;
+    
+    const template = projectDetails 
+      ? this.transformProjectDetails(projectDetails)
+      : null;
+    
+    console.log('Transformed template:', template);
+    
     return {
       id: project.id,
       title: project.title,
@@ -298,9 +352,7 @@ class SupabaseService {
       updatedAt: project.updated_at,
       lastEdited: project.last_edited,
       status: project.status,
-      template: project.project_details && project.project_details.length > 0 
-        ? this.transformProjectDetails(project.project_details[0])
-        : null
+      template: template
     };
   }
 

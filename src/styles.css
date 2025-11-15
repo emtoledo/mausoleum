@@ -165,6 +165,29 @@ body {
     text-decoration: underline;
 }
 
+.signup-link {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.signup-link p {
+    color: #666;
+    font-size: 14px;
+    margin: 0;
+}
+
+.signup-link a {
+    color: #4bbdfa;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.signup-link a:hover {
+    color: #239bfa;
+    text-decoration: underline;
+}
+
 .footer-branding {
     position: fixed;
     bottom: 30px;

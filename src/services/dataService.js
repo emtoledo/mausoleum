@@ -126,16 +126,31 @@ class DataService {
     }
   }
 
-  // Get a project by ID
-  getProjectById(id) {
-    const projects = this.getAllProjects();
-    return projects.find(project => project.id === id);
+  // Get a project by ID (from Supabase or localStorage)
+  async getProjectById(id) {
+    if (this.useSupabase) {
+      return await supabaseService.getProjectById(id);
+    }
+    
+    // Fallback to localStorage
+    try {
+      const projects = await this.getAllProjects();
+      return projects.find(project => project.id === id);
+    } catch (error) {
+      console.error('Error loading project:', error);
+      return null;
+    }
   }
 
-  // Update an existing project
-  updateProject(id, updates) {
+  // Update an existing project (in Supabase or localStorage)
+  async updateProject(id, updates) {
+    if (this.useSupabase) {
+      return await supabaseService.updateProject(id, updates);
+    }
+    
+    // Fallback to localStorage
     try {
-      const projects = this.getAllProjects();
+      const projects = await this.getAllProjects();
       const projectIndex = projects.findIndex(project => project.id === id);
       
       if (projectIndex === -1) {
@@ -207,7 +222,7 @@ class DataService {
   // Template management methods
   async updateProjectTemplates(projectId, templateUpdates) {
     try {
-      const projects = this.getAllProjects();
+      const projects = await this.getAllProjects();
       const projectIndex = projects.findIndex(project => project.id === projectId);
       
       if (projectIndex === -1) {
@@ -227,7 +242,7 @@ class DataService {
 
   async selectProjectTemplate(projectId, templateId) {
     try {
-      const project = this.getProjectById(projectId);
+      const project = await this.getProjectById(projectId);
       if (!project) {
         throw new Error('Project not found');
       }
@@ -242,7 +257,7 @@ class DataService {
 
   async configureProjectTemplate(projectId, templateId, customizations) {
     try {
-      const project = this.getProjectById(projectId);
+      const project = await this.getProjectById(projectId);
       if (!project) {
         throw new Error('Project not found');
       }
@@ -260,13 +275,13 @@ class DataService {
     }
   }
 
-  getProjectTemplates(projectId) {
-    const project = this.getProjectById(projectId);
+  async getProjectTemplates(projectId) {
+    const project = await this.getProjectById(projectId);
     return project ? project.templates : [];
   }
 
-  getSelectedProjectTemplate(projectId) {
-    const project = this.getProjectById(projectId);
+  async getSelectedProjectTemplate(projectId) {
+    const project = await this.getProjectById(projectId);
     if (!project || !project.templates) {
       return null;
     }
