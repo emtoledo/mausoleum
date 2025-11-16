@@ -247,21 +247,19 @@ class SupabaseService {
       }
 
       // Update project details if provided
+      const detailsUpdates = {
+        updated_at: new Date().toISOString()
+      };
+      
+      let hasDetailsUpdates = false;
+
       if (updateData.template) {
         const template = updateData.template;
-        const detailsUpdates = {
-          updated_at: new Date().toISOString()
-        };
+        hasDetailsUpdates = true;
 
         // Update design elements
         if (template.customizations?.designElements) {
           detailsUpdates.design_elements = template.customizations.designElements;
-        }
-
-        // Update selected material if provided
-        if (updateData.material) {
-          detailsUpdates.selected_material_id = updateData.material.id;
-          detailsUpdates.selected_material_name = updateData.material.name;
         }
 
         // Update customizations
@@ -272,7 +270,25 @@ class SupabaseService {
             layout: template.customizations.layout || {}
           };
         }
+      }
 
+      // Update selected material if provided (can be updated independently of template)
+      if (updateData.material) {
+        hasDetailsUpdates = true;
+        detailsUpdates.selected_material_id = updateData.material.id;
+        detailsUpdates.selected_material_name = updateData.material.name;
+        console.log('=== SUPABASE: Updating material ===');
+        console.log('Material object:', updateData.material);
+        console.log('Material ID:', updateData.material.id);
+        console.log('Material name:', updateData.material.name);
+      } else {
+        console.warn('=== SUPABASE: No material in updateData ===');
+        console.log('updateData keys:', Object.keys(updateData));
+        console.log('updateData.material:', updateData.material);
+      }
+
+      // Only update project_details if there are actual updates
+      if (hasDetailsUpdates) {
         const { error: detailsError } = await supabase
           .from('project_details')
           .update(detailsUpdates)
@@ -281,6 +297,8 @@ class SupabaseService {
         if (detailsError) {
           console.error('Supabase error updating project details:', detailsError);
           // Continue anyway - project is updated
+        } else {
+          console.log('Project details updated successfully:', detailsUpdates);
         }
       }
 
@@ -386,6 +404,11 @@ class SupabaseService {
       },
       selectedMaterialId: details.selected_material_id,
       selectedMaterialName: details.selected_material_name,
+      // Store material object if we have the ID (will be resolved in transformProject)
+      selectedMaterial: details.selected_material_id ? {
+        id: details.selected_material_id,
+        name: details.selected_material_name || ''
+      } : null,
       configured: true
     };
   }

@@ -25,7 +25,10 @@ const MaterialPicker = ({ materials = [], activeMaterialId = null, onSelectMater
   const handleClick = (material, isSelected) => {
     // Only call if changing to a different material
     if (!isSelected && onSelectMaterial) {
+      console.log('MaterialPicker: Material clicked:', material);
       onSelectMaterial(material);
+    } else if (isSelected) {
+      console.log('MaterialPicker: Material already selected:', material);
     }
   };
 

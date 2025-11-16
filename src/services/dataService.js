@@ -157,11 +157,28 @@ class DataService {
         throw new Error('Project not found');
       }
       
+      // Handle material update for localStorage
+      if (updates.material && projects[projectIndex].template) {
+        // Update material in template
+        projects[projectIndex].template = {
+          ...projects[projectIndex].template,
+          selectedMaterial: updates.material,
+          selectedMaterialId: updates.material.id,
+          selectedMaterialName: updates.material.name
+        };
+      }
+      
+      // Update other fields
       projects[projectIndex] = {
         ...projects[projectIndex],
         ...updates,
         updatedAt: new Date().toISOString()
       };
+      
+      // Remove material from top level if we've moved it to template
+      if (updates.material && projects[projectIndex].template) {
+        delete projects[projectIndex].material;
+      }
       
       localStorage.setItem(this.storageKey, JSON.stringify(projects));
       return projects[projectIndex];

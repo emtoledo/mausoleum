@@ -8,7 +8,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import * as fabric from 'fabric';
+import * as makerjs from 'makerjs';
 import { calculateScale, inchesToPixels } from '../utils/unitConverter';
+import { importDxfToFabric } from '../../../utils/dxfImporter';
 
 /**
  * @param {React.RefObject} fabricCanvasRef - Ref to the main Fabric.js canvas container
@@ -368,61 +370,239 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
   /**
    * Create Fabric.js objects from design elements
    */
-  const populateCanvasFromData = useCallback((canvas, elements) => {
+  const populateCanvasFromData = useCallback(async (canvas, elements) => {
     if (!canvas || !elements || elements.length === 0) return;
 
-    elements.forEach(element => {
-      let fabricObject;
+    console.log('Populating canvas from saved data:', elements);
 
-      if (element.type === 'text') {
-        // Create Fabric.js Text object
-        fabricObject = new fabric.Text(element.content || 'Text', {
+    // Sort by zIndex to maintain layer order
+    const sortedElements = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+    for (const element of sortedElements) {
+      try {
+        let fabricObject = null;
+        const baseProps = {
           left: inchesToPixels(element.x || 0, scale.current),
           top: inchesToPixels(element.y || 0, scale.current),
-          fontSize: inchesToPixels(element.fontSize || 12, scale.current),
-          fontFamily: element.font || 'Arial',
+          scaleX: element.scaleX || 1,
+          scaleY: element.scaleY || element.scaleX || 1,
+          angle: element.rotation || 0,
+          opacity: element.opacity !== undefined ? element.opacity : 1,
+          fill: element.fill || '#000000',
           originX: 'left',
           originY: 'top',
           hasControls: true,
           hasBorders: true,
           lockRotation: false,
-          editable: true
-        });
-      } else if (element.type === 'artwork') {
-        // Create Fabric.js Image object
-        fabricObject = new fabric.Image(element.content || '', {
-          left: inchesToPixels(element.x || 0, scale.current),
-          top: inchesToPixels(element.y || 0, scale.current),
-          originX: 'left',
-          originY: 'top',
-          hasControls: true,
-          hasBorders: true,
-          lockRotation: false
-        });
+          selectable: true
+        };
 
-        // Load image
-        if (element.content) {
-          fabric.Image.fromURL(element.content, img => {
-            img.set({
-              left: inchesToPixels(element.x || 0, scale.current),
-              top: inchesToPixels(element.y || 0, scale.current),
-              scaleX: inchesToPixels(element.scaleX || 1, scale.current) / img.width,
-              scaleY: inchesToPixels(element.scaleY || 1, scale.current) / img.height
-            });
-            canvas.add(img);
-            canvas.renderAll();
-          });
-          return; // Skip adding object now, it will be added in callback
+        // Add stroke properties if they exist
+        if (element.stroke !== undefined && element.stroke !== null) {
+          baseProps.stroke = element.stroke;
         }
-      }
+        if (element.strokeWidth !== undefined && element.strokeWidth !== null) {
+          baseProps.strokeWidth = inchesToPixels(element.strokeWidth, scale.current);
+        }
 
-      if (fabricObject) {
-        // Store element metadata
-        fabricObject.elementId = element.id;
+        // Restore customData
+        const customData = {
+          artworkId: element.artworkId,
+          artworkName: element.artworkName,
+          category: element.category,
+          currentColor: element.fill,
+          currentColorId: element.colorId,
+          currentOpacity: element.opacity,
+          currentStrokeColor: element.stroke,
+          currentStrokeWidth: element.strokeWidth ? inchesToPixels(element.strokeWidth, scale.current) : undefined,
+          originalSource: element.imageUrl || element.content,
+          defaultWidthInches: element.defaultWidthInches
+        };
+        // Remove undefined values
+        Object.keys(customData).forEach(key => {
+          if (customData[key] === undefined) delete customData[key];
+        });
+        baseProps.customData = customData;
 
-        canvas.add(fabricObject);
+        if (element.type === 'text' || element.type === 'i-text' || element.type === 'textbox') {
+          // Create Fabric.js Text object
+          fabricObject = new fabric.Text(element.content || 'Text', {
+            ...baseProps,
+            fontSize: inchesToPixels(element.fontSize || 12, scale.current),
+            fontFamily: element.font || 'Arial',
+            fontWeight: element.fontWeight || 'normal',
+            fontStyle: element.fontStyle || 'normal',
+            textAlign: element.textAlign || 'left',
+            lineHeight: element.lineHeight || 1.2,
+            editable: true
+          });
+        } else if (element.type === 'image' || element.type === 'imagebox') {
+          // Create Fabric.js Image object
+          const imageSrc = element.content || element.imageUrl || '';
+          
+          if (imageSrc) {
+            // Load image asynchronously
+            await new Promise((resolve, reject) => {
+              fabric.Image.fromURL(imageSrc, (img) => {
+                try {
+                  // Calculate scale to match saved dimensions
+                  const savedWidth = element.width || 0;
+                  const savedHeight = element.height || 0;
+                  
+                  if (savedWidth > 0 && savedHeight > 0 && img.width > 0 && img.height > 0) {
+                    const targetWidthPx = inchesToPixels(savedWidth, scale.current);
+                    const targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                    baseProps.scaleX = targetWidthPx / img.width;
+                    baseProps.scaleY = targetHeightPx / img.height;
+                  } else {
+                    // Fall back to saved scaleX/scaleY
+                    baseProps.scaleX = element.scaleX || 1;
+                    baseProps.scaleY = element.scaleY || element.scaleX || 1;
+                  }
+
+                  img.set(baseProps);
+                  img.elementId = element.id;
+                  canvas.add(img);
+                  canvas.renderAll();
+                  resolve();
+                } catch (err) {
+                  console.error('Error setting image properties:', err);
+                  reject(err);
+                }
+              }, { crossOrigin: 'anonymous' });
+            });
+            continue; // Skip to next element, image was added in callback
+          } else {
+            // No image source, create placeholder
+            fabricObject = new fabric.Image('', baseProps);
+          }
+        } else if (element.type === 'group' || element.type === 'artwork') {
+          // Handle groups (DXF artwork with textures)
+          const imageUrl = element.imageUrl || element.content;
+          const textureUrl = element.textureUrl;
+          
+          if (imageUrl && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF'))) {
+            // This is a DXF file - re-import it
+            try {
+              const response = await fetch(imageUrl);
+              if (!response.ok) {
+                throw new Error(`Failed to fetch DXF file: ${response.statusText}`);
+              }
+              const dxfString = await response.text();
+              
+              // Import DXF to Fabric.js group
+              const group = await importDxfToFabric({
+                dxfString,
+                fabricCanvas: canvas,
+                importUnit: makerjs.unitType.Inches,
+                textureUrl: textureUrl || null
+              });
+              
+              if (group) {
+                // Apply saved properties to the group
+                const savedWidth = element.width || 0;
+                const savedHeight = element.height || 0;
+                
+                // Calculate scale to match saved dimensions
+                const groupBounds = group.getBoundingRect();
+                const groupWidth = groupBounds.width;
+                const groupHeight = groupBounds.height;
+                
+                if (savedWidth > 0 && savedHeight > 0 && groupWidth > 0 && groupHeight > 0) {
+                  const targetWidthPx = inchesToPixels(savedWidth, scale.current);
+                  const targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                  baseProps.scaleX = (targetWidthPx / groupWidth) * (group.scaleX || 1);
+                  baseProps.scaleY = (targetHeightPx / groupHeight) * (group.scaleY || 1);
+                } else {
+                  // Use saved scaleX/scaleY
+                  baseProps.scaleX = element.scaleX || 1;
+                  baseProps.scaleY = element.scaleY || element.scaleX || 1;
+                }
+                
+                group.set(baseProps);
+                group.elementId = element.id;
+                
+                // Apply color to group if it was saved
+                if (element.fill) {
+                  // Check if this is a texture layer group (has 2 children: texture + artwork)
+                  let targetGroup = group;
+                  if (group._objects && group._objects.length === 2) {
+                    const firstChild = group._objects[0];
+                    const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
+                    if (hasPatternFill) {
+                      // This is a texture layer group - apply color to the artwork group (second child)
+                      targetGroup = group._objects[1];
+                    }
+                  }
+                  
+                  // Recursively apply color to all path objects in the target group
+                  const applyColorToPaths = (obj) => {
+                    if (obj.type === 'group' && obj._objects) {
+                      obj._objects.forEach(child => applyColorToPaths(child));
+                    } else if (obj.type === 'path') {
+                      obj.set({
+                        fill: element.fill,
+                        stroke: element.stroke || element.fill,
+                        strokeWidth: baseProps.strokeWidth !== undefined ? baseProps.strokeWidth : 0,
+                        opacity: baseProps.opacity
+                      });
+                    }
+                  };
+                  
+                  applyColorToPaths(targetGroup);
+                }
+                
+                canvas.add(group);
+                canvas.renderAll();
+              } else {
+                console.error('Failed to import DXF group:', element);
+              }
+            } catch (err) {
+              console.error('Error re-importing DXF group:', err);
+            }
+            continue;
+          } else if (imageUrl) {
+            // Try loading as regular image
+            await new Promise((resolve, reject) => {
+              fabric.Image.fromURL(imageUrl, (img) => {
+                try {
+                  const savedWidth = element.width || 0;
+                  const savedHeight = element.height || 0;
+                  
+                  if (savedWidth > 0 && savedHeight > 0 && img.width > 0 && img.height > 0) {
+                    const targetWidthPx = inchesToPixels(savedWidth, scale.current);
+                    const targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                    baseProps.scaleX = targetWidthPx / img.width;
+                    baseProps.scaleY = targetHeightPx / img.height;
+                  }
+
+                  img.set(baseProps);
+                  img.elementId = element.id;
+                  canvas.add(img);
+                  canvas.renderAll();
+                  resolve();
+                } catch (err) {
+                  console.error('Error loading artwork image:', err);
+                  reject(err);
+                }
+              }, { crossOrigin: 'anonymous' });
+            });
+            continue;
+          }
+        } else if (element.type === 'path' || element.type === 'path-group') {
+          // Path objects - treat similar to groups
+          console.warn('Path objects restoration not fully implemented:', element);
+        }
+
+        if (fabricObject) {
+          // Store element metadata
+          fabricObject.elementId = element.id;
+          canvas.add(fabricObject);
+        }
+      } catch (error) {
+        console.error('Error loading element:', element, error);
       }
-    });
+    }
 
     canvas.renderAll();
   }, [scale]);
@@ -706,7 +886,10 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       
       // Populate canvas with design elements
       if (initialData.designElements && initialData.designElements.length > 0) {
-        populateCanvasFromData(canvas, initialData.designElements);
+        // Populate canvas with saved design elements (async)
+        populateCanvasFromData(canvas, initialData.designElements).catch(err => {
+          console.error('Error populating canvas from saved data:', err);
+        });
       }
 
       // Selection event listeners

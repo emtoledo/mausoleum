@@ -80,13 +80,27 @@ const EditModeView = ({ onHandlersReady }) => {
       return null;
     }
     
+    // Get saved material from template or project
+    // Always look up the full material object from the materials array using the ID
+    const savedMaterialId = selectedTemplate.selectedMaterialId || 
+                            (selectedTemplate.selectedMaterial && selectedTemplate.selectedMaterial.id);
+    const savedMaterial = savedMaterialId ? materials.find(m => m.id === savedMaterialId) : null;
+    
+    console.log('Loading saved material:', {
+      selectedTemplateId: selectedTemplate.selectedMaterialId,
+      selectedMaterial: selectedTemplate.selectedMaterial,
+      savedMaterialId,
+      savedMaterial
+    });
+    
     // Merge template config with any saved customizations
     return {
       ...templateConfig,
       realWorldWidth: templateConfig.realWorldWidth || 24,
       realWorldHeight: templateConfig.realWorldHeight || 18,
       editZones: templateConfig.editZones || [],
-      designElements: selectedTemplate.customizations?.designElements || []
+      designElements: selectedTemplate.customizations?.designElements || [],
+      material: savedMaterial // Include saved material in initial data
     };
   };
 
@@ -113,7 +127,14 @@ const EditModeView = ({ onHandlersReady }) => {
       if (result.success) {
         // Update local project state
         setProject(result.data);
-        setSelectedTemplate(result.data.template || updatedTemplate);
+        // Update selectedTemplate with the new material from the saved result
+        const updatedTemplateFromResult = {
+          ...(result.data.template || updatedTemplate),
+          selectedMaterialId: updatedProjectData.material?.id,
+          selectedMaterialName: updatedProjectData.material?.name,
+          selectedMaterial: updatedProjectData.material // Include full material object
+        };
+        setSelectedTemplate(updatedTemplateFromResult);
         // Success message is handled by AlertMessage component in DesignStudio
       } else {
         // Error message is handled by AlertMessage component in DesignStudio

@@ -71,9 +71,18 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     };
   }, []);
 
+  // Track if we've initialized the material to prevent overwriting user changes
+  const materialInitialized = useRef(false);
+  // Track the current material in a ref to ensure we always have the latest value
+  const activeMaterialRef = useRef(null);
+  
   // Initialize active material from initialData on first load
   useEffect(() => {
-    if (!activeMaterial && materials.length > 0) {
+    // Only initialize material on first load or if activeMaterial is not set
+    // Don't overwrite if user has already selected a material (even if initialData changed after save)
+    const shouldInitialize = !materialInitialized.current || !activeMaterial;
+    
+    if (materials.length > 0 && shouldInitialize) {
       // Filter materials based on template's availableMaterials
       let availableMaterials = materials;
       if (initialData && initialData.availableMaterials && Array.isArray(initialData.availableMaterials)) {
@@ -86,28 +95,44 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         let materialToSet = null;
         
         // Priority 1: Use material object from initialData if provided
+        // This is the saved material from the project
         if (initialData && initialData.material) {
-          // Check if the material is in availableMaterials
-          if (availableMaterials.find(m => m.id === initialData.material.id)) {
-            materialToSet = initialData.material;
+          // Find the full material object from availableMaterials using the ID
+          // This ensures we have all properties (textureUrl, swatch, etc.)
+          const fullMaterial = availableMaterials.find(m => m.id === initialData.material.id);
+          if (fullMaterial) {
+            materialToSet = fullMaterial;
+            console.log('Setting active material from initialData (availableMaterials):', fullMaterial);
+          } else if (initialData.material.id) {
+            // If not in availableMaterials, try to find it in all materials
+            const materialFromAll = materials.find(m => m.id === initialData.material.id);
+            if (materialFromAll) {
+              materialToSet = materialFromAll;
+              console.log('Setting active material from initialData (all materials):', materialFromAll);
+            }
           }
         }
         // Priority 2: Use defaultMaterialId from template to find matching material
         if (!materialToSet && initialData && initialData.defaultMaterialId) {
           materialToSet = availableMaterials.find(m => m.id === initialData.defaultMaterialId);
         }
-        // Priority 3: Fallback to first available material
-        if (!materialToSet) {
+        // Priority 3: Fallback to first available material (only if no saved material)
+        if (!materialToSet && !initialData?.material) {
           materialToSet = availableMaterials[0];
         }
         
         if (materialToSet) {
+          console.log('Setting active material:', materialToSet);
           setActiveMaterial(materialToSet);
+          activeMaterialRef.current = materialToSet; // Update ref
+          materialInitialized.current = true;
+        } else {
+          console.log('No material found to set. initialData.material:', initialData?.material);
         }
       }
     }
     // eslint-disable-next-line
-  }, []); // Only run once on mount
+  }, [initialData, materials]); // Re-run when initialData or materials change
 
   // Call useFabricCanvas hook (the "engine")
   const fabricFromHook = useFabricCanvas(
@@ -129,7 +154,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
    * Handler: Select Material
    */
   const handleSelectMaterial = useCallback((material) => {
+    console.log('Material selected:', material);
     setActiveMaterial(material);
+    activeMaterialRef.current = material; // Update ref immediately
+    // Mark as initialized so we don't overwrite user's selection when initialData changes
+    materialInitialized.current = true;
   }, []);
 
   /**
@@ -688,37 +717,245 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
       // Get all objects from Fabric instance
       const objects = fabricInstance.getObjects();
+      
+      console.log('=== SAVE DEBUG ===');
+      console.log('Total objects on canvas:', objects.length);
+      console.log('Objects:', objects.map(obj => ({
+        type: obj.type,
+        elementId: obj.elementId,
+        left: obj.left,
+        top: obj.top,
+        scaleX: obj.scaleX,
+        scaleY: obj.scaleY,
+        angle: obj.angle,
+        fill: obj.fill,
+        stroke: obj.stroke,
+        strokeWidth: obj.strokeWidth,
+        opacity: obj.opacity,
+        customData: obj.customData,
+        width: obj.width,
+        height: obj.height
+      })));
 
       // Convert each object to design element format
-      const designElements = objects.map((obj) => {
+      const designElements = objects.map((obj, index) => {
+        // Get actual transformed values - use get() to ensure we get current state
+        const actualLeft = obj.get ? obj.get('left') : (obj.left ?? 0);
+        const actualTop = obj.get ? obj.get('top') : (obj.top ?? 0);
+        const actualScaleX = obj.get ? obj.get('scaleX') : (obj.scaleX ?? 1);
+        const actualScaleY = obj.get ? obj.get('scaleY') : (obj.scaleY ?? obj.scaleX ?? 1);
+        const actualAngle = obj.get ? obj.get('angle') : (obj.angle ?? obj.rotation ?? 0);
+        const actualOpacity = obj.get ? obj.get('opacity') : (obj.opacity ?? 1);
+        const actualFill = obj.get ? obj.get('fill') : (obj.fill ?? '#000000');
+        const actualStroke = obj.get ? obj.get('stroke') : obj.stroke;
+        const actualStrokeWidth = obj.get ? obj.get('strokeWidth') : obj.strokeWidth;
+        
+        // Base properties for all objects
         const element = {
-          id: obj.elementId || `element-${Date.now()}`,
+          id: obj.elementId || obj.id || `element-${Date.now()}-${index}`,
           type: obj.type,
-          x: pixelsToInches(obj.left, scale),
-          y: pixelsToInches(obj.top, scale)
+          x: pixelsToInches(actualLeft, scale),
+          y: pixelsToInches(actualTop, scale),
+          // Transform properties
+          scaleX: actualScaleX,
+          scaleY: actualScaleY,
+          rotation: actualAngle,
+          // Visual properties
+          opacity: actualOpacity,
+          fill: actualFill,
+          // Layer order (z-index)
+          zIndex: index
         };
 
-        // Add type-specific properties
-        if (obj.type === 'text') {
-          element.content = obj.text || '';
-          element.fontSize = pixelsToInches(obj.fontSize, scale);
-          element.font = obj.fontFamily || 'Arial';
-          element.fill = obj.fill || '#000000';
-        } else if (obj.type === 'image') {
-          element.content = obj.getSrc ? obj.getSrc() : '';
-          element.width = pixelsToInches(obj.width * obj.scaleX, scale);
-          element.height = pixelsToInches(obj.height * obj.scaleY, scale);
-          element.opacity = obj.opacity || 1;
+        // Add stroke properties if they exist
+        if (actualStroke !== undefined && actualStroke !== null) {
+          element.stroke = actualStroke;
+        }
+        if (actualStrokeWidth !== undefined && actualStrokeWidth !== null) {
+          element.strokeWidth = pixelsToInches(actualStrokeWidth, scale);
+        }
+        
+        // Capture customData properties (colors, artwork metadata, etc.)
+        const customData = obj.customData || {};
+        if (customData.currentColor) element.fill = customData.currentColor;
+        if (customData.currentColorId) element.colorId = customData.currentColorId;
+        if (customData.currentOpacity !== undefined) element.opacity = customData.currentOpacity;
+        if (customData.currentStrokeColor) element.stroke = customData.currentStrokeColor;
+        if (customData.currentStrokeWidth !== undefined) {
+          element.strokeWidth = pixelsToInches(customData.currentStrokeWidth, scale);
+        }
+        if (customData.artworkId) element.artworkId = customData.artworkId;
+        if (customData.artworkName) element.artworkName = customData.artworkName;
+        if (customData.category) element.category = customData.category;
+
+        // Type-specific properties
+        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+          // Get actual text properties using get() method
+          const actualText = obj.get ? obj.get('text') : (obj.text ?? '');
+          const actualFontSize = obj.get ? obj.get('fontSize') : (obj.fontSize ?? 12);
+          const actualFontFamily = obj.get ? obj.get('fontFamily') : (obj.fontFamily ?? 'Arial');
+          const actualFontWeight = obj.get ? obj.get('fontWeight') : (obj.fontWeight ?? 'normal');
+          const actualFontStyle = obj.get ? obj.get('fontStyle') : (obj.fontStyle ?? 'normal');
+          const actualTextAlign = obj.get ? obj.get('textAlign') : (obj.textAlign ?? 'left');
+          const actualLineHeight = obj.get ? obj.get('lineHeight') : (obj.lineHeight ?? 1.2);
+          
+          element.content = actualText;
+          // For text, fontSize might be scaled - use actual rendered size
+          element.fontSize = pixelsToInches(actualFontSize * actualScaleX, scale);
+          element.font = actualFontFamily;
+          element.fontWeight = actualFontWeight;
+          element.fontStyle = actualFontStyle;
+          element.textAlign = actualTextAlign;
+          element.lineHeight = actualLineHeight;
+          // Text-specific fill (already in base fill)
+        } else if (obj.type === 'image' || obj.type === 'imagebox') {
+          // Get image source - prefer customData.originalSource to avoid blob URLs
+          const imgCustomData = obj.customData || {};
+          if (imgCustomData.originalSource) {
+            element.content = imgCustomData.originalSource;
+            element.imageUrl = imgCustomData.originalSource;
+          } else if (typeof obj.getSrc === 'function') {
+            element.content = obj.getSrc();
+          } else if (obj.src) {
+            element.content = obj.src;
+          } else if (obj._element && obj._element.src) {
+            element.content = obj._element.src;
+          } else {
+            element.content = '';
+          }
+          
+          // Get actual dimensions using get() method
+          const objWidth = obj.get ? obj.get('width') : (obj.width ?? 0);
+          const objHeight = obj.get ? obj.get('height') : (obj.height ?? 0);
+          
+          // Calculate actual dimensions accounting for scale
+          const actualWidth = objWidth * actualScaleX;
+          const actualHeight = objHeight * actualScaleY;
+          element.width = pixelsToInches(actualWidth, scale);
+          element.height = pixelsToInches(actualHeight, scale);
+        } else if (obj.type === 'group') {
+          // Handle groups (like artwork with textures)
+          // Get metadata from customData or direct properties
+          const groupCustomData = obj.customData || {};
+          element.content = obj.name || groupCustomData.artworkName || groupCustomData.artworkId || obj.artworkId || '';
+          element.category = obj.category || groupCustomData.category || '';
+          element.type = 'artwork'; // Normalize type for groups that are artwork
+          
+          // Get group dimensions from actual bounding rect (accounts for transforms)
+          const groupBounds = obj.getBoundingRect();
+          element.width = pixelsToInches(groupBounds.width, scale);
+          element.height = pixelsToInches(groupBounds.height, scale);
+          
+          // For groups, get the actual transformed position
+          // Groups may use center origin, so we need to account for that
+          if (obj.getCenterPoint) {
+            const groupCoords = obj.getCenterPoint();
+            const groupOriginX = obj.get ? obj.get('originX') : (obj.originX || 'left');
+            const groupOriginY = obj.get ? obj.get('originY') : (obj.originY || 'top');
+            
+            if (groupOriginX === 'center' || groupOriginY === 'center') {
+              // Use center point and adjust for bounds
+              element.x = pixelsToInches(groupCoords.x - (groupBounds.width / 2), scale);
+              element.y = pixelsToInches(groupCoords.y - (groupBounds.height / 2), scale);
+            }
+          }
+          
+          // Store group-specific data
+          if (obj.artworkId || groupCustomData.artworkId) element.artworkId = obj.artworkId || groupCustomData.artworkId;
+          if (obj.textureUrl || groupCustomData.textureUrl) element.textureUrl = obj.textureUrl || groupCustomData.textureUrl;
+          if (obj.imageUrl || groupCustomData.imageUrl || groupCustomData.originalSource) {
+            element.imageUrl = obj.imageUrl || groupCustomData.imageUrl || groupCustomData.originalSource;
+          }
+          if (groupCustomData.defaultWidthInches) element.defaultWidthInches = groupCustomData.defaultWidthInches;
+          
+          // For groups, try to get color from the first path child if customData doesn't have it
+          // This ensures we capture the actual color applied to the artwork
+          if ((!element.fill || element.fill === '#000000') && obj._objects && obj._objects.length > 0) {
+            // Check if this is a texture layer group (2 children: texture + artwork)
+            let targetGroup = obj;
+            if (obj._objects.length === 2) {
+              const firstChild = obj._objects[0];
+              const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
+              if (hasPatternFill) {
+                targetGroup = obj._objects[1]; // Get the artwork group (second child)
+              }
+            }
+            
+            // Find first path in the group to get its color
+            const findFirstPath = (groupObj) => {
+              if (groupObj.type === 'path') {
+                return groupObj;
+              }
+              if (groupObj._objects) {
+                for (const child of groupObj._objects) {
+                  const path = findFirstPath(child);
+                  if (path) return path;
+                }
+              }
+              return null;
+            };
+            
+            const firstPath = findFirstPath(targetGroup);
+            if (firstPath) {
+              const pathFill = firstPath.get ? firstPath.get('fill') : firstPath.fill;
+              const pathStroke = firstPath.get ? firstPath.get('stroke') : firstPath.stroke;
+              const pathStrokeWidth = firstPath.get ? firstPath.get('strokeWidth') : firstPath.strokeWidth;
+              const pathOpacity = firstPath.get ? firstPath.get('opacity') : firstPath.opacity;
+              
+              if (pathFill) element.fill = pathFill;
+              if (pathStroke) element.stroke = pathStroke;
+              if (pathStrokeWidth !== undefined) element.strokeWidth = pixelsToInches(pathStrokeWidth, scale);
+              if (pathOpacity !== undefined) element.opacity = pathOpacity;
+            }
+          }
+        } else if (obj.type === 'path' || obj.type === 'path-group') {
+          // Handle paths (DXF artwork)
+          element.content = obj.name || obj.artworkId || '';
+          element.category = obj.category || '';
+          
+          // Get path dimensions
+          const pathBounds = obj.getBoundingRect();
+          element.width = pixelsToInches(pathBounds.width, scale);
+          element.height = pixelsToInches(pathBounds.height, scale);
+          
+          // Store path-specific data
+          if (obj.artworkId) element.artworkId = obj.artworkId;
+          if (obj.textureUrl) element.textureUrl = obj.textureUrl;
+          if (obj.imageUrl) element.imageUrl = obj.imageUrl;
+        } else {
+          // Generic object (rect, circle, etc.)
+          element.content = obj.name || '';
+          const bounds = obj.getBoundingRect ? obj.getBoundingRect() : { width: obj.width || 0, height: obj.height || 0 };
+          element.width = pixelsToInches(bounds.width, scale);
+          element.height = pixelsToInches(bounds.height, scale);
         }
 
+        console.log(`Element ${index} (${obj.type}):`, element);
         return element;
       });
+
+      console.log('=== SAVED DESIGN ELEMENTS ===');
+      console.log('Total elements:', designElements.length);
+      console.log('Elements:', JSON.stringify(designElements, null, 2));
+      // Use ref to get the most current material value (state might be stale)
+      const currentMaterial = activeMaterialRef.current || activeMaterial;
+      
+      console.log('=== SAVE: Active material ===');
+      console.log('Active material (state):', activeMaterial);
+      console.log('Active material (ref):', activeMaterialRef.current);
+      console.log('Using material:', currentMaterial);
+      console.log('Active material ID:', currentMaterial?.id);
+      console.log('Active material name:', currentMaterial?.name);
+      
+      if (!currentMaterial) {
+        console.warn('WARNING: No active material set when saving!');
+      }
 
       // Create updated project data
       const updatedProjectData = {
         ...initialData,
         designElements,
-        material: activeMaterial
+        material: currentMaterial // Use ref value to ensure we have the latest
       };
 
       // Call parent's onSave callback
