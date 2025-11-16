@@ -1,9 +1,9 @@
 // This file catalogues your materials
-import black from '../assets/images/materials/black.png';
-import grey from '../assets/images/materials/grey.png';
+import black from '../assets/images/materials/Black.png';
+import grey from '../assets/images/materials/Grey.png';
 import bluepearl from '../assets/images/materials/bluepearl.png';
-import red from '../assets/images/materials/red.png';
-import mahogany from '../assets/images/materials/mahogany.png';
+import red from '../assets/images/materials/RED.png';
+import mahogany from '../assets/images/materials/Mahogany.png';
 import base from '../assets/images/materials/base.png';
 
 export const materials = [
