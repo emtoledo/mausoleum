@@ -72,13 +72,9 @@ const CanvasActions = ({
         aria-label="Save Project"
       >
         {isSaving ? (
-          <>
-            <span>Saving...</span>
-          </>
+          <span>Saving...</span>
         ) : (
-          <>
-            <span>Save</span>
-          </>
+          <span>Save</span>
         )}
       </button>
 
