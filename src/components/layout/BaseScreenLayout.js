@@ -21,15 +21,21 @@ const BaseScreenLayout = ({ children }) => {
     setHeaderHandlers(prevHandlers => {
       // Check if canvas readiness changed
       const canvasReadinessChanged = prevHandlers?.isCanvasReady !== handlers?.isCanvasReady;
+      // Check if projectTitle changed
+      const projectTitleChanged = prevHandlers?.projectTitle !== handlers?.projectTitle;
       
       // Only update if state values actually changed (not function references)
       if (prevHandlers?.isSaving !== handlers?.isSaving ||
           prevHandlers?.isExporting !== handlers?.isExporting ||
-          canvasReadinessChanged) {
+          canvasReadinessChanged ||
+          projectTitleChanged) {
         console.log('BaseScreenLayout: Updating handlers due to state/readiness change', {
           canvasReadinessChanged,
+          projectTitleChanged,
           prevCanvasReady: prevHandlers?.isCanvasReady,
-          newCanvasReady: handlers?.isCanvasReady
+          newCanvasReady: handlers?.isCanvasReady,
+          prevProjectTitle: prevHandlers?.projectTitle,
+          newProjectTitle: handlers?.projectTitle
         });
         return handlers;
       }
@@ -41,6 +47,7 @@ const BaseScreenLayout = ({ children }) => {
           isSaving: handlers.isSaving,
           isExporting: handlers.isExporting,
           isCanvasReady: handlers.isCanvasReady,
+          projectTitle: handlers.projectTitle,
           // Update function references only if they're actually different (they usually aren't)
           onSave: handlers.onSave,
           onExport: handlers.onExport
@@ -72,6 +79,7 @@ const BaseScreenLayout = ({ children }) => {
         isSaving={headerHandlers?.isSaving || false}
         isExporting={headerHandlers?.isExporting || false}
         isCanvasReady={headerHandlers?.isCanvasReady || false}
+        pageTitle={headerHandlers?.projectTitle}
       />
       <main className="main-content">
         {childrenWithHandlers}

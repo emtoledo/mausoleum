@@ -25,9 +25,10 @@ import AlertMessage from '../../components/ui/AlertMessage';
  * @param {Function} onSave - Callback when user saves (receives updated project data)
  * @param {Function} onClose - Callback when user closes the studio
  * @param {Function} onHandlersReady - Optional callback to expose handlers to parent (for AppHeader integration)
+ * @param {String} projectTitle - Title of the project to display in header
  * @returns {JSX.Element}
  */
-const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClose, onHandlersReady }) => {
+const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClose, onHandlersReady, projectTitle }) => {
   
   // Canvas refs
   const productCanvasRef = useRef(null);
@@ -1069,13 +1070,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
   // Expose handlers to parent component (for AppHeader integration)
   // Store handlers in ref to always have latest version without causing re-renders
-  const handlersRef = useRef({ onSave: handleSave, onExport: handleExport });
+  const handlersRef = useRef({ onSave: handleSave, onExport: handleExport, projectTitle });
   const prevStateRef = useRef({ isSaving: false, isExporting: false, canvasReady: false, initialized: false });
   
   // Update handlers ref when they change (without triggering effects)
   useEffect(() => {
-    handlersRef.current = { onSave: handleSave, onExport: handleExport };
-  }, [handleSave, handleExport]);
+    handlersRef.current = { onSave: handleSave, onExport: handleExport, projectTitle };
+  }, [handleSave, handleExport, projectTitle]);
   
   // Only expose handlers when state changes or on initial mount
   useEffect(() => {
@@ -1134,7 +1135,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         onExport: handlersRef.current.onExport,
         isSaving,
         isExporting,
-        isCanvasReady: canvasReady
+        isCanvasReady: canvasReady,
+        projectTitle: handlersRef.current.projectTitle
       });
     }
   }, [onHandlersReady, isSaving, isExporting, canvasSize.width, fabricInstance, fabricFromHook]); // Re-expose when canvas becomes ready

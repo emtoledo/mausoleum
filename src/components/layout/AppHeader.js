@@ -73,17 +73,15 @@ const AppHeader = ({
 
   // Function to get page title based on current route
   const getPageTitle = () => {
-    if (pageTitle) return pageTitle; // Use provided pageTitle if available
-    
     const path = location.pathname;
     
-    // Special handling for project-specific routes - show project title
-    // Note: getProjectById is async, so we can't call it synchronously here
-    // The page title will be set by the component that loads the project
-    if (path.startsWith('/projects/') && (path.includes('/templates') || path.includes('/edit'))) {
-      return path.includes('/templates') ? 'Template Selection' : 'Edit Memorial';
+    // Only use pageTitle prop when we're actually in Design Studio (edit mode)
+    // This prevents stale project titles from showing on other pages
+    if (pageTitle && isEditMode) {
+      return pageTitle;
     }
     
+    // Otherwise, use route-based logic
     switch (path) {
       case '/projects':
         return 'All Projects';
@@ -94,6 +92,14 @@ const AppHeader = ({
       case '/login':
         return 'Login';
       default:
+        // For project edit routes, show "Edit Memorial" as fallback
+        // (actual project title will be passed via pageTitle prop from Design Studio)
+        if (path.startsWith('/projects/') && path.includes('/edit')) {
+          return 'Edit Memorial';
+        }
+        if (path.startsWith('/projects/') && path.includes('/templates')) {
+          return 'Template Selection';
+        }
         if (path.startsWith('/projects/')) {
           return 'Project Details';
         }
