@@ -74,7 +74,6 @@ const CanvasActions = ({
       >
         {isSaving ? (
           <>
-            <Loader2 className="toolbar-icon animate-spin" />
             <span>Saving...</span>
           </>
         ) : (

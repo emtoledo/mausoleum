@@ -1064,7 +1064,7 @@ body:has(.canvas-layout) .footer-branding {
     background: white;
     color: #000;
     border: 1px solid #000;
-    padding: 8px 16px;
+    padding: 7px 16px;
     border-radius: 4px;
     font-size: 14px;
     cursor: pointer;
@@ -1289,6 +1289,7 @@ body:has(.canvas-layout) .footer-branding {
     justify-content: center;
     margin-bottom: 8px;
 }
+
 
 .toolbar-icon-image.vase {
     width: 21px;
