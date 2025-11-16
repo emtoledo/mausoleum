@@ -5,7 +5,6 @@
  */
 
 import React from 'react';
-import { FileDown, Save, Loader2 } from 'lucide-react';
 
 /**
  * @param {Function} onSave - Callback when Save Project is clicked
