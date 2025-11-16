@@ -501,6 +501,21 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       selectedElement.set('strokeWidth', 0);
     }
     
+    // Update customData with color info for text objects (so it's saved correctly)
+    const customData = selectedElement.customData || {};
+    customData.currentColor = colorItem.fillColor;
+    customData.currentColorId = colorItem.id;
+    customData.currentOpacity = colorItem.opacity;
+    customData.currentStrokeColor = colorItem.strokeColor;
+    customData.currentStrokeWidth = colorItem.strokeWidth || 0;
+    selectedElement.set('customData', customData);
+    
+    console.log('Text color updated:', {
+      fill: colorItem.fillColor,
+      customData: customData,
+      elementFill: selectedElement.get('fill')
+    });
+    
     if (selectedElement.canvas) {
       selectedElement.canvas.renderAll();
     }

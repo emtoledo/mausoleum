@@ -720,22 +720,28 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       
       console.log('=== SAVE DEBUG ===');
       console.log('Total objects on canvas:', objects.length);
-      console.log('Objects:', objects.map(obj => ({
-        type: obj.type,
-        elementId: obj.elementId,
-        left: obj.left,
-        top: obj.top,
-        scaleX: obj.scaleX,
-        scaleY: obj.scaleY,
-        angle: obj.angle,
-        fill: obj.fill,
-        stroke: obj.stroke,
-        strokeWidth: obj.strokeWidth,
-        opacity: obj.opacity,
-        customData: obj.customData,
-        width: obj.width,
-        height: obj.height
-      })));
+      console.log('Objects:', objects.map(obj => {
+        const objFill = obj.get ? obj.get('fill') : obj.fill;
+        const objCustomData = obj.get ? obj.get('customData') : obj.customData;
+        return {
+          type: obj.type,
+          elementId: obj.elementId,
+          left: obj.left,
+          top: obj.top,
+          scaleX: obj.scaleX,
+          scaleY: obj.scaleY,
+          angle: obj.angle,
+          fill: objFill,
+          fillFromGet: obj.get ? obj.get('fill') : 'N/A',
+          stroke: obj.stroke,
+          strokeWidth: obj.strokeWidth,
+          opacity: obj.opacity,
+          customData: objCustomData,
+          customDataCurrentColor: objCustomData?.currentColor,
+          width: obj.width,
+          height: obj.height
+        };
+      }));
 
       // Convert each object to design element format
       const designElements = objects.map((obj, index) => {
@@ -776,11 +782,22 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         }
         
         // Capture customData properties (colors, artwork metadata, etc.)
-        const customData = obj.customData || {};
-        if (customData.currentColor) element.fill = customData.currentColor;
+        // Use get() to ensure we get the latest customData
+        const customData = (obj.get ? obj.get('customData') : obj.customData) || {};
+        console.log(`Element ${index} customData:`, customData);
+        
+        // Priority: Use customData.currentColor if available (most accurate for user selections)
+        if (customData.currentColor) {
+          element.fill = customData.currentColor;
+          console.log(`Element ${index} using customData.currentColor:`, customData.currentColor);
+        }
         if (customData.currentColorId) element.colorId = customData.currentColorId;
-        if (customData.currentOpacity !== undefined) element.opacity = customData.currentOpacity;
-        if (customData.currentStrokeColor) element.stroke = customData.currentStrokeColor;
+        if (customData.currentOpacity !== undefined) {
+          element.opacity = customData.currentOpacity;
+        }
+        if (customData.currentStrokeColor) {
+          element.stroke = customData.currentStrokeColor;
+        }
         if (customData.currentStrokeWidth !== undefined) {
           element.strokeWidth = pixelsToInches(customData.currentStrokeWidth, scale);
         }
