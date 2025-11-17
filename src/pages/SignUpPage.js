@@ -98,7 +98,7 @@ const SignUpPage = () => {
   return (
     <IntroFlowLayout>
       <div className="login-container">
-        <div className="brand-title">VALHALLA MEMORIAL</div>
+        <div className="brand-title">ARLINGTON MEMORIAL</div>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <Input

@@ -50,15 +50,7 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
                   className="template-preview-image"
                 />
               </div>
-              <div className="template-checkbox">
-                <input
-                  type="radio"
-                  name="template"
-                  checked={selectedTemplateId === template.id}
-                  onChange={() => handleTemplateSelect(template.id)}
-                  className="template-checkbox-input"
-                />
-              </div>
+  
             </div>
           ))}
         </div>
