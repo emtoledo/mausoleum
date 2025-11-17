@@ -111,7 +111,7 @@ const AllProjectsView = () => {
     <div className="all-projects-container">
       <div className="projects-content">
         <div className="projects-header">
-          <h1 className="projects-title">VALHALLA MEMORIAL</h1>
+          <h1 className="projects-title">ARLINGTON MEMORIAL</h1>
           <Button 
             variant="primary"
             onClick={handleCreateNewProject}
