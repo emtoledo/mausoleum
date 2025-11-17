@@ -27,8 +27,31 @@ const AppHeader = ({
   const location = useLocation();
   const params = useParams();
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated, user } = useAuth();
   const { openWizard } = useProjectFlow();
+  
+  // Get first letter of user's first name for avatar
+  const getAvatarInitial = () => {
+    if (!user) return '';
+    
+    // Try to get name from user metadata (Supabase) or direct name property (localStorage)
+    const fullName = user.user_metadata?.full_name || user.name || user.email || '';
+    
+    if (fullName) {
+      // Get first letter of first name
+      const firstName = fullName.split(' ')[0];
+      return firstName.charAt(0).toUpperCase();
+    }
+    
+    // Fallback to first letter of email if no name
+    if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    
+    return '';
+  };
+  
+  const avatarInitial = getAvatarInitial();
 
   // Auto-detect if we're in EditModeView
   const isEditMode = location.pathname.includes('/edit');
@@ -255,7 +278,9 @@ const AppHeader = ({
           </div>
         </div>
         <div className="user-profile" onClick={handleProfileClick}>
-          <div className="profile-avatar"></div>
+          <div className="profile-avatar">
+            {avatarInitial && <span className="profile-avatar-initial">{avatarInitial}</span>}
+          </div>
           <ProfileDropdown
             isOpen={isProfileDropdownOpen}
             onClose={handleCloseDropdown}

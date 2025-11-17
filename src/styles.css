@@ -1735,9 +1735,6 @@ body:has(.canvas-layout) .footer-branding {
     font-size: 14px;
 }
 
-.profile-avatar::before {
-    content: 'U';
-}
 
 /* App Header Styles */
 .app-header {
