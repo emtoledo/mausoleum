@@ -1,4 +1,4 @@
--- Supabase Database Schema for Valhalla Memorial App
+-- Supabase Database Schema for Memorial App
 -- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/zidkxosolsacxgdyplmx/sql
 
 -- ============================================

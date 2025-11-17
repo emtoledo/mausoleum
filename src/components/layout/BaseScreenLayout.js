@@ -1,8 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import AppHeader from './AppHeader';
 import FooterBranding from './FooterBranding';
 
 const BaseScreenLayout = ({ children }) => {
+  const location = useLocation();
+  const isAccountSettings = location.pathname === '/account-settings';
   const [headerHandlers, setHeaderHandlers] = useState(null);
 
   // Stabilize the callback to prevent infinite loops
@@ -84,7 +87,7 @@ const BaseScreenLayout = ({ children }) => {
       <main className="main-content">
         {childrenWithHandlers}
       </main>
-      <FooterBranding />
+      {!isAccountSettings && <FooterBranding />}
     </div>
   );
 };
