@@ -34,7 +34,7 @@ const NewMemorialForm = ({ data, onNext, onCancel, isFirstStep, isLastStep }) =>
         />
       </div>
       
-      <div className="form-actions">
+      <div className="form-actions" style={{ justifyContent: 'space-between' }}>
         <Button 
           variant="secondary"
           onClick={onCancel}

@@ -124,7 +124,9 @@ const AllProjectsView = () => {
         <div className="projects-list">
           {projects.length === 0 ? (
             <div className="no-projects">
-              <p>No projects found. Create your first memorial project!</p>
+              <img src="/images/empty.png" alt="No projects found" className="no-projects-image" />
+              <p>Welcome to the beginning of the end. <a onClick={handleCreateNewProject}>Create your first project</a></p>
+              
             </div>
           ) : (
             projects.map((project) => (
