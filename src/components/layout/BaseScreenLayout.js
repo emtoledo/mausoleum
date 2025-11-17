@@ -6,6 +6,8 @@ import FooterBranding from './FooterBranding';
 const BaseScreenLayout = ({ children }) => {
   const location = useLocation();
   const isAccountSettings = location.pathname === '/account-settings';
+  const isAllProjects = location.pathname === '/projects';
+  const shouldHideFooter = isAccountSettings || isAllProjects;
   const [headerHandlers, setHeaderHandlers] = useState(null);
 
   // Stabilize the callback to prevent infinite loops
@@ -87,7 +89,7 @@ const BaseScreenLayout = ({ children }) => {
       <main className="main-content">
         {childrenWithHandlers}
       </main>
-      {!isAccountSettings && <FooterBranding />}
+      {!shouldHideFooter && <FooterBranding />}
     </div>
   );
 };
