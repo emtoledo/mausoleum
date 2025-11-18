@@ -99,13 +99,24 @@ const ProjectCreationWizard = () => {
   };
 
   const CurrentStepComponent = steps[currentStep - 1]?.component;
+  
+  // Determine modal size class based on step
+  const getModalClassName = () => {
+    const baseClass = 'project-creation-wizard';
+    if (currentStep === 1) {
+      return `${baseClass} wizard-step-new-memorial`;
+    } else if (currentStep === 2) {
+      return `${baseClass} wizard-step-template-selection`;
+    }
+    return baseClass;
+  };
 
   return (
     <Modal 
       isOpen={isWizardOpen} 
       onClose={handleCancel}
       title={`Step ${currentStep}: ${steps[currentStep - 1]?.title}`}
-      className="project-creation-wizard"
+      className={getModalClassName()}
     >
       {CurrentStepComponent && (
         <CurrentStepComponent

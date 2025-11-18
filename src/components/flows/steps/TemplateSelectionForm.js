@@ -49,6 +49,7 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
                   alt={template.name}
                   className="template-preview-image"
                 />
+                <div className="template-name">{template.name}</div>
               </div>
   
             </div>
@@ -56,7 +57,7 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
         </div>
       </div>
       
-      <div className="form-actions">
+      <div className="form-actions" style={{ justifyContent: 'space-between' }}>
         <Button 
           variant="secondary"
           onClick={onBack}
