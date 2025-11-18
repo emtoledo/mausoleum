@@ -1109,7 +1109,7 @@ body:has(.canvas-layout) .footer-branding {
     height: 32px;
     background: #ddd;
     border-radius: 50%;
-    border: 2px solid #ccc;
+    border: 2px solid #ce0bcb;
 }
 
 /* Memorial Grid Container */
@@ -1739,7 +1739,7 @@ body:has(.canvas-layout) .footer-branding {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #007bff;
+    background: #fa20f7;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2111,7 +2111,14 @@ body:has(.canvas-layout) .footer-branding {
 
 .no-projects p {
     font-size: 16px;
-    margin: 0;
+    margin-bottom: 15px;
+}
+
+.no-projects-quote {
+    font-size: 24px !important;
+    margin-bottom: 15px;
+    font-style: italic;
+    font-family: 'Cormorant Infant';
 }
 
 .loading-message {
