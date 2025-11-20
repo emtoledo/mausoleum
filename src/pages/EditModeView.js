@@ -100,6 +100,7 @@ const EditModeView = ({ onHandlersReady }) => {
       realWorldHeight: templateConfig.realWorldHeight || 18,
       editZones: templateConfig.editZones || [],
       designElements: selectedTemplate.customizations?.designElements || [],
+      canvasDimensions: selectedTemplate.customizations?.canvasDimensions || null, // Include saved canvas dimensions
       material: savedMaterial // Include saved material in initial data
     };
   };
@@ -113,7 +114,8 @@ const EditModeView = ({ onHandlersReady }) => {
         ...selectedTemplate,
         customizations: {
           ...selectedTemplate.customizations,
-          designElements: updatedProjectData.designElements || []
+          designElements: updatedProjectData.designElements || [],
+          canvasDimensions: updatedProjectData.canvasDimensions || null // Save canvas dimensions
         },
         configured: true
       };

@@ -370,20 +370,67 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
   /**
    * Create Fabric.js objects from design elements
    */
-  const populateCanvasFromData = useCallback(async (canvas, elements) => {
+  const populateCanvasFromData = useCallback(async (canvas, elements, savedCanvasDimensions) => {
     if (!canvas || !elements || elements.length === 0) return;
 
     console.log('Populating canvas from saved data:', elements);
+    console.log('Saved canvas dimensions:', savedCanvasDimensions);
+    console.log('Current canvas size:', canvas.width, canvas.height);
 
+    // FIXED CANVAS SIZE: Always use 1000px width
+    const FIXED_CANVAS_WIDTH = 1000;
+    
     // Sort by zIndex to maintain layer order
     const sortedElements = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
     for (const element of sortedElements) {
       try {
         let fabricObject = null;
+        
+        // LOAD PIXEL VALUES DIRECTLY (preferred) or fall back to inches conversion for backward compatibility
+        let baseLeft, baseTop;
+        const elementIndex = sortedElements.indexOf(element);
+        
+        console.log(`=== LOAD Element ${elementIndex} (${element.type}) ===`);
+        console.log('Saved element data:', {
+          xPx: element.xPx,
+          yPx: element.yPx,
+          x: element.x,
+          y: element.y,
+          fontSizePx: element.fontSizePx,
+          fontSize: element.fontSize,
+          widthPx: element.widthPx,
+          heightPx: element.heightPx,
+          width: element.width,
+          height: element.height,
+          scaleX: element.scaleX,
+          scaleY: element.scaleY,
+          rotation: element.rotation
+        });
+        
+        if (element.xPx !== undefined && element.yPx !== undefined) {
+          // New format: Use pixel values directly
+          baseLeft = element.xPx;
+          baseTop = element.yPx;
+          console.log(`✓ Using pixel values directly:`, { xPx: element.xPx, yPx: element.yPx });
+        } else {
+          // Backward compatibility: Convert from inches (old saved projects)
+          const loadScale = scale.current;
+          baseLeft = inchesToPixels(element.x || 0, loadScale);
+          baseTop = inchesToPixels(element.y || 0, loadScale);
+          console.log(`⚠ Converting from inches (backward compat):`, { 
+            x: element.x, 
+            y: element.y, 
+            scale: loadScale,
+            converted: { baseLeft, baseTop } 
+          });
+        }
+        
+        console.log('Calculated position:', { baseLeft, baseTop });
+        
         const baseProps = {
-          left: inchesToPixels(element.x || 0, scale.current),
-          top: inchesToPixels(element.y || 0, scale.current),
+          left: baseLeft,
+          top: baseTop,
           scaleX: element.scaleX || 1,
           scaleY: element.scaleY || element.scaleX || 1,
           angle: element.rotation || 0,
@@ -401,7 +448,11 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         if (element.stroke !== undefined && element.stroke !== null) {
           baseProps.stroke = element.stroke;
         }
-        if (element.strokeWidth !== undefined && element.strokeWidth !== null) {
+        if (element.strokeWidthPx !== undefined) {
+          // New format: Use pixel value directly
+          baseProps.strokeWidth = element.strokeWidthPx;
+        } else if (element.strokeWidth !== undefined && element.strokeWidth !== null) {
+          // Backward compatibility: Convert from inches
           baseProps.strokeWidth = inchesToPixels(element.strokeWidth, scale.current);
         }
 
@@ -414,7 +465,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           currentColorId: element.colorId,
           currentOpacity: element.opacity,
           currentStrokeColor: element.stroke,
-          currentStrokeWidth: element.strokeWidth ? inchesToPixels(element.strokeWidth, scale.current) : undefined,
+          currentStrokeWidth: element.strokeWidthPx !== undefined ? element.strokeWidthPx : (element.strokeWidth ? inchesToPixels(element.strokeWidth, scale.current) : undefined),
           originalSource: element.imageUrl || element.content,
           defaultWidthInches: element.defaultWidthInches
         };
@@ -426,14 +477,60 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
         if (element.type === 'text' || element.type === 'i-text' || element.type === 'textbox') {
           // Create Fabric.js Text object
+          // LOAD FINAL FONT SIZE FROM PIXELS DIRECTLY - no scaling needed
+          // fontSizePx is the final rendered fontSize (already includes scaleX), so scaleX = 1
+          let finalFontSizePx;
+          if (element.fontSizePx !== undefined) {
+            // New format: fontSizePx is the final rendered size, use it directly
+            finalFontSizePx = element.fontSizePx;
+            console.log(`✓ Using final fontSizePx directly (no scaling):`, finalFontSizePx);
+          } else {
+            // Backward compatibility: Convert from inches
+            // Old format might have saved base fontSize, so check if scaleX needs to be applied
+            const fontSizeFromInches = inchesToPixels(element.fontSize || 12, scale.current);
+            // If scaleX exists and is not 1, the old format saved base fontSize
+            // Multiply by scaleX to get final fontSize
+            finalFontSizePx = element.scaleX && element.scaleX !== 1 
+              ? fontSizeFromInches * element.scaleX 
+              : fontSizeFromInches;
+            console.log(`⚠ Converting fontSize from inches (backward compat):`, { 
+              fontSize: element.fontSize, 
+              scale: scale.current,
+              converted: fontSizeFromInches,
+              scaleX: element.scaleX,
+              finalFontSizePx
+            });
+          }
+          
+          // For text, set scaleX/scaleY to 1 since fontSize already includes the scale
+          baseProps.scaleX = 1;
+          baseProps.scaleY = 1;
+          
+          // Use saved origin point or default to center (matching how text is created)
+          const originX = element.originX || 'center';
+          const originY = element.originY || 'center';
+          
+          console.log('Text object properties:', {
+            content: element.content,
+            fontSize: finalFontSizePx,
+            scaleX: 1, // No scaling - fontSize is final size
+            scaleY: 1,
+            left: baseLeft,
+            top: baseTop,
+            originX: originX,
+            originY: originY
+          });
+          
           fabricObject = new fabric.Text(element.content || 'Text', {
             ...baseProps,
-            fontSize: inchesToPixels(element.fontSize || 12, scale.current),
+            fontSize: finalFontSizePx, // Final fontSize, no scaling needed
             fontFamily: element.font || 'Arial',
             fontWeight: element.fontWeight || 'normal',
             fontStyle: element.fontStyle || 'normal',
             textAlign: element.textAlign || 'left',
             lineHeight: element.lineHeight || 1.2,
+            originX: originX, // Use saved origin point
+            originY: originY, // Use saved origin point
             editable: true
           });
         } else if (element.type === 'image' || element.type === 'imagebox') {
@@ -445,13 +542,22 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             await new Promise((resolve, reject) => {
               fabric.Image.fromURL(imageSrc, (img) => {
                 try {
-                  // Calculate scale to match saved dimensions
+                  // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
                   const savedWidth = element.width || 0;
                   const savedHeight = element.height || 0;
+                  let targetWidthPx, targetHeightPx;
                   
-                  if (savedWidth > 0 && savedHeight > 0 && img.width > 0 && img.height > 0) {
-                    const targetWidthPx = inchesToPixels(savedWidth, scale.current);
-                    const targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                  if (element.widthPx !== undefined && element.heightPx !== undefined) {
+                    // New format: Use pixel values directly
+                    targetWidthPx = element.widthPx;
+                    targetHeightPx = element.heightPx;
+                  } else if (savedWidth > 0 && savedHeight > 0) {
+                    // Backward compatibility: Convert from inches
+                    targetWidthPx = inchesToPixels(savedWidth, scale.current);
+                    targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                  }
+                  
+                  if (targetWidthPx > 0 && targetHeightPx > 0 && img.width > 0 && img.height > 0) {
                     baseProps.scaleX = targetWidthPx / img.width;
                     baseProps.scaleY = targetHeightPx / img.height;
                   } else {
@@ -508,16 +614,52 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 const groupWidth = groupBounds.width;
                 const groupHeight = groupBounds.height;
                 
-                if (savedWidth > 0 && savedHeight > 0 && groupWidth > 0 && groupHeight > 0) {
-                  const targetWidthPx = inchesToPixels(savedWidth, scale.current);
-                  const targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
+                let targetWidthPx, targetHeightPx;
+                if (element.widthPx !== undefined && element.heightPx !== undefined) {
+                  // New format: Use pixel values directly
+                  targetWidthPx = element.widthPx;
+                  targetHeightPx = element.heightPx;
+                  console.log(`✓ Using group dimensions from pixels:`, { widthPx: targetWidthPx, heightPx: targetHeightPx });
+                } else if (savedWidth > 0 && savedHeight > 0) {
+                  // Backward compatibility: Convert from inches
+                  targetWidthPx = inchesToPixels(savedWidth, scale.current);
+                  targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                  console.log(`⚠ Converting group dimensions from inches:`, { 
+                    width: savedWidth, 
+                    height: savedHeight,
+                    scale: scale.current,
+                    converted: { widthPx: targetWidthPx, heightPx: targetHeightPx }
+                  });
+                }
+                
+                console.log('Group loading:', {
+                  groupWidth,
+                  groupHeight,
+                  targetWidthPx,
+                  targetHeightPx,
+                  groupScaleX: group.scaleX,
+                  groupScaleY: group.scaleY
+                });
+                
+                if (targetWidthPx > 0 && targetHeightPx > 0 && groupWidth > 0 && groupHeight > 0) {
                   baseProps.scaleX = (targetWidthPx / groupWidth) * (group.scaleX || 1);
                   baseProps.scaleY = (targetHeightPx / groupHeight) * (group.scaleY || 1);
+                  console.log('Calculated group scale:', { scaleX: baseProps.scaleX, scaleY: baseProps.scaleY });
                 } else {
                   // Use saved scaleX/scaleY
                   baseProps.scaleX = element.scaleX || 1;
                   baseProps.scaleY = element.scaleY || element.scaleX || 1;
+                  console.log('Using saved scaleX/scaleY:', { scaleX: baseProps.scaleX, scaleY: baseProps.scaleY });
                 }
+                
+                console.log('Group final properties:', {
+                  left: baseLeft,
+                  top: baseTop,
+                  scaleX: baseProps.scaleX,
+                  scaleY: baseProps.scaleY,
+                  rotation: baseProps.angle
+                });
                 
                 group.set(baseProps);
                 group.elementId = element.id;
@@ -566,14 +708,28 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             await new Promise((resolve, reject) => {
               fabric.Image.fromURL(imageUrl, (img) => {
                 try {
+                  // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
                   const savedWidth = element.width || 0;
                   const savedHeight = element.height || 0;
+                  let targetWidthPx, targetHeightPx;
                   
-                  if (savedWidth > 0 && savedHeight > 0 && img.width > 0 && img.height > 0) {
-                    const targetWidthPx = inchesToPixels(savedWidth, scale.current);
-                    const targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                  if (element.widthPx !== undefined && element.heightPx !== undefined) {
+                    // New format: Use pixel values directly
+                    targetWidthPx = element.widthPx;
+                    targetHeightPx = element.heightPx;
+                  } else if (savedWidth > 0 && savedHeight > 0) {
+                    // Backward compatibility: Convert from inches
+                    targetWidthPx = inchesToPixels(savedWidth, scale.current);
+                    targetHeightPx = inchesToPixels(savedHeight, scale.current);
+                  }
+                  
+                  if (targetWidthPx > 0 && targetHeightPx > 0 && img.width > 0 && img.height > 0) {
                     baseProps.scaleX = targetWidthPx / img.width;
                     baseProps.scaleY = targetHeightPx / img.height;
+                  } else {
+                    // Fall back to saved scaleX/scaleY
+                    baseProps.scaleX = element.scaleX || 1;
+                    baseProps.scaleY = element.scaleY || element.scaleX || 1;
                   }
 
                   img.set(baseProps);
@@ -598,12 +754,29 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           // Store element metadata
           fabricObject.elementId = element.id;
           canvas.add(fabricObject);
+          
+          // Log final loaded object state
+          console.log('Final loaded object state:', {
+            elementId: element.id,
+            type: element.type,
+            left: fabricObject.left,
+            top: fabricObject.top,
+            scaleX: fabricObject.scaleX,
+            scaleY: fabricObject.scaleY,
+            angle: fabricObject.angle,
+            fontSize: fabricObject.fontSize || 'N/A',
+            width: fabricObject.width || 'N/A',
+            height: fabricObject.height || 'N/A'
+          });
         }
+        
+        console.log(`=== END LOAD Element ${elementIndex} ===`);
       } catch (error) {
-        console.error('Error loading element:', element, error);
+        console.error(`❌ Error loading element ${elementIndex}:`, element, error);
       }
     }
 
+    console.log('=== FINISHED LOADING ALL ELEMENTS ===');
     canvas.renderAll();
   }, [scale]);
 
@@ -622,23 +795,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
     const container = fabricCanvasRef.current;
     
-    // Calculate canvas dimensions - use canvas dimensions if specified, otherwise fall back to realWorld dimensions
-    const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
-      ? initialData.canvas.width 
-      : (initialData.realWorldWidth || 24);
-    const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
-      ? initialData.canvas.height 
-      : (initialData.realWorldHeight || 18);
-    
-    // Calculate scale based on canvas width (not realWorldWidth) for proper scaling
-    // But use realWorldWidth for object positioning/scaling calculations
+    // FIXED CANVAS SIZE: Always use 1000px width for consistent scaling
+    const FIXED_CANVAS_WIDTH = 1000;
     const realWorldWidth = initialData.realWorldWidth || 24;
+    const realWorldHeight = initialData.realWorldHeight || 18;
     
-    // Use responsive canvas size from container
-    const canvasWidth = canvasSize.width;
-    const canvasHeight = (canvasWidth / canvasWidthInches) * canvasHeightInches;
+    // Calculate canvas height to maintain aspect ratio
+    const canvasWidth = FIXED_CANVAS_WIDTH;
+    const canvasHeight = (canvasWidth / realWorldWidth) * realWorldHeight;
 
-    // Scale is still calculated based on realWorldWidth for object positioning
+    // Calculate scale for display purposes (converting pixels to inches in UI)
     scale.current = calculateScale(realWorldWidth, canvasWidth);
 
     // Create or update Fabric.js canvas
@@ -887,7 +1053,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       // Populate canvas with design elements
       if (initialData.designElements && initialData.designElements.length > 0) {
         // Populate canvas with saved design elements (async)
-        populateCanvasFromData(canvas, initialData.designElements).catch(err => {
+        // Pass saved canvas dimensions for accurate scaling
+        populateCanvasFromData(canvas, initialData.designElements, initialData.canvasDimensions).catch(err => {
           console.error('Error populating canvas from saved data:', err);
         });
       }

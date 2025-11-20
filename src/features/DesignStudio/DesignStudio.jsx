@@ -710,11 +710,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     setIsSaving(true);
 
     try {
-      // Calculate scale (pixels per inch)
-      const scale = calculateScale(
-        initialData.realWorldWidth || 24,
-        canvasSize.width
-      );
+      // FIXED CANVAS SIZE: Always use 1000px for consistent scaling
+      const FIXED_CANVAS_WIDTH = 1000;
+      const realWorldWidth = initialData.realWorldWidth || 24;
+      const realWorldHeight = initialData.realWorldHeight || 18;
+      
+      // Calculate scale for display purposes only (converting pixels to inches in UI)
+      const scale = calculateScale(realWorldWidth, FIXED_CANVAS_WIDTH);
 
       // Get all objects from Fabric instance
       const objects = fabricInstance.getObjects();
@@ -757,10 +759,14 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         const actualStroke = obj.get ? obj.get('stroke') : obj.stroke;
         const actualStrokeWidth = obj.get ? obj.get('strokeWidth') : obj.strokeWidth;
         
-        // Base properties for all objects
+        // Base properties for all objects - SAVE PIXEL VALUES DIRECTLY
         const element = {
           id: obj.elementId || obj.id || `element-${Date.now()}-${index}`,
           type: obj.type,
+          // Save pixel values directly (no conversion)
+          xPx: actualLeft,
+          yPx: actualTop,
+          // Also save inches for display purposes (calculated from pixels)
           x: pixelsToInches(actualLeft, scale),
           y: pixelsToInches(actualTop, scale),
           // Transform properties
@@ -779,6 +785,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.stroke = actualStroke;
         }
         if (actualStrokeWidth !== undefined && actualStrokeWidth !== null) {
+          // Save pixel value directly
+          element.strokeWidthPx = actualStrokeWidth;
+          // Also save inches for display
           element.strokeWidth = pixelsToInches(actualStrokeWidth, scale);
         }
         
@@ -800,6 +809,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.stroke = customData.currentStrokeColor;
         }
         if (customData.currentStrokeWidth !== undefined) {
+          // Save pixel value directly
+          element.strokeWidthPx = customData.currentStrokeWidth;
+          // Also save inches for display
           element.strokeWidth = pixelsToInches(customData.currentStrokeWidth, scale);
         }
         if (customData.artworkId) element.artworkId = customData.artworkId;
@@ -816,10 +828,22 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           const actualFontStyle = obj.get ? obj.get('fontStyle') : (obj.fontStyle ?? 'normal');
           const actualTextAlign = obj.get ? obj.get('textAlign') : (obj.textAlign ?? 'left');
           const actualLineHeight = obj.get ? obj.get('lineHeight') : (obj.lineHeight ?? 1.2);
+          const actualOriginX = obj.get ? obj.get('originX') : (obj.originX || 'left');
+          const actualOriginY = obj.get ? obj.get('originY') : (obj.originY || 'top');
           
           element.content = actualText;
-          // For text, fontSize might be scaled - use actual rendered size
-          element.fontSize = pixelsToInches(actualFontSize * actualScaleX, scale);
+          // Save FINAL rendered fontSize (fontSize * scaleX) - no scaling needed on load
+          // This matches the philosophy: save pixel values directly, load them directly
+          const finalFontSizePx = actualFontSize * actualScaleX;
+          element.fontSizePx = finalFontSizePx; // Final rendered fontSize in pixels
+          // Also save inches for display (calculated from final fontSize)
+          element.fontSize = pixelsToInches(finalFontSizePx, scale);
+          // Set scaleX/scaleY to 1 since fontSize already includes the scale
+          element.scaleX = 1;
+          element.scaleY = 1;
+          // Save origin point - critical for correct positioning!
+          element.originX = actualOriginX;
+          element.originY = actualOriginY;
           element.font = actualFontFamily;
           element.fontWeight = actualFontWeight;
           element.fontStyle = actualFontStyle;
@@ -849,6 +873,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           // Calculate actual dimensions accounting for scale
           const actualWidth = objWidth * actualScaleX;
           const actualHeight = objHeight * actualScaleY;
+          // Save pixel values directly
+          element.widthPx = actualWidth;
+          element.heightPx = actualHeight;
+          // Also save inches for display
           element.width = pixelsToInches(actualWidth, scale);
           element.height = pixelsToInches(actualHeight, scale);
         } else if (obj.type === 'group') {
@@ -861,6 +889,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           
           // Get group dimensions from actual bounding rect (accounts for transforms)
           const groupBounds = obj.getBoundingRect();
+          // Save pixel values directly
+          element.widthPx = groupBounds.width;
+          element.heightPx = groupBounds.height;
+          // Also save inches for display
           element.width = pixelsToInches(groupBounds.width, scale);
           element.height = pixelsToInches(groupBounds.height, scale);
           
@@ -872,9 +904,14 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             const groupOriginY = obj.get ? obj.get('originY') : (obj.originY || 'top');
             
             if (groupOriginX === 'center' || groupOriginY === 'center') {
-              // Use center point and adjust for bounds
-              element.x = pixelsToInches(groupCoords.x - (groupBounds.width / 2), scale);
-              element.y = pixelsToInches(groupCoords.y - (groupBounds.height / 2), scale);
+              // Use center point and adjust for bounds - save pixel values directly
+              const xPx = groupCoords.x - (groupBounds.width / 2);
+              const yPx = groupCoords.y - (groupBounds.height / 2);
+              element.xPx = xPx;
+              element.yPx = yPx;
+              // Also save inches for display
+              element.x = pixelsToInches(xPx, scale);
+              element.y = pixelsToInches(yPx, scale);
             }
           }
           
@@ -922,7 +959,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               
               if (pathFill) element.fill = pathFill;
               if (pathStroke) element.stroke = pathStroke;
-              if (pathStrokeWidth !== undefined) element.strokeWidth = pixelsToInches(pathStrokeWidth, scale);
+              if (pathStrokeWidth !== undefined) {
+                // Save pixel value directly
+                element.strokeWidthPx = pathStrokeWidth;
+                // Also save inches for display
+                element.strokeWidth = pixelsToInches(pathStrokeWidth, scale);
+              }
               if (pathOpacity !== undefined) element.opacity = pathOpacity;
             }
           }
@@ -933,6 +975,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           
           // Get path dimensions
           const pathBounds = obj.getBoundingRect();
+          // Save pixel values directly
+          element.widthPx = pathBounds.width;
+          element.heightPx = pathBounds.height;
+          // Also save inches for display
           element.width = pixelsToInches(pathBounds.width, scale);
           element.height = pixelsToInches(pathBounds.height, scale);
           
@@ -944,11 +990,50 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           // Generic object (rect, circle, etc.)
           element.content = obj.name || '';
           const bounds = obj.getBoundingRect ? obj.getBoundingRect() : { width: obj.width || 0, height: obj.height || 0 };
+          // Save pixel values directly
+          element.widthPx = bounds.width;
+          element.heightPx = bounds.height;
+          // Also save inches for display
           element.width = pixelsToInches(bounds.width, scale);
           element.height = pixelsToInches(bounds.height, scale);
         }
 
-        console.log(`Element ${index} (${obj.type}):`, element);
+        // Detailed save logging for debugging
+        console.log(`=== SAVE Element ${index} (${obj.type}) ===`);
+        
+        // Get fontSize only for text objects
+        let fontSizeForLog = 'N/A';
+        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+          const fontSize = obj.get ? obj.get('fontSize') : (obj.fontSize ?? 12);
+          fontSizeForLog = fontSize;
+        }
+        
+        console.log('Object pixel values:', {
+          left: actualLeft,
+          top: actualTop,
+          fontSize: fontSizeForLog,
+          width: obj.type === 'image' || obj.type === 'group' ? (obj.get ? obj.get('width') : obj.width) : 'N/A',
+          height: obj.type === 'image' || obj.type === 'group' ? (obj.get ? obj.get('height') : obj.height) : 'N/A',
+          scaleX: actualScaleX,
+          scaleY: actualScaleY
+        });
+        console.log('Saved element data:', {
+          xPx: element.xPx,
+          yPx: element.yPx,
+          x: element.x,
+          y: element.y,
+          fontSizePx: element.fontSizePx,
+          fontSize: element.fontSize,
+          widthPx: element.widthPx,
+          heightPx: element.heightPx,
+          width: element.width,
+          height: element.height,
+          scaleX: element.scaleX,
+          scaleY: element.scaleY,
+          rotation: element.rotation
+        });
+        console.log(`=== END SAVE Element ${index} ===`);
+        
         return element;
       });
 
@@ -969,10 +1054,23 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         console.warn('WARNING: No active material set when saving!');
       }
 
+      // Save fixed canvas dimensions (always 1000px width)
+      const canvasDimensions = {
+        width: FIXED_CANVAS_WIDTH,
+        height: (FIXED_CANVAS_WIDTH / realWorldWidth) * realWorldHeight,
+        realWorldWidth: realWorldWidth,
+        realWorldHeight: realWorldHeight,
+        timestamp: Date.now()
+      };
+
+      console.log('=== SAVE: Canvas Dimensions ===');
+      console.log('Canvas dimensions:', canvasDimensions);
+
       // Create updated project data
       const updatedProjectData = {
         ...initialData,
         designElements,
+        canvasDimensions, // Save canvas dimensions for accurate reloading
         material: currentMaterial // Use ref value to ensure we have the latest
       };
 
