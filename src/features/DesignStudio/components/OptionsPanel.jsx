@@ -77,10 +77,11 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       const currentFontSizePx = baseFontSizePx * scaleY;
       
       // Convert font size from pixels to inches for display
+      // Use fixed canvas width (1000px) for consistent scale calculation
       let fontSizeInches = 12; // default fallback
       try {
-        const canvasWidth = canvasSize.width || (selectedElement.canvas?.width || 800);
-        const scale = calculateScale(realWorldWidth, canvasWidth);
+        const FIXED_CANVAS_WIDTH = 1000; // Fixed canvas width for consistent scaling
+        const scale = calculateScale(realWorldWidth, FIXED_CANVAS_WIDTH);
         fontSizeInches = pixelsToInches(currentFontSizePx, scale);
       } catch (error) {
         console.warn('Could not convert font size to inches:', error);
@@ -199,9 +200,10 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         const effectiveFontSizePx = baseFontSizePx * scaleY;
         
         // Convert effective font size from pixels to inches for display
+        // Use fixed canvas width (1000px) for consistent scale calculation
         try {
-          const canvasWidth = canvasSize.width || (canvas.width || 800);
-          const scale = calculateScale(realWorldWidth, canvasWidth);
+          const FIXED_CANVAS_WIDTH = 1000; // Fixed canvas width for consistent scaling
+          const scale = calculateScale(realWorldWidth, FIXED_CANVAS_WIDTH);
           const fontSizeInches = pixelsToInches(effectiveFontSizePx, scale);
           setFontSize(fontSizeInches);
         } catch (error) {
@@ -1248,10 +1250,9 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
                   type="number"
                   className="form-input"
                   value={typeof fontSize === 'number' ? fontSize.toFixed(2) : fontSize}
-                  onChange={handleFontSizeChange}
-                  min="0.1"
-                  step="0.1"
-                  style={{ width: '70px' }}
+                  readOnly
+                  style={{ width: '70px', backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                  title="Text size is controlled by resizing the text object on the canvas"
                 />
               </div>
             </div>
