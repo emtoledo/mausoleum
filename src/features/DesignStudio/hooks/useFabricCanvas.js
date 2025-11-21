@@ -650,7 +650,18 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           const imageUrl = element.imageUrl || element.content;
           const textureUrl = element.textureUrl;
           
+          console.log('Loading artwork/group element:', {
+            elementId: element.id,
+            elementType: element.type,
+            imageUrl: imageUrl,
+            textureUrl: textureUrl,
+            hasImageUrl: !!imageUrl,
+            isDxfFile: imageUrl && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF')),
+            elementKeys: Object.keys(element)
+          });
+          
           if (imageUrl && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF'))) {
+            console.log('Detected DXF file, starting import...');
             // This is a DXF file - re-import it
             try {
               const response = await fetch(imageUrl);
@@ -660,6 +671,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               const dxfString = await response.text();
               
               // Import DXF to Fabric.js group
+              // NOTE: importDxfToFabric adds the group to the canvas automatically
+              // We need to remove it first, modify it, then add it back
               const group = await importDxfToFabric({
                 dxfString,
                 fabricCanvas: canvas,
@@ -668,6 +681,41 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               });
               
               if (group) {
+                // Remove group from canvas temporarily so we can modify it without breaking structure
+                // IMPORTANT: Check if group is actually on canvas before removing
+                const objectsBeforeRemove = canvas.getObjects();
+                const groupOnCanvas = objectsBeforeRemove.includes(group);
+                
+                if (groupOnCanvas) {
+                  canvas.remove(group);
+                  console.log('Removed group from canvas for modification');
+                } else {
+                  console.log('Group not on canvas, skipping remove');
+                }
+                
+                // Verify group structure before modifications
+                const groupStructureAfterImport = {
+                  type: group.type,
+                  childrenCount: group._objects?.length,
+                  childrenTypes: group._objects?.map(obj => obj.type),
+                  hasTextureLayer: group._objects?.length === 2 && 
+                    group._objects[0]?.fill && 
+                    typeof group._objects[0].fill === 'object' && 
+                    group._objects[0].fill.type === 'pattern',
+                  // Check if children are still part of the group
+                  childrenStillInGroup: group._objects?.every(child => {
+                    // In Fabric.js, children of a group should not have a canvas reference when group is removed
+                    return child && child.type;
+                  })
+                };
+                
+                console.log('Group structure after import:', groupStructureAfterImport);
+                
+                // If group structure is broken, log error
+                if (group.type !== 'group' || !group._objects || group._objects.length === 0) {
+                  console.error('CRITICAL: Group structure is broken after import!', group);
+                  continue; // Skip this element
+                }
                 // Apply saved properties to the group
                 const savedWidth = element.width || 0;
                 const savedHeight = element.height || 0;
@@ -810,20 +858,28 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   angle: group.angle
                 });
                 
-                // Apply color to group if it was saved
-                if (element.fill) {
-                  // Check if this is a texture layer group (has 2 children: texture + artwork)
-                  let targetGroup = group;
-                  if (group._objects && group._objects.length === 2) {
-                    const firstChild = group._objects[0];
-                    const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
-                    if (hasPatternFill) {
-                      // This is a texture layer group - apply color to the artwork group (second child)
-                      targetGroup = group._objects[1];
-                    }
+                // Check if this is a texture layer group (has 2 children: texture + artwork)
+                const isTextureLayerGroup = group._objects && group._objects.length === 2;
+                let textureLayer = null;
+                let artworkGroup = group;
+                
+                if (isTextureLayerGroup) {
+                  const firstChild = group._objects[0];
+                  const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
+                  if (hasPatternFill) {
+                    textureLayer = firstChild;
+                    artworkGroup = group._objects[1];
+                    console.log('Detected texture layer group:', {
+                      textureLayerType: textureLayer.type,
+                      artworkGroupType: artworkGroup.type,
+                      textureHasPattern: !!textureLayer.fill
+                    });
                   }
-                  
-                  // Recursively apply color to all path objects in the target group
+                }
+                
+                // Apply color to artwork group if it was saved
+                if (element.fill && artworkGroup) {
+                  // Recursively apply color to all path objects in the artwork group
                   const applyColorToPaths = (obj) => {
                     if (obj.type === 'group' && obj._objects) {
                       obj._objects.forEach(child => applyColorToPaths(child));
@@ -837,16 +893,136 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                     }
                   };
                   
-                  applyColorToPaths(targetGroup);
+                  applyColorToPaths(artworkGroup);
                 }
                 
-                canvas.add(group);
-                canvas.renderAll();
+                // Ensure texture layer pattern is preserved and refreshed after transforms
+                if (textureLayer && textureUrl) {
+                  console.log('Refreshing texture layer pattern after transforms...');
+                  
+                  // Recursively refresh pattern fills in texture layer
+                  const refreshTexturePattern = async (obj) => {
+                    if (obj.type === 'group' && obj._objects) {
+                      for (const child of obj._objects) {
+                        await refreshTexturePattern(child);
+                      }
+                    } else if (obj.type === 'path' && obj.fill && typeof obj.fill === 'object' && obj.fill.type === 'pattern') {
+                      // Pattern exists, but might need refresh after transforms
+                      // Mark as dirty to force re-render
+                      obj.dirty = true;
+                      obj.setCoords();
+                      
+                      // If pattern source is lost, reload it
+                      if (!obj.fill.source) {
+                        try {
+                          const textureImage = await new Promise((resolve, reject) => {
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous';
+                            img.onload = () => resolve(img);
+                            img.onerror = () => reject(new Error('Failed to load texture image'));
+                            img.src = textureUrl;
+                          });
+                          
+                          let pattern;
+                          try {
+                            pattern = new fabric.Pattern({
+                              source: textureImage,
+                              repeat: 'repeat'
+                            });
+                            if (pattern && typeof pattern.initialize === 'function') {
+                              pattern.initialize(textureImage);
+                            }
+                          } catch (patternError) {
+                            // Fallback: try fromURL
+                            pattern = await fabric.Pattern.fromURL(textureUrl, {
+                              repeat: 'repeat'
+                            });
+                          }
+                          
+                          obj.set('fill', pattern);
+                          obj.dirty = true;
+                        } catch (error) {
+                          console.error('Failed to refresh texture pattern:', error);
+                        }
+                      }
+                    }
+                  };
+                  
+                  await refreshTexturePattern(textureLayer);
+                  
+                  // Force canvas to re-render after pattern refresh
+                  canvas.renderAll();
+                }
+                
+                // Verify group structure is still intact before adding
+                const groupStructure = {
+                  type: group.type,
+                  childrenCount: group._objects?.length,
+                  childrenTypes: group._objects?.map(obj => obj.type),
+                  isGroup: group.type === 'group',
+                  hasTextureLayer: group._objects?.length === 2,
+                  textureLayerHasPattern: group._objects?.[0]?.fill && 
+                    typeof group._objects[0].fill === 'object' && 
+                    group._objects[0].fill.type === 'pattern'
+                };
+                
+                console.log('Group structure before adding to canvas:', groupStructure);
+                
+                // Ensure group structure is preserved - must be a group with children
+                if (group.type === 'group' && group._objects && group._objects.length > 0) {
+                  // Double-check that children are still part of the group (not orphaned)
+                  const allChildrenValid = group._objects.every(child => {
+                    // Check if child has a parent reference (if available in Fabric.js version)
+                    return child && (child.type === 'group' || child.type === 'path');
+                  });
+                  
+                  if (allChildrenValid) {
+                    // Group structure is intact, add it
+                    // Make sure group is not already on canvas (shouldn't be after remove, but double-check)
+                    const existingObjects = canvas.getObjects();
+                    const alreadyOnCanvas = existingObjects.includes(group);
+                    
+                    if (!alreadyOnCanvas) {
+                      canvas.add(group);
+                      canvas.renderAll();
+                      console.log('Group successfully added to canvas');
+                    } else {
+                      console.warn('Group already on canvas, skipping add');
+                      canvas.renderAll();
+                    }
+                  } else {
+                    console.error('Group children invalid, cannot add to canvas:', {
+                      children: group._objects.map((child, idx) => ({
+                        index: idx,
+                        type: child?.type,
+                        valid: !!child
+                      }))
+                    });
+                  }
+                } else {
+                  console.error('Group structure broken, cannot add to canvas:', {
+                    type: group.type,
+                    hasObjects: !!group._objects,
+                    objectsLength: group._objects?.length
+                  });
+                }
               } else {
-                console.error('Failed to import DXF group:', element);
+                console.error('Failed to import DXF group - group is null/undefined:', {
+                  elementId: element.id,
+                  imageUrl: imageUrl,
+                  textureUrl: textureUrl,
+                  element: element
+                });
               }
             } catch (err) {
               console.error('Error re-importing DXF group:', err);
+              console.error('Error details:', {
+                message: err.message,
+                stack: err.stack,
+                elementId: element.id,
+                imageUrl: imageUrl,
+                textureUrl: textureUrl
+              });
             }
             continue;
           } else if (imageUrl) {

@@ -714,9 +714,27 @@ export async function importDxfToFabric({ dxfString, fabricCanvas, importUnit, t
     
     // Export both models to SVG strings
     const colorSvg = makerjs.exporter.toSVG(colorModel, { units: makerjs.unitType.Pixel });
-    let textureSvg = textureModel 
-      ? makerjs.exporter.toSVG(textureModel, { units: makerjs.unitType.Pixel })
-      : null;
+    
+    // Debug texture model before export
+    console.log('Texture model before export:', {
+      hasTextureModel: !!textureModel,
+      textureModelType: textureModel ? typeof textureModel : 'null',
+      textureUrl: textureUrl,
+      willCreateTextureGroup: !!(textureUrl && textureModel)
+    });
+    
+    let textureSvg = null;
+    if (textureModel) {
+      try {
+        textureSvg = makerjs.exporter.toSVG(textureModel, { units: makerjs.unitType.Pixel });
+        console.log('Texture SVG exported successfully:', textureSvg ? textureSvg.length : 0, 'chars');
+      } catch (error) {
+        console.error('Failed to export texture SVG:', error);
+        textureSvg = null;
+      }
+    } else {
+      console.warn('No texture model available for export');
+    }
     
     console.log('Exported color SVG:', colorSvg.length, 'chars');
     if (textureSvg) {
@@ -767,6 +785,14 @@ export async function importDxfToFabric({ dxfString, fabricCanvas, importUnit, t
     
     // If textureUrl is provided and we have a texture model, load texture SVG and apply pattern
     let textureGroup = null;
+    console.log('Checking texture layer creation:', {
+      hasTextureUrl: !!textureUrl,
+      hasTextureSvg: !!textureSvg,
+      textureUrl: textureUrl,
+      textureSvgLength: textureSvg ? textureSvg.length : 0,
+      willCreateTextureGroup: !!(textureUrl && textureSvg)
+    });
+    
     if (textureUrl && textureSvg) {
       // Load texture SVG into Fabric.js (bottom layer)
       textureGroup = await loadSvgToFabricGroup(textureSvg);
@@ -1035,13 +1061,18 @@ export async function importDxfToFabric({ dxfString, fabricCanvas, importUnit, t
     // Apply black color to all paths in the color group
     applyDefaultColor(colorGroup);
     
-    // Update customData on final group to track the default color
+    // Update customData on final group to track the default color and texture URL
     const customData = finalGroup.customData || {};
     customData.currentColor = '#000000';
     customData.currentColorId = 'black';
     customData.currentOpacity = 1;
     customData.currentStrokeColor = null;
     customData.currentStrokeWidth = 0;
+    // Store textureUrl so it can be saved and reloaded
+    if (textureUrl) {
+      customData.textureUrl = textureUrl;
+      finalGroup.textureUrl = textureUrl; // Also store directly on group for easier access
+    }
     finalGroup.set('customData', customData);
     
     // Trigger a render to ensure everything is properly positioned and colored

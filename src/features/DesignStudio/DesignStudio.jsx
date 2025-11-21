@@ -289,9 +289,14 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             artworkName: art.name,
             defaultWidthInches: artworkWidthInches,
             originalSource: art.imageUrl,
+            imageUrl: art.imageUrl, // Store directly for easier access
             isDxf: true
           }
         });
+        
+        // Also store directly on group for easier access during save/load
+        group.imageUrl = art.imageUrl;
+        group.artworkId = art.id;
 
         // Re-render canvas
         fabricInstance.setActiveObject(group);
