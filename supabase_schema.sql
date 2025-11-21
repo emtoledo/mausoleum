@@ -84,14 +84,7 @@ CREATE POLICY "Users can view own projects"
 
 CREATE POLICY "Users can create own projects"
   ON projects FOR INSERT
-  WITH CHECK (
-    user_account_id = auth.uid() 
-    AND EXISTS (
-      SELECT 1 FROM auth.users 
-      WHERE auth.users.id = auth.uid() 
-      AND auth.users.email_confirmed_at IS NOT NULL
-    )
-  );
+  WITH CHECK (user_account_id = auth.uid());
 
 CREATE POLICY "Users can update own projects"
   ON projects FOR UPDATE
@@ -128,11 +121,6 @@ CREATE POLICY "Users can create own project details"
       SELECT 1 FROM projects
       WHERE projects.id = project_details.project_id
       AND projects.user_account_id = auth.uid()
-    )
-    AND EXISTS (
-      SELECT 1 FROM auth.users 
-      WHERE auth.users.id = auth.uid() 
-      AND auth.users.email_confirmed_at IS NOT NULL
     )
   );
 

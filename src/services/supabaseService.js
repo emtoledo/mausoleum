@@ -172,6 +172,11 @@ class SupabaseService {
 
       if (projectError) {
         console.error('Supabase error creating project:', projectError);
+        // Re-throw RLS/permission errors so they're shown to the user
+        if (projectError.code === '42501' || projectError.message?.includes('permission denied')) {
+          throw new Error(`Permission denied: ${projectError.message}. Please ensure you're logged in and your email is confirmed.`);
+        }
+        // For other errors, fall back to localStorage
         return dataService.saveProject(projectData);
       }
 
