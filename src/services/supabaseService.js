@@ -143,6 +143,13 @@ class SupabaseService {
         return dataService.saveProject(projectData);
       }
 
+      // Check if user's email is confirmed
+      // Supabase stores email confirmation in email_confirmed_at field
+      if (!user.email_confirmed_at) {
+        console.log('User email not confirmed, blocking project creation');
+        throw new Error('Please confirm your email address before creating projects. Check your inbox for the confirmation email.');
+      }
+
       // Create project
       const { data: project, error: projectError } = await supabase
         .from('projects')

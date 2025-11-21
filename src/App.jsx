@@ -10,6 +10,7 @@ import Button from './components/ui/Button';
 // Pages
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import AllProjectsView from './pages/AllProjectsView';
 import EditModeView from './pages/EditModeView';
 import AccountSettingsView from './pages/AccountSettingsView';
@@ -83,6 +84,7 @@ const App = () => {
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
               
               {/* Protected Routes */}
               <Route path="/" element={

@@ -108,11 +108,25 @@ export const AuthProvider = ({ children }) => {
   const signUp = async (email, password, name) => {
     try {
       if (useSupabaseAuth) {
+        // Determine the redirect URL for email confirmation
+        // Use production URL if available, otherwise use current origin
+        const getRedirectUrl = () => {
+          // Check if we have a production URL configured
+          const productionUrl = process.env.REACT_APP_PRODUCTION_URL;
+          if (productionUrl) {
+            return `${productionUrl}/auth/callback`;
+          }
+          // Fallback to current origin (works for both localhost and production)
+          // In production, window.location.origin will be the production URL
+          return `${window.location.origin}/auth/callback`;
+        };
+
         // Use Supabase Auth to create account
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            emailRedirectTo: getRedirectUrl(),
             data: {
               full_name: name
             }
