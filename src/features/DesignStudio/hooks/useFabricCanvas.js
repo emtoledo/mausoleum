@@ -376,6 +376,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     console.log('Populating canvas from saved data:', elements);
     console.log('Saved canvas dimensions:', savedCanvasDimensions);
     console.log('Current canvas size:', canvas.width, canvas.height);
+    console.log('Current objects on canvas before clearing:', canvas.getObjects().length);
+
+    // IMPORTANT: Clear canvas before populating to prevent duplicates
+    // Remove all objects except constraint overlay (if it exists)
+    const existingObjects = canvas.getObjects();
+    const constraintOverlayObj = existingObjects.find(obj => obj.excludeFromExport === true);
+    canvas.remove(...existingObjects.filter(obj => obj !== constraintOverlayObj));
+    console.log('Canvas cleared. Remaining objects:', canvas.getObjects().length);
 
     // FIXED CANVAS SIZE: Always use 1000px width
     const FIXED_CANVAS_WIDTH = 1000;
@@ -385,6 +393,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
     for (const element of sortedElements) {
       try {
+        // Check if object with this elementId already exists (prevent duplicates)
+        const existingObjects = canvas.getObjects();
+        const existingObject = existingObjects.find(obj => obj.elementId === element.id);
+        if (existingObject) {
+          console.log(`⚠ Skipping duplicate element ${element.id} - already exists on canvas`);
+          continue;
+        }
+        
         let fabricObject = null;
         
         // LOAD PIXEL VALUES DIRECTLY (preferred) or fall back to inches conversion for backward compatibility
@@ -428,21 +444,42 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         
         console.log('Calculated position:', { baseLeft, baseTop });
         
+        // Get saved origin point (defaults vary by object type)
+        // For groups, default to 'center', for other objects default to 'left'/'top'
+        const savedOriginX = element.originX !== undefined 
+          ? element.originX 
+          : (element.type === 'group' || element.type === 'artwork' ? 'center' : 'left');
+        const savedOriginY = element.originY !== undefined 
+          ? element.originY 
+          : (element.type === 'group' || element.type === 'artwork' ? 'center' : 'top');
+        
+        // Initialize baseProps with saved values
+        // IMPORTANT: Use saved scaleX/scaleY directly (preserves flip state: negative = flipped)
+        // For groups/images, these may be recalculated later, but we preserve the sign
         const baseProps = {
           left: baseLeft,
           top: baseTop,
-          scaleX: element.scaleX || 1,
-          scaleY: element.scaleY || element.scaleX || 1,
-          angle: element.rotation || 0,
+          scaleX: element.scaleX !== undefined ? element.scaleX : 1, // Preserve negative values (flip state)
+          scaleY: element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1), // Preserve negative values
+          angle: element.rotation !== undefined ? element.rotation : 0, // Preserve rotation
           opacity: element.opacity !== undefined ? element.opacity : 1,
           fill: element.fill || '#000000',
-          originX: 'left',
-          originY: 'top',
+          originX: savedOriginX, // Use saved origin point
+          originY: savedOriginY, // Use saved origin point
           hasControls: true,
           hasBorders: true,
           lockRotation: false,
           selectable: true
         };
+        
+        console.log('BaseProps initialized:', {
+          scaleX: baseProps.scaleX,
+          scaleY: baseProps.scaleY,
+          angle: baseProps.angle,
+          savedScaleX: element.scaleX,
+          savedScaleY: element.scaleY,
+          savedRotation: element.rotation
+        });
 
         // Add stroke properties if they exist
         if (element.stroke !== undefined && element.stroke !== null) {
@@ -558,15 +595,41 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   }
                   
                   if (targetWidthPx > 0 && targetHeightPx > 0 && img.width > 0 && img.height > 0) {
-                    baseProps.scaleX = targetWidthPx / img.width;
-                    baseProps.scaleY = targetHeightPx / img.height;
+                    // Calculate scale magnitude based on dimensions
+                    const scaleMagnitudeX = targetWidthPx / img.width;
+                    const scaleMagnitudeY = targetHeightPx / img.height;
+                    
+                    // IMPORTANT: Preserve flip state (sign) from saved scaleX/scaleY
+                    // Use !== undefined to allow negative values (flip state)
+                    const savedScaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                    const savedScaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
+                    
+                    // Apply the sign (positive or negative) from saved scale to the calculated magnitude
+                    baseProps.scaleX = Math.sign(savedScaleX) * Math.abs(scaleMagnitudeX);
+                    baseProps.scaleY = Math.sign(savedScaleY) * Math.abs(scaleMagnitudeY);
+                    
+                    console.log('Calculated image scale (preserving flip state):', { 
+                      scaleX: baseProps.scaleX, 
+                      scaleY: baseProps.scaleY,
+                      savedScaleX,
+                      savedScaleY
+                    });
                   } else {
-                    // Fall back to saved scaleX/scaleY
-                    baseProps.scaleX = element.scaleX || 1;
-                    baseProps.scaleY = element.scaleY || element.scaleX || 1;
+                    // Fall back to saved scaleX/scaleY (preserves flip state - use !== undefined to allow negative values)
+                    baseProps.scaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                    baseProps.scaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
                   }
+                  
+                  // Ensure rotation is applied (Fabric.js uses 'angle' property)
+                  baseProps.angle = element.rotation !== undefined ? element.rotation : (baseProps.angle || 0);
 
-                  img.set(baseProps);
+                  img.set({
+                    ...baseProps,
+                    angle: baseProps.angle,
+                    scaleX: baseProps.scaleX,
+                    scaleY: baseProps.scaleY
+                  });
+                  img.setCoords(); // Force recalculation of coordinates
                   img.elementId = element.id;
                   canvas.add(img);
                   canvas.renderAll();
@@ -609,15 +672,17 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 const savedWidth = element.width || 0;
                 const savedHeight = element.height || 0;
                 
-                // Calculate scale to match saved dimensions
-                const groupBounds = group.getBoundingRect();
-                const groupWidth = groupBounds.width;
-                const groupHeight = groupBounds.height;
+                // Get actual group dimensions (before rotation/scale)
+                // These are the base dimensions of the group object itself
+                const baseGroupWidth = group.width || 0;
+                const baseGroupHeight = group.height || 0;
                 
                 // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
+                // These saved dimensions are the actual object size (width * scaleX, height * scaleY) BEFORE rotation
                 let targetWidthPx, targetHeightPx;
                 if (element.widthPx !== undefined && element.heightPx !== undefined) {
                   // New format: Use pixel values directly
+                  // These represent the actual object dimensions (width * scaleX, height * scaleY) before rotation
                   targetWidthPx = element.widthPx;
                   targetHeightPx = element.heightPx;
                   console.log(`✓ Using group dimensions from pixels:`, { widthPx: targetWidthPx, heightPx: targetHeightPx });
@@ -633,36 +698,117 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   });
                 }
                 
-                console.log('Group loading:', {
-                  groupWidth,
-                  groupHeight,
+                console.log('Group loading (comparing actual dimensions, not bounding box):', {
+                  baseGroupWidth,
+                  baseGroupHeight,
                   targetWidthPx,
                   targetHeightPx,
                   groupScaleX: group.scaleX,
-                  groupScaleY: group.scaleY
+                  groupScaleY: group.scaleY,
+                  savedScaleX: element.scaleX,
+                  savedScaleY: element.scaleY,
+                  savedAngle: element.rotation || element.angle
                 });
                 
-                if (targetWidthPx > 0 && targetHeightPx > 0 && groupWidth > 0 && groupHeight > 0) {
-                  baseProps.scaleX = (targetWidthPx / groupWidth) * (group.scaleX || 1);
-                  baseProps.scaleY = (targetHeightPx / groupHeight) * (group.scaleY || 1);
-                  console.log('Calculated group scale:', { scaleX: baseProps.scaleX, scaleY: baseProps.scaleY });
+                if (targetWidthPx > 0 && targetHeightPx > 0 && baseGroupWidth > 0 && baseGroupHeight > 0) {
+                  // Calculate scale magnitude based on actual dimensions (not bounding box)
+                  // targetWidthPx = baseGroupWidth * scaleX, so scaleX = targetWidthPx / baseGroupWidth
+                  const scaleMagnitudeX = targetWidthPx / baseGroupWidth;
+                  const scaleMagnitudeY = targetHeightPx / baseGroupHeight;
+                  
+                  // IMPORTANT: Preserve flip state (sign) from saved scaleX/scaleY
+                  // If saved scaleX/scaleY is negative, the artwork was flipped
+                  const savedScaleX = element.scaleX || 1;
+                  const savedScaleY = element.scaleY || element.scaleX || 1;
+                  
+                  // Apply the sign (positive or negative) from saved scale to the calculated magnitude
+                  baseProps.scaleX = Math.sign(savedScaleX) * Math.abs(scaleMagnitudeX);
+                  baseProps.scaleY = Math.sign(savedScaleY) * Math.abs(scaleMagnitudeY);
+                  
+                  console.log('Calculated group scale (preserving flip state):', { 
+                    scaleX: baseProps.scaleX, 
+                    scaleY: baseProps.scaleY,
+                    savedScaleX,
+                    savedScaleY,
+                    scaleMagnitudeX,
+                    scaleMagnitudeY
+                  });
                 } else {
-                  // Use saved scaleX/scaleY
-                  baseProps.scaleX = element.scaleX || 1;
-                  baseProps.scaleY = element.scaleY || element.scaleX || 1;
-                  console.log('Using saved scaleX/scaleY:', { scaleX: baseProps.scaleX, scaleY: baseProps.scaleY });
+                  // Use saved scaleX/scaleY directly (preserves flip state - use !== undefined to allow negative values)
+                  baseProps.scaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                  baseProps.scaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
+                  console.log('Using saved scaleX/scaleY (preserving flip state):', { 
+                    scaleX: baseProps.scaleX, 
+                    scaleY: baseProps.scaleY,
+                    savedScaleX: element.scaleX,
+                    savedScaleY: element.scaleY
+                  });
                 }
                 
-                console.log('Group final properties:', {
+                console.log('Group final properties (before set):', {
                   left: baseLeft,
                   top: baseTop,
                   scaleX: baseProps.scaleX,
                   scaleY: baseProps.scaleY,
-                  rotation: baseProps.angle
+                  rotation: baseProps.angle,
+                  savedScaleX: element.scaleX,
+                  savedScaleY: element.scaleY,
+                  savedRotation: element.rotation
                 });
                 
-                group.set(baseProps);
+                // Check if flip state was saved (negative scaleX/scaleY indicates flip)
+                const savedFlipX = baseProps.scaleX < 0;
+                const savedFlipY = baseProps.scaleY < 0;
+                
+                // IMPORTANT: For rotated groups, property order matters!
+                // Set origin point FIRST, then position, then rotation, then scale/flip
+                // This ensures Fabric.js calculates coordinates correctly for rotated objects
+                
+                // Step 1: Set origin point first (critical for rotated groups)
+                group.set({
+                  originX: baseProps.originX,
+                  originY: baseProps.originY
+                });
+                
+                // Step 2: Set position, rotation, scale, and flip in one operation
+                group.set({
+                  left: baseProps.left,
+                  top: baseProps.top,
+                  angle: baseProps.angle, // Rotation (already set in baseProps from element.rotation)
+                  // Use absolute values for scale (Fabric.js normalizes negative values)
+                  scaleX: Math.abs(baseProps.scaleX),
+                  scaleY: Math.abs(baseProps.scaleY),
+                  // Apply flip using Fabric.js flipX/flipY properties (proper way to handle flips)
+                  flipX: savedFlipX,
+                  flipY: savedFlipY,
+                  opacity: baseProps.opacity,
+                  fill: baseProps.fill
+                });
+                
+                // Step 3: Force recalculation of coordinates after setting all properties
+                // This is especially important for rotated groups
+                group.setCoords();
                 group.elementId = element.id;
+                
+                console.log('Group loaded with rotation:', {
+                  left: group.left,
+                  top: group.top,
+                  angle: group.angle,
+                  originX: group.originX,
+                  originY: group.originY,
+                  scaleX: group.scaleX,
+                  scaleY: group.scaleY,
+                  flipX: group.flipX,
+                  flipY: group.flipY
+                });
+                
+                console.log('Group properties after set:', {
+                  left: group.left,
+                  top: group.top,
+                  scaleX: group.scaleX,
+                  scaleY: group.scaleY,
+                  angle: group.angle
+                });
                 
                 // Apply color to group if it was saved
                 if (element.fill) {
@@ -724,15 +870,41 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   }
                   
                   if (targetWidthPx > 0 && targetHeightPx > 0 && img.width > 0 && img.height > 0) {
-                    baseProps.scaleX = targetWidthPx / img.width;
-                    baseProps.scaleY = targetHeightPx / img.height;
+                    // Calculate scale magnitude based on dimensions
+                    const scaleMagnitudeX = targetWidthPx / img.width;
+                    const scaleMagnitudeY = targetHeightPx / img.height;
+                    
+                    // IMPORTANT: Preserve flip state (sign) from saved scaleX/scaleY
+                    // Use !== undefined to allow negative values (flip state)
+                    const savedScaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                    const savedScaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
+                    
+                    // Apply the sign (positive or negative) from saved scale to the calculated magnitude
+                    baseProps.scaleX = Math.sign(savedScaleX) * Math.abs(scaleMagnitudeX);
+                    baseProps.scaleY = Math.sign(savedScaleY) * Math.abs(scaleMagnitudeY);
+                    
+                    console.log('Calculated artwork image scale (preserving flip state):', { 
+                      scaleX: baseProps.scaleX, 
+                      scaleY: baseProps.scaleY,
+                      savedScaleX,
+                      savedScaleY
+                    });
                   } else {
-                    // Fall back to saved scaleX/scaleY
-                    baseProps.scaleX = element.scaleX || 1;
-                    baseProps.scaleY = element.scaleY || element.scaleX || 1;
+                    // Fall back to saved scaleX/scaleY (preserves flip state - use !== undefined to allow negative values)
+                    baseProps.scaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                    baseProps.scaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
                   }
+                  
+                  // Ensure rotation is applied (Fabric.js uses 'angle' property)
+                  baseProps.angle = element.rotation !== undefined ? element.rotation : (baseProps.angle || 0);
 
-                  img.set(baseProps);
+                  img.set({
+                    ...baseProps,
+                    angle: baseProps.angle,
+                    scaleX: baseProps.scaleX,
+                    scaleY: baseProps.scaleY
+                  });
+                  img.setCoords(); // Force recalculation of coordinates
                   img.elementId = element.id;
                   canvas.add(img);
                   canvas.renderAll();

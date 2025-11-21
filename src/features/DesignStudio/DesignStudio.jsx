@@ -492,12 +492,43 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const handleFlipHorizontal = useCallback(() => {
     if (!fabricInstance || !selectedElement) return;
 
-    // Flip by negating scaleX
-    selectedElement.set({
-      scaleX: -selectedElement.scaleX
+    // Get current scaleX before flipping
+    const currentScaleX = selectedElement.scaleX;
+    const newScaleX = -currentScaleX;
+    
+    console.log('=== FLIP HORIZONTAL ===', {
+      type: selectedElement.type,
+      elementId: selectedElement.elementId,
+      currentScaleX: currentScaleX,
+      newScaleX: newScaleX,
+      willBeFlipped: newScaleX < 0
     });
+
+    // Use Fabric.js flipX property for proper flip handling
+    // This works for both regular objects and groups
+    const currentFlipX = selectedElement.flipX || false;
+    selectedElement.set({
+      flipX: !currentFlipX
+    });
+    
+    // For non-group objects, also set scaleX (for backward compatibility)
+    if (selectedElement.type !== 'group') {
+      selectedElement.set({
+        scaleX: newScaleX
+      });
+    }
+    
     selectedElement.setCoords();
     fabricInstance.renderAll();
+    
+    // Verify the flip was applied
+    const verifyFlipX = selectedElement.flipX;
+    const verifyScaleX = selectedElement.scaleX;
+    console.log('=== AFTER FLIP HORIZONTAL ===', {
+      flipX: verifyFlipX,
+      scaleX: verifyScaleX,
+      isFlipped: verifyFlipX === true
+    });
   }, [fabricInstance, selectedElement]);
 
   /**
@@ -506,12 +537,43 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const handleFlipVertical = useCallback(() => {
     if (!fabricInstance || !selectedElement) return;
 
-    // Flip by negating scaleY
-    selectedElement.set({
-      scaleY: -selectedElement.scaleY
+    // Get current scaleY before flipping
+    const currentScaleY = selectedElement.scaleY;
+    const newScaleY = -currentScaleY;
+    
+    console.log('=== FLIP VERTICAL ===', {
+      type: selectedElement.type,
+      elementId: selectedElement.elementId,
+      currentScaleY: currentScaleY,
+      newScaleY: newScaleY,
+      willBeFlipped: newScaleY < 0
     });
+
+    // Use Fabric.js flipY property for proper flip handling
+    // This works for both regular objects and groups
+    const currentFlipY = selectedElement.flipY || false;
+    selectedElement.set({
+      flipY: !currentFlipY
+    });
+    
+    // For non-group objects, also set scaleY (for backward compatibility)
+    if (selectedElement.type !== 'group') {
+      selectedElement.set({
+        scaleY: newScaleY
+      });
+    }
+    
     selectedElement.setCoords();
     fabricInstance.renderAll();
+    
+    // Verify the flip was applied
+    const verifyFlipY = selectedElement.flipY;
+    const verifyScaleY = selectedElement.scaleY;
+    console.log('=== AFTER FLIP VERTICAL ===', {
+      flipY: verifyFlipY,
+      scaleY: verifyScaleY,
+      isFlipped: verifyFlipY === true
+    });
   }, [fabricInstance, selectedElement]);
 
   /**
@@ -726,13 +788,21 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       console.log('Objects:', objects.map(obj => {
         const objFill = obj.get ? obj.get('fill') : obj.fill;
         const objCustomData = obj.get ? obj.get('customData') : obj.customData;
+        const objScaleX = obj.scaleX;
+        const objScaleY = obj.scaleY;
+        const getScaleX = obj.get ? obj.get('scaleX') : 'no get method';
+        const getScaleY = obj.get ? obj.get('scaleY') : 'no get method';
         return {
           type: obj.type,
           elementId: obj.elementId,
           left: obj.left,
           top: obj.top,
-          scaleX: obj.scaleX,
-          scaleY: obj.scaleY,
+          scaleX: objScaleX,
+          scaleY: objScaleY,
+          getScaleX: getScaleX,
+          getScaleY: getScaleY,
+          isFlippedHorizontally: objScaleX < 0,
+          isFlippedVertically: objScaleY < 0,
           angle: obj.angle,
           fill: objFill,
           fillFromGet: obj.get ? obj.get('fill') : 'N/A',
@@ -751,8 +821,58 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         // Get actual transformed values - use get() to ensure we get current state
         const actualLeft = obj.get ? obj.get('left') : (obj.left ?? 0);
         const actualTop = obj.get ? obj.get('top') : (obj.top ?? 0);
-        const actualScaleX = obj.get ? obj.get('scaleX') : (obj.scaleX ?? 1);
-        const actualScaleY = obj.get ? obj.get('scaleY') : (obj.scaleY ?? obj.scaleX ?? 1);
+        // IMPORTANT: Get actual scaleX/scaleY values including negative values (flip state)
+        // For groups, Fabric.js stores scaleX/scaleY directly on the object
+        // We MUST read them directly to preserve negative values (flip state)
+        let actualScaleX, actualScaleY;
+        if (obj.type === 'group') {
+          // For groups, read scaleX/scaleY directly from the object properties
+          // This preserves negative values which indicate flip state
+          // Check both obj.scaleX and obj.get('scaleX') to ensure we get the correct value
+          const directScaleX = obj.scaleX;
+          const directScaleY = obj.scaleY;
+          const getScaleX = obj.get ? obj.get('scaleX') : undefined;
+          const getScaleY = obj.get ? obj.get('scaleY') : undefined;
+          
+          // Prefer direct property access for groups (more reliable for flip state)
+          actualScaleX = directScaleX !== undefined && directScaleX !== null ? directScaleX : (getScaleX !== undefined ? getScaleX : 1);
+          actualScaleY = directScaleY !== undefined && directScaleY !== null ? directScaleY : (getScaleY !== undefined ? getScaleY : (directScaleX !== undefined && directScaleX !== null ? directScaleX : 1));
+          
+          // Get flip state from Fabric.js flipX/flipY properties (proper way to handle flips)
+          // Check both direct property and get() method
+          const flipX = obj.flipX || (obj.get ? obj.get('flipX') : false) || false;
+          const flipY = obj.flipY || (obj.get ? obj.get('flipY') : false) || false;
+          
+          // If flip state is stored in customData, apply it to scaleX/scaleY for saving
+          // This ensures we save negative values even though Fabric.js normalizes them
+          if (flipX) {
+            actualScaleX = -Math.abs(actualScaleX);
+          }
+          if (flipY) {
+            actualScaleY = -Math.abs(actualScaleY);
+          }
+          
+          // Debug logging to verify we're capturing flip state
+          console.log(`=== SAVE Group ${index} ===`, {
+            elementId: obj.elementId || obj.id,
+            directScaleX: directScaleX,
+            directScaleY: directScaleY,
+            getScaleX: getScaleX,
+            getScaleY: getScaleY,
+            flipX: flipX,
+            flipY: flipY,
+            actualScaleX: actualScaleX,
+            actualScaleY: actualScaleY,
+            isFlippedHorizontally: flipX || actualScaleX < 0,
+            isFlippedVertically: flipY || actualScaleY < 0,
+            angle: obj.angle,
+            getAngle: obj.get ? obj.get('angle') : 'no get method'
+          });
+        } else {
+          // For other objects, use get() method which is more reliable
+          actualScaleX = obj.get ? obj.get('scaleX') : (obj.scaleX ?? 1);
+          actualScaleY = obj.get ? obj.get('scaleY') : (obj.scaleY ?? obj.scaleX ?? 1);
+        }
         const actualAngle = obj.get ? obj.get('angle') : (obj.angle ?? obj.rotation ?? 0);
         const actualOpacity = obj.get ? obj.get('opacity') : (obj.opacity ?? 1);
         const actualFill = obj.get ? obj.get('fill') : (obj.fill ?? '#000000');
@@ -887,33 +1007,47 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.category = obj.category || groupCustomData.category || '';
           element.type = 'artwork'; // Normalize type for groups that are artwork
           
-          // Get group dimensions from actual bounding rect (accounts for transforms)
-          const groupBounds = obj.getBoundingRect();
-          // Save pixel values directly
-          element.widthPx = groupBounds.width;
-          element.heightPx = groupBounds.height;
-          // Also save inches for display
-          element.width = pixelsToInches(groupBounds.width, scale);
-          element.height = pixelsToInches(groupBounds.height, scale);
+          // Get group dimensions BEFORE rotation (actual object size, not bounding box)
+          // For rotated objects, getBoundingRect() gives inflated dimensions
+          // We want the actual group dimensions: width * scaleX, height * scaleY
+          const groupWidth = obj.get ? obj.get('width') : (obj.width || 0);
+          const groupHeight = obj.get ? obj.get('height') : (obj.height || 0);
           
-          // For groups, get the actual transformed position
-          // Groups may use center origin, so we need to account for that
-          if (obj.getCenterPoint) {
-            const groupCoords = obj.getCenterPoint();
-            const groupOriginX = obj.get ? obj.get('originX') : (obj.originX || 'left');
-            const groupOriginY = obj.get ? obj.get('originY') : (obj.originY || 'top');
-            
-            if (groupOriginX === 'center' || groupOriginY === 'center') {
-              // Use center point and adjust for bounds - save pixel values directly
-              const xPx = groupCoords.x - (groupBounds.width / 2);
-              const yPx = groupCoords.y - (groupBounds.height / 2);
-              element.xPx = xPx;
-              element.yPx = yPx;
-              // Also save inches for display
-              element.x = pixelsToInches(xPx, scale);
-              element.y = pixelsToInches(yPx, scale);
-            }
-          }
+          // Calculate actual dimensions accounting for scale but NOT rotation
+          // This gives us the true object size before rotation is applied
+          const actualGroupWidth = Math.abs(groupWidth * actualScaleX);
+          const actualGroupHeight = Math.abs(groupHeight * actualScaleY);
+          
+          // Save pixel values directly (these are the actual object dimensions, not bounding box)
+          element.widthPx = actualGroupWidth;
+          element.heightPx = actualGroupHeight;
+          // Also save inches for display
+          element.width = pixelsToInches(actualGroupWidth, scale);
+          element.height = pixelsToInches(actualGroupHeight, scale);
+          
+          console.log('Saving group dimensions (before rotation):', {
+            groupWidth,
+            groupHeight,
+            actualScaleX,
+            actualScaleY,
+            actualGroupWidth,
+            actualGroupHeight,
+            angle: actualAngle,
+            boundingRectWidth: obj.getBoundingRect().width,
+            boundingRectHeight: obj.getBoundingRect().height
+          });
+          
+          // For groups, save the actual left/top position directly from the object
+          // This is more reliable than calculating from center point, especially for rotated groups
+          // The actualLeft and actualTop already account for rotation and origin point
+          // (They were calculated earlier using obj.get('left') and obj.get('top'))
+          // So we can use them directly - they're already in element.xPx and element.yPx
+          
+          // Also save origin point for groups (important for correct positioning on load)
+          const groupOriginX = obj.get ? obj.get('originX') : (obj.originX || 'center');
+          const groupOriginY = obj.get ? obj.get('originY') : (obj.originY || 'center');
+          element.originX = groupOriginX;
+          element.originY = groupOriginY;
           
           // Store group-specific data
           if (obj.artworkId || groupCustomData.artworkId) element.artworkId = obj.artworkId || groupCustomData.artworkId;
@@ -1018,6 +1152,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           scaleY: actualScaleY
         });
         console.log('Saved element data:', {
+          type: element.type,
           xPx: element.xPx,
           yPx: element.yPx,
           x: element.x,
@@ -1030,7 +1165,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           height: element.height,
           scaleX: element.scaleX,
           scaleY: element.scaleY,
-          rotation: element.rotation
+          rotation: element.rotation,
+          // Verify flip state: negative scaleX = horizontal flip, negative scaleY = vertical flip
+          isFlippedHorizontally: element.scaleX < 0,
+          isFlippedVertically: element.scaleY < 0,
+          hasRotation: element.rotation !== 0 && element.rotation !== undefined
         });
         console.log(`=== END SAVE Element ${index} ===`);
         
