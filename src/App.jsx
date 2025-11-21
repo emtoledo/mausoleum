@@ -14,6 +14,7 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import AllProjectsView from './pages/AllProjectsView';
 import EditModeView from './pages/EditModeView';
 import ApprovalProofView from './pages/ApprovalProofView';
+import ApprovedView from './pages/ApprovedView';
 import AccountSettingsView from './pages/AccountSettingsView';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -119,6 +120,14 @@ const App = () => {
               <Route path="/projects/:projectId/approval" element={
                 <ProtectedRoute>
                   <ApprovalProofView />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/projects/:projectId/approved" element={
+                <ProtectedRoute>
+                  <BaseScreenLayout>
+                    <ApprovedView />
+                  </BaseScreenLayout>
                 </ProtectedRoute>
               } />
               

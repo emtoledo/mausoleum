@@ -5,11 +5,13 @@
  * and digital signature capture. Allows in-person or remote approval.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import SignaturePad from '../components/ui/SignaturePad';
 import Button from '../components/ui/Button';
+import { generateApprovalPDF } from '../utils/pdfGenerator';
+import { uploadApprovalPDF, pdfBlobToBase64 } from '../utils/storageService';
 
 const ApprovalProofView = () => {
   const { projectId } = useParams();
@@ -36,6 +38,7 @@ const ApprovalProofView = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const approvalContainerRef = useRef(null);
 
   useEffect(() => {
     loadProject();
@@ -86,12 +89,36 @@ const ApprovalProofView = () => {
       return;
     }
 
+    if (!approvalContainerRef.current) {
+      alert('Error: Cannot generate PDF. Please refresh the page and try again.');
+      return;
+    }
+
     try {
       setSaving(true);
       
-      // Update project status to approved
+      // Generate PDF from the approval proof container
+      const pdfBlob = await generateApprovalPDF(
+        approvalContainerRef.current,
+        `approval-proof-${projectId}.pdf`
+      );
+
+      // Try to upload to Supabase Storage, fallback to base64 if storage not available
+      let pdfUrl = null;
+      try {
+        pdfUrl = await uploadApprovalPDF(pdfBlob, projectId, `approval-proof-${projectId}.pdf`);
+      } catch (storageError) {
+        console.warn('Supabase Storage not available, storing PDF as base64:', storageError);
+        // Fallback: Store as base64 in database (less ideal but works)
+        const base64Pdf = await pdfBlobToBase64(pdfBlob);
+        // Store base64 in a custom field or use a data URL
+        pdfUrl = `data:application/pdf;base64,${base64Pdf}`;
+      }
+
+      // Update project status to approved and save PDF URL
       const updateResult = await updateProject(projectId, {
         status: 'approved',
+        approvalPdfUrl: pdfUrl,
         lastEdited: new Date().toISOString()
       });
 
@@ -99,21 +126,17 @@ const ApprovalProofView = () => {
         throw new Error('Failed to update project status');
       }
 
-      // Save approval signature
-      // In a full implementation, this would save to project_approvals table
-      // For now, we'll store it in project customizations
+      // Save approval signature data
       const approvalData = {
         signature: signature,
         signerName: signerName,
         signDate: signDate
       };
 
-      // Save approval data (this would be a separate API call in production)
       console.log('Approval submitted:', approvalData);
 
-      // Navigate back to projects or show success message
-      alert('Project approved successfully!');
-      navigate('/projects');
+      // Navigate to approved view
+      navigate(`/projects/${projectId}/approved`);
     } catch (err) {
       console.error('Error submitting approval:', err);
       alert('Failed to submit approval. Please try again.');
@@ -184,7 +207,7 @@ const ApprovalProofView = () => {
   );
 
   return (
-    <div className="approval-proof-container">
+    <div className="approval-proof-container" ref={approvalContainerRef}>
       <div className="approval-proof-header">
         <h1 className="approval-proof-title">ARLINGTON MEMORIAL PARK</h1>
         <div className="approval-proof-actions">

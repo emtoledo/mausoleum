@@ -261,6 +261,7 @@ class SupabaseService {
       const projectUpdates = {};
       if (updateData.title) projectUpdates.title = updateData.title;
       if (updateData.status) projectUpdates.status = updateData.status;
+      if (updateData.approvalPdfUrl) projectUpdates.approval_pdf_url = updateData.approvalPdfUrl;
       if (updateData.lastEdited) projectUpdates.last_edited = updateData.lastEdited;
       projectUpdates.updated_at = new Date().toISOString();
 
@@ -404,6 +405,7 @@ class SupabaseService {
       updatedAt: project.updated_at,
       lastEdited: project.last_edited,
       status: project.status,
+      approvalPdfUrl: project.approval_pdf_url,
       template: template
     };
   }

@@ -13,6 +13,8 @@
     "@supabase/supabase-js": "^2.81.1",
     "dxf-parser": "^1.1.2",
     "fabric": "^6.7.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
     "lucide-react": "^0.548.0",
     "makerjs": "^0.18.1",
     "opentype.js": "^1.3.4",

@@ -2994,6 +2994,24 @@ body:has(.canvas-layout) .footer-branding {
     font-size: 14px;
 }
 
+.storage-test-indicator {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    background-color: #4caf50;
+    color: white;
+    cursor: help;
+}
+
+.storage-test-indicator.warning {
+    background-color: #ff9800;
+}
+
 .approval-close-btn {
     background: none;
     border: none;
@@ -3239,4 +3257,99 @@ body:has(.canvas-layout) .footer-branding {
     .approval-details-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* Approved View */
+.approved-view-container {
+    min-height: 100vh;
+    background-color: #f5f5f5;
+    padding: 40px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+.approved-view-content {
+    max-width: 600px;
+    width: 100%;
+}
+
+.approved-status-card {
+    background: white;
+    border-radius: 12px;
+    padding: 48px 32px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.approved-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: #4caf50;
+    color: white;
+    font-size: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    font-weight: bold;
+}
+
+.approved-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 12px 0;
+}
+
+.approved-subtitle {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 32px 0;
+}
+
+.approved-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin: 32px 0;
+    padding: 24px 0;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.approved-action-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+}
+
+.approved-action-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #666;
+    margin: 0;
+}
+
+.approved-download-btn,
+.approved-export-btn {
+    min-width: 200px;
+    padding: 12px 24px;
+    font-size: 16px;
+}
+
+.approved-navigation {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 32px;
+}
+
+.approved-back-btn,
+.approved-new-btn {
+    min-width: 150px;
+    padding: 10px 20px;
 }
