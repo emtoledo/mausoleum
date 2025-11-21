@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import Modal from '../components/ui/Modal';
 import { useProjects } from '../hooks/useProjects';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import { useProjectFlow } from '../context/ProjectFlowContext';
@@ -11,9 +12,11 @@ import templateService from '../services/templateService';
 const AllProjectsView = () => {
   const navigate = useNavigate();
   const { projects, loading, error, refreshProjects } = useProjects();
-  const { deleteProject } = useProjectMutations();
+  const { deleteProject, updateProject } = useProjectMutations();
   const { openWizard } = useProjectFlow();
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, project: null });
+  const [editModal, setEditModal] = useState({ isOpen: false, project: null });
+  const [editValues, setEditValues] = useState({ name: '', status: '' });
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - Project clicked:', project);
@@ -52,6 +55,71 @@ const AllProjectsView = () => {
 
   const handleCancelDelete = () => {
     setDeleteConfirm({ isOpen: false, project: null });
+  };
+
+  const handleOpenEdit = (project, e) => {
+    e.stopPropagation(); // Prevent triggering project click
+    setEditModal({ isOpen: true, project });
+    setEditValues({
+      name: project.title || '',
+      status: project.status || 'draft'
+    });
+  };
+
+  const handleCloseEdit = () => {
+    setEditModal({ isOpen: false, project: null });
+    setEditValues({ name: '', status: '' });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editModal.project) return;
+
+    const updates = {};
+    
+    if (editValues.name.trim() && editValues.name.trim() !== editModal.project.title) {
+      updates.title = editValues.name.trim();
+    }
+    
+    if (editValues.status !== editModal.project.status) {
+      updates.status = editValues.status;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      try {
+        const result = await updateProject(editModal.project.id, updates);
+        if (result.success) {
+          refreshProjects();
+          handleCloseEdit();
+        } else {
+          alert('Error updating project. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error updating project:', error);
+        alert('Error updating project. Please try again.');
+      }
+    } else {
+      handleCloseEdit();
+    }
+  };
+
+  const getStatusDisplay = (status) => {
+    const statusMap = {
+      'draft': 'Draft',
+      'in_progress': 'In Progress',
+      'completed': 'Completed',
+      'approved': 'Approved'
+    };
+    return statusMap[status] || status || 'Draft';
+  };
+
+  const getStatusClass = (status) => {
+    const statusClassMap = {
+      'draft': 'status-draft',
+      'in_progress': 'status-in-progress',
+      'completed': 'status-completed',
+      'approved': 'status-approved'
+    };
+    return statusClassMap[status] || 'status-draft';
   };
 
   const formatLastEdited = (lastEdited) => {
@@ -155,10 +223,20 @@ const AllProjectsView = () => {
                 </div>    
                 <div className="project-info">
                   <div className="project-meta">
-                    <span className="project-status">Draft</span>
+                    <span className={`project-status ${getStatusClass(project.status)}`}>
+                      {getStatusDisplay(project.status)}
+                    </span>
                   </div>
                 </div>         
                 <div className="project-actions" onClick={(e) => e.stopPropagation()}>
+                  <Button 
+                    variant="link"
+                    size="small"
+                    onClick={(e) => handleOpenEdit(project, e)}
+                    className="edit-project-btn"
+                  >
+                    Edit
+                  </Button>
                   <Button 
                     variant="danger"
                     size="small"
@@ -185,6 +263,64 @@ const AllProjectsView = () => {
         cancelText="Cancel"
         confirmVariant="danger"
       />
+
+      {/* Edit Project Modal */}
+      <Modal
+        isOpen={editModal.isOpen}
+        onClose={handleCloseEdit}
+        className="edit-project-modal"
+      >
+        <div className="edit-project-modal-content">
+          <h3 className="edit-project-modal-title">Edit Project</h3>
+          
+          <div className="edit-project-form">
+            <div className="form-group">
+              <label htmlFor="project-name" className="form-label">Project Name</label>
+              <input
+                id="project-name"
+                type="text"
+                value={editValues.name}
+                onChange={(e) => setEditValues({ ...editValues, name: e.target.value })}
+                className="form-input"
+                placeholder="Enter project name"
+                autoFocus
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="project-status" className="form-label">Status</label>
+              <select
+                id="project-status"
+                value={editValues.status}
+                onChange={(e) => setEditValues({ ...editValues, status: e.target.value })}
+                className={`form-select ${getStatusClass(editValues.status)}`}
+              >
+                <option value="draft">Draft</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="approved">Approved</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="edit-project-modal-actions">
+            <Button
+              variant="secondary"
+              onClick={handleCloseEdit}
+              className="edit-project-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveEdit}
+              className="edit-project-save"
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

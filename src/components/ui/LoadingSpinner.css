@@ -1,0 +1,136 @@
+.loading-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 1.5rem;
+}
+
+.loading-spinner-container.small {
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.loading-spinner-container.large {
+  padding: 3rem;
+  gap: 2rem;
+}
+
+.loading-spinner {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.loading-spinner-container.small .loading-spinner {
+  width: 32px;
+  height: 32px;
+}
+
+.loading-spinner-container.large .loading-spinner {
+  width: 96px;
+  height: 96px;
+}
+
+.spinner-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid transparent;
+  border-top-color: #4bbdfa;
+  border-radius: 50%;
+  animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.spinner-ring:nth-child(1) {
+  animation-delay: -0.45s;
+  border-top-color: #4bbdfa;
+  opacity: 1;
+}
+
+.spinner-ring:nth-child(2) {
+  animation-delay: -0.3s;
+  border-top-color: #239bfa;
+  opacity: 0.8;
+}
+
+.spinner-ring:nth-child(3) {
+  animation-delay: -0.15s;
+  border-top-color: #1a8ae8;
+  opacity: 0.6;
+}
+
+.spinner-ring:nth-child(4) {
+  animation-delay: 0s;
+  border-top-color: #0d6efd;
+  opacity: 0.4;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-message {
+  color: #333;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.loading-spinner-container.small .loading-message {
+  font-size: 0.875rem;
+}
+
+.loading-spinner-container.large .loading-message {
+  font-size: 1.25rem;
+}
+
+.loading-progress {
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4bbdfa 0%, #239bfa 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Full-screen overlay variant */
+.loading-spinner-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.95);
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+

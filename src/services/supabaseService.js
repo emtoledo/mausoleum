@@ -230,6 +230,7 @@ class SupabaseService {
       // Update project
       const projectUpdates = {};
       if (updateData.title) projectUpdates.title = updateData.title;
+      if (updateData.status) projectUpdates.status = updateData.status;
       if (updateData.lastEdited) projectUpdates.last_edited = updateData.lastEdited;
       projectUpdates.updated_at = new Date().toISOString();
 

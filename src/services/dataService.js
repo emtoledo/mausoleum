@@ -168,10 +168,11 @@ class DataService {
         };
       }
       
-      // Update other fields
+      // Update other fields (excluding material which is handled separately)
+      const { material, ...otherUpdates } = updates;
       projects[projectIndex] = {
         ...projects[projectIndex],
-        ...updates,
+        ...otherUpdates,
         updatedAt: new Date().toISOString()
       };
       
