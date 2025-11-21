@@ -11,6 +11,7 @@ import * as fabric from 'fabric';
 import * as makerjs from 'makerjs';
 import { calculateScale, inchesToPixels } from '../utils/unitConverter';
 import { importDxfToFabric } from '../../../utils/dxfImporter';
+import { artwork } from '../../../data/ArtworkData';
 
 /**
  * @param {React.RefObject} fabricCanvasRef - Ref to the main Fabric.js canvas container
@@ -647,20 +648,42 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           }
         } else if (element.type === 'group' || element.type === 'artwork') {
           // Handle groups (DXF artwork with textures)
-          const imageUrl = element.imageUrl || element.content;
-          const textureUrl = element.textureUrl;
+          let imageUrl = element.imageUrl || element.content;
+          let textureUrl = element.textureUrl;
+          
+          // Fallback: If imageUrl or textureUrl is missing but we have artworkId, look it up from artwork data
+          if (element.artworkId) {
+            const artworkItem = artwork.find(a => a.id === element.artworkId);
+            if (artworkItem) {
+              if ((!imageUrl || imageUrl.trim() === '') && artworkItem.imageUrl) {
+                imageUrl = artworkItem.imageUrl;
+                console.log('Found imageUrl from artworkId lookup:', {
+                  artworkId: element.artworkId,
+                  imageUrl: imageUrl
+                });
+              }
+              if ((!textureUrl || textureUrl.trim() === '') && artworkItem.textureUrl) {
+                textureUrl = artworkItem.textureUrl;
+                console.log('Found textureUrl from artworkId lookup:', {
+                  artworkId: element.artworkId,
+                  textureUrl: textureUrl
+                });
+              }
+            }
+          }
           
           console.log('Loading artwork/group element:', {
             elementId: element.id,
             elementType: element.type,
             imageUrl: imageUrl,
             textureUrl: textureUrl,
+            artworkId: element.artworkId,
             hasImageUrl: !!imageUrl,
             isDxfFile: imageUrl && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF')),
             elementKeys: Object.keys(element)
           });
           
-          if (imageUrl && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF'))) {
+          if (imageUrl && imageUrl.trim() && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF'))) {
             console.log('Detected DXF file, starting import...');
             // This is a DXF file - re-import it
             try {

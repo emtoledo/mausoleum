@@ -1007,7 +1007,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         } else if (obj.type === 'group') {
           // Handle groups (like artwork with textures)
           // Get metadata from customData or direct properties
-          const groupCustomData = obj.customData || {};
+          // Use get() method if available to ensure we get the latest customData
+          const groupCustomData = (obj.get ? obj.get('customData') : obj.customData) || {};
           element.content = obj.name || groupCustomData.artworkName || groupCustomData.artworkId || obj.artworkId || '';
           element.category = obj.category || groupCustomData.category || '';
           element.type = 'artwork'; // Normalize type for groups that are artwork
@@ -1057,8 +1058,40 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           // Store group-specific data
           if (obj.artworkId || groupCustomData.artworkId) element.artworkId = obj.artworkId || groupCustomData.artworkId;
           if (obj.textureUrl || groupCustomData.textureUrl) element.textureUrl = obj.textureUrl || groupCustomData.textureUrl;
-          if (obj.imageUrl || groupCustomData.imageUrl || groupCustomData.originalSource) {
-            element.imageUrl = obj.imageUrl || groupCustomData.imageUrl || groupCustomData.originalSource;
+          
+          // Debug: Check what imageUrl sources are available
+          // Check all possible sources, ensuring we don't use empty strings
+          const objImageUrl = obj.imageUrl && obj.imageUrl.trim() ? obj.imageUrl : null;
+          const customDataImageUrl = groupCustomData.imageUrl && groupCustomData.imageUrl.trim() ? groupCustomData.imageUrl : null;
+          const customDataOriginalSource = groupCustomData.originalSource && groupCustomData.originalSource.trim() ? groupCustomData.originalSource : null;
+          
+          const availableImageUrl = objImageUrl || customDataImageUrl || customDataOriginalSource;
+          
+          console.log('Saving group imageUrl:', {
+            elementId: element.id,
+            objImageUrl: objImageUrl,
+            objImageUrlRaw: obj.imageUrl,
+            customDataImageUrl: customDataImageUrl,
+            customDataOriginalSource: customDataOriginalSource,
+            availableImageUrl: availableImageUrl,
+            willSave: !!availableImageUrl,
+            objHasImageUrl: 'imageUrl' in obj,
+            customDataHasImageUrl: 'imageUrl' in groupCustomData,
+            customDataHasOriginalSource: 'originalSource' in groupCustomData
+          });
+          
+          if (availableImageUrl && availableImageUrl.trim()) {
+            element.imageUrl = availableImageUrl.trim();
+          } else {
+            console.error('CRITICAL: No imageUrl found for group, cannot reload:', {
+              elementId: element.id,
+              objKeys: Object.keys(obj),
+              customDataKeys: Object.keys(groupCustomData),
+              customData: groupCustomData,
+              objImageUrl: obj.imageUrl,
+              objImageUrlType: typeof obj.imageUrl
+            });
+            // Don't set imageUrl to empty string - leave it undefined so we can detect the issue
           }
           if (groupCustomData.defaultWidthInches) element.defaultWidthInches = groupCustomData.defaultWidthInches;
           
