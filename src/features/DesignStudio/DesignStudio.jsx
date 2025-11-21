@@ -17,6 +17,7 @@ import OptionsPanel from './components/OptionsPanel';
 import exportToDxf from './utils/dxfExporter';
 import { importDxfToFabric } from '../../utils/dxfImporter';
 import AlertMessage from '../../components/ui/AlertMessage';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 /**
  * @param {Object} initialData - Template/product data with dimensions, editZones, and designElements
@@ -44,6 +45,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
   const [saveAlert, setSaveAlert] = useState(null);
+  const [loadingState, setLoadingState] = useState({ isLoading: false, loaded: 0, total: 0, message: '' });
 
   // Update canvas size when container dimensions change
   useEffect(() => {
@@ -136,6 +138,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   }, [initialData, materials]); // Re-run when initialData or materials change
 
   // Call useFabricCanvas hook (the "engine")
+  // Callback to handle loading state updates from useFabricCanvas
+  const handleLoadingStateChange = useCallback((state) => {
+    setLoadingState(state);
+  }, []);
+
   const fabricFromHook = useFabricCanvas(
     fabricCanvasRef,
     productCanvasRef,
@@ -144,7 +151,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     canvasSize,
     setFabricInstance, // Callback when canvas is ready
     activeMaterial, // Pass active material for product canvas fill
-    materials // Pass materials array for productBase rendering
+    materials, // Pass materials array for productBase rendering
+    handleLoadingStateChange // Pass loading state callback
   );
 
   // Use the fabric instance from state (set via callback) or hook return value as fallback
@@ -1591,7 +1599,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         <div className="design-studio-canvas-container" ref={canvasContainerRef}>
           
           {/* Canvas Stack */}
-          <div className="canvas-stack">
+          <div className="canvas-stack" style={{ opacity: loadingState.isLoading ? 0.3 : 1, transition: 'opacity 0.3s ease' }}>
             
             {/* Product Canvas (bottom layer) */}
             <canvas
@@ -1607,6 +1615,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             
           </div>
 
+          {/* Loading Overlay */}
+          {loadingState.isLoading && (
+            <div className="loading-overlay">
+              <LoadingSpinner
+                message={loadingState.message || 'Loading project...'}
+                progress={loadingState.total > 0 ? (loadingState.loaded / loadingState.total) * 100 : null}
+                size="large"
+              />
+            </div>
+          )}
 
         </div>
 

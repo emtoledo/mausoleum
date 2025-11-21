@@ -25,9 +25,18 @@ import { artwork } from '../../../data/ArtworkData';
  * 
  * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial, materials = []) => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial, materials = [], onLoadingStateChange = null) => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
+  const loadingStateRef = useRef({ isLoading: false, loaded: 0, total: 0, message: '' });
+  
+  // Helper function to update loading state
+  const updateLoadingState = useCallback((updates) => {
+    loadingStateRef.current = { ...loadingStateRef.current, ...updates };
+    if (onLoadingStateChange) {
+      onLoadingStateChange(loadingStateRef.current);
+    }
+  }, [onLoadingStateChange]);
   const selectedObject = useRef(null);
   const constraintOverlay = useRef(null); // Reference to constraint border overlay
   const isObjectMoving = useRef(false);
@@ -372,12 +381,30 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
    * Create Fabric.js objects from design elements
    */
   const populateCanvasFromData = useCallback(async (canvas, elements, savedCanvasDimensions) => {
-    if (!canvas || !elements || elements.length === 0) return;
+    if (!canvas || !elements || elements.length === 0) {
+      // Update loading state: no elements to load
+      if (onLoadingStateChange) {
+        onLoadingStateChange({ isLoading: false, loaded: 0, total: 0, message: '' });
+      }
+      return;
+    }
 
     console.log('Populating canvas from saved data:', elements);
     console.log('Saved canvas dimensions:', savedCanvasDimensions);
     console.log('Current canvas size:', canvas.width, canvas.height);
     console.log('Current objects on canvas before clearing:', canvas.getObjects().length);
+
+    // Count assets that need to be loaded (images, DXF files, etc.)
+    const assetsToLoad = elements.filter(el => 
+      el.type === 'image' || 
+      el.type === 'artwork' || 
+      (el.type === 'group' && (el.imageUrl || el.artworkId))
+    );
+    const totalAssets = assetsToLoad.length;
+    let loadedAssets = 0;
+
+    // Start loading state
+    updateLoadingState({ isLoading: true, loaded: 0, total: totalAssets, message: 'Loading assets...' });
 
     // IMPORTANT: Clear canvas before populating to prevent duplicates
     // Remove all objects except constraint overlay (if it exists)
@@ -879,6 +906,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                         left: coloredImg.left,
                         top: coloredImg.top
                       });
+                      
+                      // Update loading progress
+                      loadedAssets++;
+                      updateLoadingState({ 
+                        loaded: loadedAssets, 
+                        message: `Loading assets... (${loadedAssets}/${totalAssets})` 
+                      });
+                      
                       continue; // Skip to next element
                     }
                   }
@@ -1293,6 +1328,13 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                       canvas.add(group);
                       canvas.renderAll();
                       console.log('Group successfully added to canvas');
+                      
+                      // Update loading progress
+                      loadedAssets++;
+                      updateLoadingState({ 
+                        loaded: loadedAssets, 
+                        message: `Loading assets... (${loadedAssets}/${totalAssets})` 
+                      });
                     } else {
                       console.warn('Group already on canvas, skipping add');
                       canvas.renderAll();
@@ -1692,6 +1734,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     }
 
     console.log('=== FINISHED LOADING ALL ELEMENTS ===');
+    
+    // Complete loading state
+    updateLoadingState({ isLoading: false, loaded: totalAssets, total: totalAssets, message: '' });
     canvas.renderAll();
   }, [scale]);
 
