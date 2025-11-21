@@ -1206,8 +1206,25 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.originX = groupOriginX;
           element.originY = groupOriginY;
           
-          // Store group-specific data
-          if (obj.artworkId || groupCustomData.artworkId) element.artworkId = obj.artworkId || groupCustomData.artworkId;
+          // Store group-specific data - CRITICAL: Always save artworkId if it exists
+          const savedArtworkId = obj.artworkId || groupCustomData.artworkId;
+          if (savedArtworkId) {
+            element.artworkId = savedArtworkId;
+            console.log('Saving artworkId for group:', {
+              elementId: element.id,
+              artworkId: savedArtworkId,
+              source: obj.artworkId ? 'obj' : 'customData'
+            });
+          } else {
+            console.warn('WARNING: No artworkId found for group:', {
+              elementId: element.id,
+              objHasArtworkId: !!obj.artworkId,
+              customDataHasArtworkId: !!groupCustomData.artworkId,
+              objKeys: Object.keys(obj),
+              customDataKeys: Object.keys(groupCustomData)
+            });
+          }
+          
           if (obj.textureUrl || groupCustomData.textureUrl) element.textureUrl = obj.textureUrl || groupCustomData.textureUrl;
           
           // Debug: Check what imageUrl sources are available
@@ -1226,6 +1243,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             customDataOriginalSource: customDataOriginalSource,
             availableImageUrl: availableImageUrl,
             willSave: !!availableImageUrl,
+            artworkId: savedArtworkId,
             objHasImageUrl: 'imageUrl' in obj,
             customDataHasImageUrl: 'imageUrl' in groupCustomData,
             customDataHasOriginalSource: 'originalSource' in groupCustomData
@@ -1234,15 +1252,29 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           if (availableImageUrl && availableImageUrl.trim()) {
             element.imageUrl = availableImageUrl.trim();
           } else {
-            console.error('CRITICAL: No imageUrl found for group, cannot reload:', {
-              elementId: element.id,
-              objKeys: Object.keys(obj),
-              customDataKeys: Object.keys(groupCustomData),
-              customData: groupCustomData,
-              objImageUrl: obj.imageUrl,
-              objImageUrlType: typeof obj.imageUrl
-            });
-            // Don't set imageUrl to empty string - leave it undefined so we can detect the issue
+            // If we have artworkId, we can still reload from ArtworkData, so this is not critical
+            if (savedArtworkId) {
+              console.warn('No imageUrl found for group, but artworkId exists - will use fallback lookup on load:', {
+                elementId: element.id,
+                artworkId: savedArtworkId
+              });
+              // Don't set imageUrl to empty string - leave it undefined/null
+            } else {
+              console.error('CRITICAL: No imageUrl AND no artworkId found for group, cannot reload:', {
+                elementId: element.id,
+                objKeys: Object.keys(obj),
+                customDataKeys: Object.keys(groupCustomData),
+                customData: groupCustomData,
+                objImageUrl: obj.imageUrl,
+                objImageUrlType: typeof obj.imageUrl
+              });
+              // Don't set imageUrl to empty string - leave it undefined so we can detect the issue
+            }
+          }
+          
+          // Also save category if available (helps with fallback lookup)
+          if (groupCustomData.category || obj.category) {
+            element.category = groupCustomData.category || obj.category;
           }
           if (groupCustomData.defaultWidthInches) element.defaultWidthInches = groupCustomData.defaultWidthInches;
           

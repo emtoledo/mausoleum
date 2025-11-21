@@ -970,24 +970,46 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           let imageUrl = element.imageUrl || element.content;
           let textureUrl = element.textureUrl;
           
+          // Normalize empty strings to null/undefined for easier checking
+          if (imageUrl && imageUrl.trim() === '') imageUrl = null;
+          if (textureUrl && textureUrl.trim() === '') textureUrl = null;
+          
           // Fallback: If imageUrl or textureUrl is missing but we have artworkId, look it up from artwork data
-          if (element.artworkId) {
-            const artworkItem = artwork.find(a => a.id === element.artworkId);
+          // Also check if we can infer artworkId from category or other properties
+          let artworkId = element.artworkId;
+          
+          // If artworkId is missing but we have category 'Panels' and textureUrl, try to find matching artwork
+          if (!artworkId && element.category === 'Panels' && textureUrl) {
+            const panelArtwork = artwork.find(a => a.category === 'Panels' && a.textureUrl === textureUrl);
+            if (panelArtwork) {
+              artworkId = panelArtwork.id;
+              console.log('Inferred artworkId from category and textureUrl:', {
+                category: element.category,
+                textureUrl: textureUrl,
+                artworkId: artworkId
+              });
+            }
+          }
+          
+          if (artworkId) {
+            const artworkItem = artwork.find(a => a.id === artworkId);
             if (artworkItem) {
               if ((!imageUrl || imageUrl.trim() === '') && artworkItem.imageUrl) {
                 imageUrl = artworkItem.imageUrl;
                 console.log('Found imageUrl from artworkId lookup:', {
-                  artworkId: element.artworkId,
+                  artworkId: artworkId,
                   imageUrl: imageUrl
                 });
               }
               if ((!textureUrl || textureUrl.trim() === '') && artworkItem.textureUrl) {
                 textureUrl = artworkItem.textureUrl;
                 console.log('Found textureUrl from artworkId lookup:', {
-                  artworkId: element.artworkId,
+                  artworkId: artworkId,
                   textureUrl: textureUrl
                 });
               }
+            } else {
+              console.warn('Artwork not found in ArtworkData for artworkId:', artworkId);
             }
           }
           
@@ -1001,6 +1023,24 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             isDxfFile: imageUrl && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF')),
             elementKeys: Object.keys(element)
           });
+          
+          // Final check: if we still don't have imageUrl but have textureUrl and category, try one more lookup
+          if ((!imageUrl || !imageUrl.trim()) && textureUrl && element.category === 'Panels') {
+            const panelArtwork = artwork.find(a => a.category === 'Panels' && a.textureUrl === textureUrl);
+            if (panelArtwork && panelArtwork.imageUrl) {
+              imageUrl = panelArtwork.imageUrl;
+              console.log('Final fallback: Found imageUrl from category/textureUrl match:', {
+                category: element.category,
+                textureUrl: textureUrl,
+                imageUrl: imageUrl,
+                artworkId: panelArtwork.id
+              });
+              // Update artworkId if we found it
+              if (!artworkId && panelArtwork.id) {
+                artworkId = panelArtwork.id;
+              }
+            }
+          }
           
           if (imageUrl && imageUrl.trim() && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF'))) {
             console.log('Detected DXF file, starting import...');

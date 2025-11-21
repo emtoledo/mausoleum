@@ -39,6 +39,14 @@ const ApprovalProofView = () => {
 
   useEffect(() => {
     loadProject();
+    
+    // Enable scrolling on body when on approval page
+    document.body.style.overflow = 'auto';
+    
+    // Cleanup: restore original overflow when component unmounts
+    return () => {
+      document.body.style.overflow = 'hidden';
+    };
   }, [projectId]);
 
   const loadProject = async () => {
