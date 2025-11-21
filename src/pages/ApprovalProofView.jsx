@@ -10,6 +10,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import SignaturePad from '../components/ui/SignaturePad';
 import Button from '../components/ui/Button';
+import { colorData } from '../data/ColorData';
 import { generateApprovalPDF } from '../utils/pdfGenerator';
 import { uploadApprovalPDF, pdfBlobToBase64 } from '../utils/storageService';
 
@@ -206,6 +207,75 @@ const ApprovalProofView = () => {
     projectDetails.realWorldDepth || 0
   );
 
+  // Extract unique font families from design elements
+  const getFontFamilies = () => {
+    const designElements = projectDetails.customizations?.designElements || 
+                          projectDetails.designElements || 
+                          [];
+    
+    // Get all font families from text elements
+    const fonts = new Set();
+    designElements.forEach(element => {
+      if (element.type === 'text' || element.type === 'i-text' || element.type === 'textbox') {
+        if (element.font) {
+          fonts.add(element.font);
+        }
+      }
+    });
+    
+    // Convert to sorted array and join with commas
+    return Array.from(fonts).sort().join(', ') || 'No fonts specified';
+  };
+
+  // Extract unique color names from design elements
+  const getColorNames = () => {
+    const designElements = projectDetails.customizations?.designElements || 
+                          projectDetails.designElements || 
+                          [];
+    
+    const colorNames = new Set();
+    
+    designElements.forEach(element => {
+      // Try to get color by colorId first (most reliable)
+      if (element.colorId) {
+        const colorItem = colorData.find(c => c.id === element.colorId);
+        if (colorItem) {
+          colorNames.add(colorItem.name);
+        }
+      }
+      
+      // Also check fill color by hex match
+      if (element.fill) {
+        const fillHex = element.fill.toUpperCase();
+        const colorItem = colorData.find(c => {
+          const colorHex = c.fillColor.toUpperCase();
+          return colorHex === fillHex;
+        });
+        if (colorItem) {
+          colorNames.add(colorItem.name);
+        }
+      }
+      
+      // Check stroke color
+      if (element.stroke) {
+        const strokeHex = element.stroke.toUpperCase();
+        const colorItem = colorData.find(c => {
+          const strokeColorHex = c.strokeColor.toUpperCase();
+          return strokeColorHex === strokeHex && c.strokeWidth > 0;
+        });
+        if (colorItem) {
+          colorNames.add(colorItem.name);
+        }
+      }
+    });
+    
+    // Convert to sorted array and join with commas
+    return Array.from(colorNames).sort().join(', ') || 'No colors specified';
+  };
+
+  const fontFamilies = getFontFamilies();
+  const colorNames = getColorNames();
+
   return (
     <div className="approval-proof-container" ref={approvalContainerRef}>
       <div className="approval-proof-header">
@@ -251,100 +321,114 @@ const ApprovalProofView = () => {
               <p className="text-small">Note: Navigate from Design Studio to capture snapshot</p>
             </div>
           )}
+
+              {/* Project Details */}
+              <div className="approval-details-column">
+                
+                <div>
+                  <div className="approval-detail-item">
+                    <span className="approval-detail-label">Product:</span>
+                    <span className="approval-detail-value">
+                      {projectDetails.templateName || 'Estate Collection 1'}
+                    </span>
+                  </div>
+                  
+                  <div className="approval-detail-item">
+                    <span className="approval-detail-label">Dimensions:</span>
+                    <span className="approval-detail-value">{dimensions}</span>
+                  </div>
+                  
+                  <div className="approval-detail-item">
+                    <span className="approval-detail-label">Material:</span>
+                    <span className="approval-detail-value">
+                      {material?.name || 'Not specified'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div>
+                  {productBase.length > 0 && (
+                    <div className="approval-detail-item">
+                      <span className="approval-detail-label">Base:</span>
+                      <div className="approval-detail-value">
+                        <div>Size: {formatDimensions(productBase[0]?.width, productBase[0]?.height, productBase[0]?.depth)}</div>
+                        <div>{productBase[0]?.color || material?.name}</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="approval-detail-item">
+                    <span className="approval-detail-label">Vase:</span>
+                    <span className="approval-detail-value">8" x 10" Turned</span>
+                  </div>
+                  
+                  <div className="approval-detail-item">
+                    <span className="approval-detail-label">Letter Style:</span>
+                    <div className="approval-detail-value">
+                      <div>{fontFamilies}</div>
+                      
+                    </div>
+                  </div>
+                  
+                  <div className="approval-detail-item">
+                    <span className="approval-detail-label">Type & Art Colors:</span>
+                    <span className="approval-detail-value">{colorNames}</span>
+                  </div>
+                </div>
+
+              </div>
+
+
         </div>
+
+
 
         {/* Right: Project Details and Approval */}
         <div className="approval-proof-details">
           {/* Project Details Panel */}
           <div className="approval-details-panel">
-            <h2 className="approval-panel-title">Project: {project.title}</h2>
+            <h2 className="approval-panel-title">{project.title}</h2>
             
-            <div className="approval-details-grid">
-              {/* Left Column: Project Details */}
-              <div className="approval-details-column">
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Product:</span>
-                  <span className="approval-detail-value">
-                    {projectDetails.templateName || 'Estate Collection 1'}
-                  </span>
-                </div>
-                
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Dimensions:</span>
-                  <span className="approval-detail-value">{dimensions}</span>
-                </div>
-                
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Material:</span>
-                  <span className="approval-detail-value">
-                    {material?.name || 'Not specified'}
-                  </span>
-                </div>
-                
-                {productBase.length > 0 && (
-                  <div className="approval-detail-item">
-                    <span className="approval-detail-label">Base:</span>
-                    <div className="approval-detail-value">
-                      <div>Size: {formatDimensions(productBase[0]?.width, productBase[0]?.height, productBase[0]?.depth)}</div>
-                      <div>Color: {productBase[0]?.color || material?.name}</div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Vase:</span>
-                  <span className="approval-detail-value">8" x 10" Turned</span>
-                </div>
-                
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Letter Style:</span>
-                  <div className="approval-detail-value">
-                    <div>[Font]</div>
-                    <div>Carved or Laser Etched</div>
-                  </div>
-                </div>
-                
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Type & Art Colors:</span>
-                  <span className="approval-detail-value">Gold, Black</span>
-                </div>
-              </div>
+            <div className="">
 
               {/* Right Column: Customer Details */}
               <div className="approval-details-column">
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Customer:</span>
-                  <input
-                    type="text"
-                    value={customer.name}
-                    onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                    className="approval-input"
-                    placeholder="Enter customer name"
-                  />
+
+                <div>
+
+                    <div className="approval-detail-item">
+                      <span className="approval-detail-label">Customer:</span>
+                      <input
+                        type="text"
+                        value={customer.name}
+                        onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                        className="approval-input"
+                        placeholder="Customer Name"
+                      />
+                
+                      <input
+                        type="tel"
+                        value={customer.phone}
+                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                        className="approval-input"
+                        placeholder="Phone Number"
+                      />
+
+                      <input
+                        type="email"
+                        value={customer.email}
+                        onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                        className="approval-input"
+                        placeholder="Email Address"
+                      />
+                    </div>
+
                 </div>
                 
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Phone:</span>
-                  <input
-                    type="tel"
-                    value={customer.phone}
-                    onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                    className="approval-input"
-                    placeholder="(111) 222-3333"
-                  />
-                </div>
-                
-                <div className="approval-detail-item">
-                  <span className="approval-detail-label">Email:</span>
-                  <input
-                    type="email"
-                    value={customer.email}
-                    onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-                    className="approval-input"
-                    placeholder="customer@email.com"
-                  />
-                </div>
-                
+
+              
+
+
                 <div className="approval-detail-item">
                   <span className="approval-detail-label">Address:</span>
                   <input
@@ -376,6 +460,9 @@ const ApprovalProofView = () => {
                     placeholder="Zip"
                   />
                 </div>
+
+             
+
               </div>
             </div>
           </div>

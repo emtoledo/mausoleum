@@ -20,8 +20,13 @@ const AllProjectsView = () => {
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - Project clicked:', project);
-    // Navigate directly to edit mode since each project has only one template
-    navigate(`/projects/${project.id}/edit`);
+    // If project is approved, navigate to approved view instead of edit mode
+    if (project.status === 'approved') {
+      navigate(`/projects/${project.id}/approved`);
+    } else {
+      // Navigate directly to edit mode since each project has only one template
+      navigate(`/projects/${project.id}/edit`);
+    }
   };
 
   const handleCreateNewProject = () => {
@@ -66,6 +71,10 @@ const AllProjectsView = () => {
     });
   };
 
+  const isProjectApproved = (project) => {
+    return project && project.status === 'approved';
+  };
+
   const handleCloseEdit = () => {
     setEditModal({ isOpen: false, project: null });
     setEditValues({ name: '', status: '' });
@@ -80,7 +89,8 @@ const AllProjectsView = () => {
       updates.title = editValues.name.trim();
     }
     
-    if (editValues.status !== editModal.project.status) {
+    // Only allow status changes if project is not approved
+    if (!isProjectApproved(editModal.project) && editValues.status !== editModal.project.status) {
       updates.status = editValues.status;
     }
 
@@ -229,22 +239,38 @@ const AllProjectsView = () => {
                   </div>
                 </div>         
                 <div className="project-actions" onClick={(e) => e.stopPropagation()}>
-                  <Button 
-                    variant="link"
-                    size="small"
-                    onClick={(e) => handleOpenEdit(project, e)}
-                    className="edit-project-btn"
-                  >
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="danger"
-                    size="small"
-                    onClick={(e) => handleDeleteProject(project, e)}
-                    className="delete-project-btn"
-                  >
-                    Delete
-                  </Button>
+                  {isProjectApproved(project) ? (
+                    <Button 
+                      variant="link"
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/projects/${project.id}/approved`);
+                      }}
+                      className="view-approved-btn"
+                    >
+                      View Approved
+                    </Button>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="link"
+                        size="small"
+                        onClick={(e) => handleOpenEdit(project, e)}
+                        className="edit-project-btn"
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="danger"
+                        size="small"
+                        onClick={(e) => handleDeleteProject(project, e)}
+                        className="delete-project-btn"
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  )}
                 </div>
               </Card>
             ))
@@ -289,17 +315,26 @@ const AllProjectsView = () => {
 
             <div className="form-group">
               <label htmlFor="project-status" className="form-label">Status</label>
-              <select
-                id="project-status"
-                value={editValues.status}
-                onChange={(e) => setEditValues({ ...editValues, status: e.target.value })}
-                className={`form-select ${getStatusClass(editValues.status)}`}
-              >
-                <option value="draft">Draft</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="approved">Approved</option>
-              </select>
+              {editModal.project && isProjectApproved(editModal.project) ? (
+                <div className="form-readonly-status">
+                  <span className={`project-status ${getStatusClass(editValues.status)}`}>
+                    {getStatusDisplay(editValues.status)}
+                  </span>
+                  <p className="form-help-text">Approved projects cannot have their status changed.</p>
+                </div>
+              ) : (
+                <select
+                  id="project-status"
+                  value={editValues.status}
+                  onChange={(e) => setEditValues({ ...editValues, status: e.target.value })}
+                  className={`form-select ${getStatusClass(editValues.status)}`}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="approved">Approved</option>
+                </select>
+              )}
             </div>
           </div>
 

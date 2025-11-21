@@ -38,6 +38,12 @@ const EditModeView = ({ onHandlersReady }) => {
       if (result.success) {
         setProject(result.data);
         
+        // If project is approved, redirect to approved view (cannot edit approved projects)
+        if (result.data.status === 'approved') {
+          navigate(`/projects/${projectId}/approved`);
+          return;
+        }
+        
         // Get the single template for this project
         if (result.data.template) {
           // New format: single template object
