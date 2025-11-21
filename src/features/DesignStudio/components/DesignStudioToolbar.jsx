@@ -50,7 +50,6 @@ const DesignStudioToolbar = ({
   return (
     <div className="design-studio-toolbar">
       
-      {/* Left Group: Tools */}
       <div className="toolbar-group">
 
         <button
@@ -75,7 +74,7 @@ const DesignStudioToolbar = ({
           <span className="toolbar-label">Add Artwork</span>
         </button>
 
-
+      {/* Swap Product Button   
         <button
           className="toolbar-button"
           onClick={handleAddText}
@@ -85,7 +84,7 @@ const DesignStudioToolbar = ({
           <img src="/images/swap_icon.png" alt="Text" className="toolbar-icon-image" />
           <span className="toolbar-label">Swap Product</span>
         </button>
-
+      */}
 
       </div>
 
