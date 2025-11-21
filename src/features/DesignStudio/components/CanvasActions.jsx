@@ -9,6 +9,7 @@ import React from 'react';
 /**
  * @param {Function} onSave - Callback when Save Project is clicked
  * @param {Function} onExport - Callback when Export to DXF is clicked
+ * @param {Function} onApproval - Callback when Approval button is clicked
  * @param {boolean} isSaving - Whether save operation is in progress
  * @param {boolean} isExporting - Whether export operation is in progress
  * @param {boolean} isCanvasReady - Whether the canvas is initialized and ready
@@ -17,6 +18,7 @@ import React from 'react';
 const CanvasActions = ({
   onSave,
   onExport,
+  onApproval,
   isSaving = false,
   isExporting = false,
   isCanvasReady = false
@@ -47,9 +49,37 @@ const CanvasActions = ({
     }
   };
 
+  /**
+   * Handle Approval button click
+   */
+  const handleApproval = () => {
+    if (!isCanvasReady) {
+      console.warn('CanvasActions: Canvas not ready yet');
+      return;
+    }
+    if (onApproval) {
+      console.log('CanvasActions: Approval button clicked, calling onApproval');
+      onApproval();
+    } else {
+      console.warn('CanvasActions: onApproval handler not provided');
+    }
+  };
+
   return (
     <div className="canvas-actions">
       
+      {/* Approval Button */}
+      <button
+        className="button-secondary"
+        onClick={handleApproval}
+        disabled={!isCanvasReady}
+        title={!isCanvasReady ? 'Canvas is loading...' : 'Create Approval Proof'}
+        aria-label="Approval"
+      >
+        <span>Approval</span>
+      </button>
+
+
       {/* Export to DXF */}
       <button
         className="button-secondary"

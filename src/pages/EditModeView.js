@@ -198,6 +198,7 @@ const EditModeView = ({ onHandlersReady }) => {
       onClose={handleClose}
       onHandlersReady={setDesignStudioHandlers}
       projectTitle={project?.title}
+      projectId={projectId}
     />
   );
 };

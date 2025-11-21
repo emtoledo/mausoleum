@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FabricImage, FabricText } from 'fabric';
 import * as makerjs from 'makerjs';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
@@ -16,6 +17,7 @@ import ArtworkLibrary from './components/ArtworkLibrary';
 import OptionsPanel from './components/OptionsPanel';
 import exportToDxf from './utils/dxfExporter';
 import { importDxfToFabric } from '../../utils/dxfImporter';
+import { captureCombinedCanvas } from '../../utils/canvasCapture';
 import AlertMessage from '../../components/ui/AlertMessage';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
@@ -29,7 +31,12 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
  * @param {String} projectTitle - Title of the project to display in header
  * @returns {JSX.Element}
  */
-const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClose, onHandlersReady, projectTitle }) => {
+const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClose, onHandlersReady, projectTitle, projectId }) => {
+  const navigate = useNavigate();
+  const params = useParams();
+  
+  // Get projectId from props or params
+  const currentProjectId = projectId || params?.projectId;
   
   // Canvas refs
   const productCanvasRef = useRef(null);
@@ -1479,6 +1486,42 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   }, [fabricInstance, fabricFromHook, initialData, canvasSize, isExporting]);
 
   /**
+   * Handler: Approval - Capture canvas and navigate to approval view
+   */
+  const handleApproval = useCallback(async () => {
+    const fabric = fabricInstance || fabricFromHook;
+    
+    if (!fabric) {
+      console.warn('DesignStudio handleApproval: No fabric instance available');
+      alert('Canvas not ready. Please wait for the canvas to load.');
+      return;
+    }
+
+    if (!currentProjectId) {
+      console.warn('DesignStudio handleApproval: No project ID available');
+      alert('Project ID not found. Cannot create approval proof.');
+      return;
+    }
+
+    try {
+      // Capture combined canvas as image
+      const snapshot = await captureCombinedCanvas(
+        fabric,
+        productCanvasRef.current,
+        { format: 'image/png', quality: 0.92 }
+      );
+
+      // Navigate to approval view with snapshot in state
+      navigate(`/projects/${currentProjectId}/approval`, {
+        state: { designSnapshot: snapshot }
+      });
+    } catch (error) {
+      console.error('DesignStudio: Error capturing canvas for approval:', error);
+      alert('Failed to capture design snapshot. Please try again.');
+    }
+  }, [fabricInstance, fabricFromHook, currentProjectId, navigate]);
+
+  /**
    * Handler: Close Studio
    */
   const handleClose = useCallback(() => {
@@ -1489,13 +1532,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
   // Expose handlers to parent component (for AppHeader integration)
   // Store handlers in ref to always have latest version without causing re-renders
-  const handlersRef = useRef({ onSave: handleSave, onExport: handleExport, projectTitle });
+  const handlersRef = useRef({ onSave: handleSave, onExport: handleExport, onApproval: handleApproval, projectTitle });
   const prevStateRef = useRef({ isSaving: false, isExporting: false, canvasReady: false, initialized: false });
   
   // Update handlers ref when they change (without triggering effects)
   useEffect(() => {
-    handlersRef.current = { onSave: handleSave, onExport: handleExport, projectTitle };
-  }, [handleSave, handleExport, projectTitle]);
+    handlersRef.current = { onSave: handleSave, onExport: handleExport, onApproval: handleApproval, projectTitle };
+  }, [handleSave, handleExport, handleApproval, projectTitle]);
   
   // Only expose handlers when state changes or on initial mount
   useEffect(() => {
@@ -1552,6 +1595,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       onHandlersReady({
         onSave: handlersRef.current.onSave,
         onExport: handlersRef.current.onExport,
+        onApproval: handlersRef.current.onApproval,
         isSaving,
         isExporting,
         isCanvasReady: canvasReady,

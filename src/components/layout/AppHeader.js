@@ -12,6 +12,7 @@ const AppHeader = ({
   onSave, 
   onShare, 
   onExport,
+  onApproval,
   onMoreOptions, 
   showCanvasControls, 
   onCanvasControl, 
@@ -263,6 +264,7 @@ const AppHeader = ({
                   <CanvasActions
                     onSave={onSave || defaultSave}
                     onExport={onExport || defaultExport}
+                    onApproval={onApproval}
                     isSaving={isSaving}
                     isExporting={isExporting}
                     isCanvasReady={isCanvasReady}

@@ -59,6 +59,36 @@ CREATE TABLE IF NOT EXISTS project_details (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Customer Information table (stores customer details for projects)
+CREATE TABLE IF NOT EXISTS project_customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE UNIQUE,
+  name VARCHAR(255),
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  address_line1 VARCHAR(255),
+  address_line2 VARCHAR(255),
+  city VARCHAR(100),
+  state VARCHAR(50),
+  zip_code VARCHAR(20),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Approval Signatures table (stores digital signatures for project approvals)
+CREATE TABLE IF NOT EXISTS project_approvals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  signature_data TEXT NOT NULL, -- Base64 encoded signature image
+  signer_name VARCHAR(255) NOT NULL,
+  signed_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_project_customers_project_id ON project_customers(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_approvals_project_id ON project_approvals(project_id);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_project_details_project_id ON project_details(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_details_template_id ON project_details(template_id);
@@ -140,6 +170,95 @@ CREATE POLICY "Users can delete own project details"
     EXISTS (
       SELECT 1 FROM projects
       WHERE projects.id = project_details.project_id
+      AND projects.user_account_id = auth.uid()
+    )
+  );
+
+-- Enable RLS on project_customers
+ALTER TABLE project_customers ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own project customers" ON project_customers;
+DROP POLICY IF EXISTS "Users can create own project customers" ON project_customers;
+DROP POLICY IF EXISTS "Users can update own project customers" ON project_customers;
+DROP POLICY IF EXISTS "Users can delete own project customers" ON project_customers;
+
+-- Create RLS policies for project_customers
+CREATE POLICY "Users can view own project customers"
+  ON project_customers FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_customers.project_id
+      AND projects.user_account_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can create own project customers"
+  ON project_customers FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_customers.project_id
+      AND projects.user_account_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update own project customers"
+  ON project_customers FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_customers.project_id
+      AND projects.user_account_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete own project customers"
+  ON project_customers FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_customers.project_id
+      AND projects.user_account_id = auth.uid()
+    )
+  );
+
+-- Enable RLS on project_approvals
+ALTER TABLE project_approvals ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own project approvals" ON project_approvals;
+DROP POLICY IF EXISTS "Users can create own project approvals" ON project_approvals;
+DROP POLICY IF EXISTS "Users can delete own project approvals" ON project_approvals;
+
+-- Create RLS policies for project_approvals
+CREATE POLICY "Users can view own project approvals"
+  ON project_approvals FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_approvals.project_id
+      AND projects.user_account_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can create own project approvals"
+  ON project_approvals FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_approvals.project_id
+      AND projects.user_account_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete own project approvals"
+  ON project_approvals FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects
+      WHERE projects.id = project_approvals.project_id
       AND projects.user_account_id = auth.uid()
     )
   );

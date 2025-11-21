@@ -55,7 +55,8 @@ const BaseScreenLayout = ({ children }) => {
           projectTitle: handlers.projectTitle,
           // Update function references only if they're actually different (they usually aren't)
           onSave: handlers.onSave,
-          onExport: handlers.onExport
+          onExport: handlers.onExport,
+          onApproval: handlers.onApproval
         };
       }
       console.log('BaseScreenLayout: Setting initial handlers');
@@ -81,6 +82,7 @@ const BaseScreenLayout = ({ children }) => {
       <AppHeader
         onSave={headerHandlers?.onSave}
         onExport={headerHandlers?.onExport || undefined}
+        onApproval={headerHandlers?.onApproval}
         isSaving={headerHandlers?.isSaving || false}
         isExporting={headerHandlers?.isExporting || false}
         isCanvasReady={headerHandlers?.isCanvasReady || false}
