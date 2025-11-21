@@ -27,9 +27,10 @@ class SupabaseService {
     }
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // Use getSession instead of getUser for more reliable auth check
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (authError || !user) {
+      if (sessionError || !session || !session.user) {
         // Only log once per session to avoid spam
         if (!this._loggedAuthFallback) {
           console.log('Not authenticated with Supabase, using localStorage fallback');
@@ -37,6 +38,8 @@ class SupabaseService {
         }
         return this.getAllProjectsFromLocalStorage();
       }
+
+      const user = session.user;
 
       const { data, error } = await supabase
         .from('projects')
@@ -90,11 +93,14 @@ class SupabaseService {
     }
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // Use getSession instead of getUser for more reliable auth check
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (authError || !user) {
+      if (sessionError || !session || !session.user) {
         return dataService.getProjectById(projectId);
       }
+
+      const user = session.user;
 
       const { data, error } = await supabase
         .from('projects')
@@ -136,12 +142,15 @@ class SupabaseService {
     }
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // First try to get the session (more reliable than getUser)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (authError || !user) {
+      if (sessionError || !session || !session.user) {
         console.log('Not authenticated, using localStorage fallback');
         return dataService.saveProject(projectData);
       }
+
+      const user = session.user;
 
       // Check if user's email is confirmed
       // Supabase stores email confirmation in email_confirmed_at field
@@ -214,6 +223,12 @@ class SupabaseService {
       return await this.getProjectById(project.id);
     } catch (error) {
       console.error('Error creating project in Supabase:', error);
+      // Re-throw the error if it's an email confirmation error
+      // This ensures the error message is shown to the user
+      if (error.message && error.message.includes('confirm your email')) {
+        throw error;
+      }
+      // For other errors, fall back to localStorage
       return dataService.saveProject(projectData);
     }
   }
@@ -228,11 +243,14 @@ class SupabaseService {
     }
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // Use getSession instead of getUser for more reliable auth check
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (authError || !user) {
+      if (sessionError || !session || !session.user) {
         return dataService.updateProject(projectId, updateData);
       }
+
+      const user = session.user;
 
       // Update project
       const projectUpdates = {};
@@ -328,11 +346,14 @@ class SupabaseService {
     }
 
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // Use getSession instead of getUser for more reliable auth check
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (authError || !user) {
+      if (sessionError || !session || !session.user) {
         return dataService.deleteProject(projectId);
       }
+
+      const user = session.user;
 
       // Delete project (cascade will delete project_details)
       const { error } = await supabase

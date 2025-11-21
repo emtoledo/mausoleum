@@ -88,7 +88,9 @@ const ProjectCreationWizard = () => {
         navigate(`/projects/${result.data.id}/edit`);
       } else {
         console.error('Failed to create project:', result.error);
-        alert('Failed to create project. Please try again.');
+        // Show the actual error message from the service
+        const errorMessage = result.error || 'Failed to create project. Please try again.';
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Error creating project:', error);
