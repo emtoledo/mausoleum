@@ -497,29 +497,71 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const handleFlipHorizontal = useCallback(() => {
     if (!fabricInstance || !selectedElement) return;
 
-    // Get current scaleX before flipping
-    const currentScaleX = selectedElement.scaleX;
-    const newScaleX = -currentScaleX;
+    // Get current scaleX before flipping - use get() to ensure we get the actual value
+    const currentScaleX = selectedElement.get ? selectedElement.get('scaleX') : (selectedElement.scaleX || 1);
+    const currentFlipX = selectedElement.get ? selectedElement.get('flipX') : (selectedElement.flipX || false);
+    
+    // Determine if currently flipped (check both scaleX sign and flipX property)
+    const isCurrentlyFlipped = currentScaleX < 0 || currentFlipX;
+    const shouldBeFlipped = !isCurrentlyFlipped;
+    const absScaleX = Math.abs(currentScaleX);
     
     console.log('=== FLIP HORIZONTAL ===', {
       type: selectedElement.type,
       elementId: selectedElement.elementId,
       currentScaleX: currentScaleX,
-      newScaleX: newScaleX,
-      willBeFlipped: newScaleX < 0
+      currentFlipX: currentFlipX,
+      isCurrentlyFlipped: isCurrentlyFlipped,
+      shouldBeFlipped: shouldBeFlipped,
+      absScaleX: absScaleX
     });
 
-    // Use Fabric.js flipX property for proper flip handling
-    // This works for both regular objects and groups
-    const currentFlipX = selectedElement.flipX || false;
-    selectedElement.set({
-      flipX: !currentFlipX
-    });
-    
-    // For non-group objects, also set scaleX (for backward compatibility)
-    if (selectedElement.type !== 'group') {
+    if (selectedElement.type === 'group') {
+      // Groups: Use flipX property (Fabric.js handles this correctly)
+      selectedElement.set({
+        flipX: shouldBeFlipped
+      });
+    } else if (selectedElement.type === 'image') {
+      // Images: Use negative scaleX for flipping
+      // Set negative scaleX directly - Fabric.js should preserve it for images
+      const newScaleX = shouldBeFlipped ? -absScaleX : absScaleX;
+      
+      console.log('Setting image scaleX:', {
+        shouldBeFlipped: shouldBeFlipped,
+        newScaleX: newScaleX,
+        absScaleX: absScaleX
+      });
+      
+      // Set scaleX with negative value for flip
       selectedElement.set({
         scaleX: newScaleX
+      });
+      
+      // Force coordinate recalculation
+      selectedElement.setCoords();
+      
+      // Verify immediately after setting
+      const immediateScaleX = selectedElement.get ? selectedElement.get('scaleX') : selectedElement.scaleX;
+      console.log('Immediate scaleX after set:', immediateScaleX);
+      
+      // If Fabric.js normalized it, we need to use a different approach
+      // Try setting it again with a small delay or use CSS transform
+      if (immediateScaleX > 0 && shouldBeFlipped) {
+        console.warn('Fabric.js normalized negative scaleX, applying CSS transform');
+        // Apply CSS transform as fallback
+        const element = selectedElement._element || selectedElement.getElement();
+        if (element) {
+          element.style.transform = `scaleX(${shouldBeFlipped ? -1 : 1})`;
+        }
+        // Also try setting flipX property
+        selectedElement.set({
+          flipX: shouldBeFlipped
+        });
+      }
+    } else {
+      // Other objects: Use flipX property
+      selectedElement.set({
+        flipX: shouldBeFlipped
       });
     }
     
@@ -527,12 +569,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     fabricInstance.renderAll();
     
     // Verify the flip was applied
-    const verifyFlipX = selectedElement.flipX;
-    const verifyScaleX = selectedElement.scaleX;
+    const verifyFlipX = selectedElement.get ? selectedElement.get('flipX') : selectedElement.flipX;
+    const verifyScaleX = selectedElement.get ? selectedElement.get('scaleX') : selectedElement.scaleX;
     console.log('=== AFTER FLIP HORIZONTAL ===', {
       flipX: verifyFlipX,
       scaleX: verifyScaleX,
-      isFlipped: verifyFlipX === true
+      isFlipped: verifyFlipX === true || verifyScaleX < 0
     });
   }, [fabricInstance, selectedElement]);
 
@@ -543,28 +585,66 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     if (!fabricInstance || !selectedElement) return;
 
     // Get current scaleY before flipping
-    const currentScaleY = selectedElement.scaleY;
-    const newScaleY = -currentScaleY;
+    const currentScaleY = selectedElement.scaleY || selectedElement.get('scaleY') || 1;
+    const currentFlipY = selectedElement.flipY || selectedElement.get('flipY') || false;
+    
+    // Determine if currently flipped (check both scaleY sign and flipY property)
+    const isCurrentlyFlipped = currentScaleY < 0 || currentFlipY;
+    const shouldBeFlipped = !isCurrentlyFlipped;
     
     console.log('=== FLIP VERTICAL ===', {
       type: selectedElement.type,
       elementId: selectedElement.elementId,
       currentScaleY: currentScaleY,
-      newScaleY: newScaleY,
-      willBeFlipped: newScaleY < 0
+      currentFlipY: currentFlipY,
+      isCurrentlyFlipped: isCurrentlyFlipped,
+      shouldBeFlipped: shouldBeFlipped
     });
 
-    // Use Fabric.js flipY property for proper flip handling
-    // This works for both regular objects and groups
-    const currentFlipY = selectedElement.flipY || false;
-    selectedElement.set({
-      flipY: !currentFlipY
-    });
-    
-    // For non-group objects, also set scaleY (for backward compatibility)
-    if (selectedElement.type !== 'group') {
+    if (selectedElement.type === 'group') {
+      // Groups: Use flipY property (Fabric.js handles this correctly)
       selectedElement.set({
-        scaleY: newScaleY
+        flipY: shouldBeFlipped
+      });
+    } else if (selectedElement.type === 'image') {
+      // Images: Use negative scaleY for flipping
+      // Fabric.js may normalize negative scales, so we need to ensure it's set correctly
+      const absScaleY = Math.abs(currentScaleY);
+      const newScaleY = shouldBeFlipped ? -absScaleY : absScaleY;
+      
+      // Set both flipY and scaleY together
+      // Use setCoords() after to ensure coordinates are recalculated
+      selectedElement.set({
+        scaleY: newScaleY,
+        flipY: shouldBeFlipped
+      });
+      
+      // Force coordinate recalculation
+      selectedElement.setCoords();
+      
+      // Verify the values were set correctly
+      const verifyScaleY = selectedElement.scaleY || selectedElement.get('scaleY');
+      const verifyFlipY = selectedElement.flipY || selectedElement.get('flipY');
+      
+      // If Fabric.js normalized the scaleY, try using transform matrix
+      if (verifyScaleY > 0 && shouldBeFlipped) {
+        console.warn('Fabric.js normalized negative scaleY, using transform matrix approach');
+        // Use transform matrix to flip
+        const matrix = selectedElement.calcTransformMatrix();
+        if (matrix) {
+          // Flip vertically by negating the y-scale component
+          matrix[3] = -matrix[3]; // Negate vertical scale
+          selectedElement.set({
+            scaleY: absScaleY,
+            flipY: true
+          });
+          selectedElement.setCoords();
+        }
+      }
+    } else {
+      // Other objects: Use flipY property
+      selectedElement.set({
+        flipY: shouldBeFlipped
       });
     }
     
@@ -572,12 +652,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     fabricInstance.renderAll();
     
     // Verify the flip was applied
-    const verifyFlipY = selectedElement.flipY;
-    const verifyScaleY = selectedElement.scaleY;
+    const verifyFlipY = selectedElement.flipY || selectedElement.get('flipY');
+    const verifyScaleY = selectedElement.scaleY || selectedElement.get('scaleY');
     console.log('=== AFTER FLIP VERTICAL ===', {
       flipY: verifyFlipY,
       scaleY: verifyScaleY,
-      isFlipped: verifyFlipY === true
+      isFlipped: verifyFlipY === true || verifyScaleY < 0
     });
   }, [fabricInstance, selectedElement]);
 
@@ -873,6 +953,46 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             angle: obj.angle,
             getAngle: obj.get ? obj.get('angle') : 'no get method'
           });
+        } else if (obj.type === 'image' || obj.type === 'imagebox') {
+          // For images, read scaleX/scaleY directly to preserve negative values (flip state)
+          // Fabric.js may normalize negative scales, so we need to check both scaleX sign and flipX/flipY
+          const directScaleX = obj.scaleX;
+          const directScaleY = obj.scaleY;
+          const getScaleX = obj.get ? obj.get('scaleX') : undefined;
+          const getScaleY = obj.get ? obj.get('scaleY') : undefined;
+          
+          // Prefer direct property access for images (more reliable for flip state)
+          actualScaleX = directScaleX !== undefined && directScaleX !== null ? directScaleX : (getScaleX !== undefined ? getScaleX : 1);
+          actualScaleY = directScaleY !== undefined && directScaleY !== null ? directScaleY : (getScaleY !== undefined ? getScaleY : (directScaleX !== undefined && directScaleX !== null ? directScaleX : 1));
+          
+          // Get flip state from Fabric.js flipX/flipY properties (if supported)
+          // Also check if scaleX/scaleY are negative (flip state)
+          const flipX = obj.flipX || (obj.get ? obj.get('flipX') : false) || false;
+          const flipY = obj.flipY || (obj.get ? obj.get('flipY') : false) || false;
+          
+          // If flip state is detected, ensure scaleX/scaleY are negative for saving
+          // This ensures we save negative values even if Fabric.js normalized them
+          if (flipX || actualScaleX < 0) {
+            actualScaleX = -Math.abs(actualScaleX);
+          }
+          if (flipY || actualScaleY < 0) {
+            actualScaleY = -Math.abs(actualScaleY);
+          }
+          
+          // Debug logging to verify we're capturing flip state for images
+          console.log(`=== SAVE Image ${index} ===`, {
+            elementId: obj.elementId || obj.id,
+            directScaleX: directScaleX,
+            directScaleY: directScaleY,
+            getScaleX: getScaleX,
+            getScaleY: getScaleY,
+            flipX: flipX,
+            flipY: flipY,
+            actualScaleX: actualScaleX,
+            actualScaleY: actualScaleY,
+            isFlippedHorizontally: flipX || actualScaleX < 0,
+            isFlippedVertically: flipY || actualScaleY < 0
+          });
         } else {
           // For other objects, use get() method which is more reliable
           actualScaleX = obj.get ? obj.get('scaleX') : (obj.scaleX ?? 1);
@@ -1004,6 +1124,22 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           // Also save inches for display
           element.width = pixelsToInches(actualWidth, scale);
           element.height = pixelsToInches(actualHeight, scale);
+          
+          // Save color modifications from customData for images (especially SVG)
+          if (imgCustomData.currentColor) {
+            element.fill = imgCustomData.currentColor;
+            element.colorId = imgCustomData.currentColorId;
+          }
+          if (imgCustomData.currentOpacity !== undefined) {
+            element.opacity = imgCustomData.currentOpacity;
+          }
+          if (imgCustomData.currentStrokeColor) {
+            element.stroke = imgCustomData.currentStrokeColor;
+          }
+          if (imgCustomData.currentStrokeWidth !== undefined) {
+            element.strokeWidthPx = imgCustomData.currentStrokeWidth;
+            element.strokeWidth = pixelsToInches(imgCustomData.currentStrokeWidth, scale);
+          }
         } else if (obj.type === 'group') {
           // Handle groups (like artwork with textures)
           // Get metadata from customData or direct properties

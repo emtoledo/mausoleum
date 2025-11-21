@@ -575,74 +575,358 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           // Create Fabric.js Image object
           const imageSrc = element.content || element.imageUrl || '';
           
-          if (imageSrc) {
-            // Load image asynchronously
-            await new Promise((resolve, reject) => {
-              fabric.Image.fromURL(imageSrc, (img) => {
-                try {
-                  // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
-                  const savedWidth = element.width || 0;
-                  const savedHeight = element.height || 0;
-                  let targetWidthPx, targetHeightPx;
+          console.log('Loading image element:', {
+            elementId: element.id,
+            elementType: element.type,
+            imageSrc: imageSrc,
+            hasImageSrc: !!imageSrc,
+            isSvg: imageSrc.toLowerCase().endsWith('.svg'),
+            elementKeys: Object.keys(element)
+          });
+          
+          if (imageSrc && imageSrc.trim()) {
+            // Load image asynchronously (supports both SVG and regular images)
+            try {
+              // Try Promise-based API first (Fabric.js v6), then fallback to callback
+              let img;
+              const imgResult = fabric.Image.fromURL(imageSrc, { crossOrigin: 'anonymous' });
+              
+              if (imgResult && typeof imgResult.then === 'function') {
+                // Promise-based API
+                console.log('Using Promise-based API for image loading');
+                img = await imgResult;
+              } else {
+                // Callback-based API
+                console.log('Using callback-based API for image loading');
+                img = await new Promise((resolve, reject) => {
+                  const timeout = setTimeout(() => {
+                    reject(new Error('Image loading timeout'));
+                  }, 30000); // 30 second timeout
                   
-                  if (element.widthPx !== undefined && element.heightPx !== undefined) {
-                    // New format: Use pixel values directly
-                    targetWidthPx = element.widthPx;
-                    targetHeightPx = element.heightPx;
-                  } else if (savedWidth > 0 && savedHeight > 0) {
-                    // Backward compatibility: Convert from inches
-                    targetWidthPx = inchesToPixels(savedWidth, scale.current);
-                    targetHeightPx = inchesToPixels(savedHeight, scale.current);
-                  }
-                  
-                  if (targetWidthPx > 0 && targetHeightPx > 0 && img.width > 0 && img.height > 0) {
-                    // Calculate scale magnitude based on dimensions
-                    const scaleMagnitudeX = targetWidthPx / img.width;
-                    const scaleMagnitudeY = targetHeightPx / img.height;
-                    
-                    // IMPORTANT: Preserve flip state (sign) from saved scaleX/scaleY
-                    // Use !== undefined to allow negative values (flip state)
-                    const savedScaleX = element.scaleX !== undefined ? element.scaleX : 1;
-                    const savedScaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
-                    
-                    // Apply the sign (positive or negative) from saved scale to the calculated magnitude
-                    baseProps.scaleX = Math.sign(savedScaleX) * Math.abs(scaleMagnitudeX);
-                    baseProps.scaleY = Math.sign(savedScaleY) * Math.abs(scaleMagnitudeY);
-                    
-                    console.log('Calculated image scale (preserving flip state):', { 
-                      scaleX: baseProps.scaleX, 
-                      scaleY: baseProps.scaleY,
-                      savedScaleX,
-                      savedScaleY
-                    });
-                  } else {
-                    // Fall back to saved scaleX/scaleY (preserves flip state - use !== undefined to allow negative values)
-                    baseProps.scaleX = element.scaleX !== undefined ? element.scaleX : 1;
-                    baseProps.scaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
-                  }
-                  
-                  // Ensure rotation is applied (Fabric.js uses 'angle' property)
-                  baseProps.angle = element.rotation !== undefined ? element.rotation : (baseProps.angle || 0);
+                  fabric.Image.fromURL(imageSrc, (loadedImg) => {
+                    clearTimeout(timeout);
+                    if (loadedImg) {
+                      resolve(loadedImg);
+                    } else {
+                      reject(new Error('fabric.Image.fromURL returned null'));
+                    }
+                  }, { crossOrigin: 'anonymous' });
+                });
+              }
+              
+              if (!img) {
+                throw new Error('Failed to load image - img is null or undefined');
+              }
+              
+              console.log('Image loaded successfully:', {
+                type: img.type,
+                width: img.width,
+                height: img.height,
+                imageSrc: imageSrc
+              });
+              
+              // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
+              const savedWidth = element.width || 0;
+              const savedHeight = element.height || 0;
+              let targetWidthPx, targetHeightPx;
+              
+              if (element.widthPx !== undefined && element.heightPx !== undefined) {
+                // New format: Use pixel values directly
+                targetWidthPx = element.widthPx;
+                targetHeightPx = element.heightPx;
+              } else if (savedWidth > 0 && savedHeight > 0) {
+                // Backward compatibility: Convert from inches
+                targetWidthPx = inchesToPixels(savedWidth, scale.current);
+                targetHeightPx = inchesToPixels(savedHeight, scale.current);
+              }
+              
+              if (targetWidthPx > 0 && targetHeightPx > 0 && img.width > 0 && img.height > 0) {
+                // Calculate scale magnitude based on dimensions
+                const scaleMagnitudeX = targetWidthPx / img.width;
+                const scaleMagnitudeY = targetHeightPx / img.height;
+                
+                // IMPORTANT: Preserve flip state (sign) from saved scaleX/scaleY
+                // Use !== undefined to allow negative values (flip state)
+                const savedScaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                const savedScaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
+                
+                // Apply the sign (positive or negative) from saved scale to the calculated magnitude
+                baseProps.scaleX = Math.sign(savedScaleX) * Math.abs(scaleMagnitudeX);
+                baseProps.scaleY = Math.sign(savedScaleY) * Math.abs(scaleMagnitudeY);
+                
+                console.log('Calculated image scale (preserving flip state):', { 
+                  scaleX: baseProps.scaleX, 
+                  scaleY: baseProps.scaleY,
+                  savedScaleX,
+                  savedScaleY,
+                  targetWidthPx,
+                  targetHeightPx,
+                  imgWidth: img.width,
+                  imgHeight: img.height
+                });
+              } else {
+                // Fall back to saved scaleX/scaleY (preserves flip state - use !== undefined to allow negative values)
+                baseProps.scaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                baseProps.scaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
+                console.log('Using saved scaleX/scaleY (dimensions not available):', {
+                  scaleX: baseProps.scaleX,
+                  scaleY: baseProps.scaleY,
+                  targetWidthPx,
+                  targetHeightPx,
+                  imgWidth: img.width,
+                  imgHeight: img.height
+                });
+              }
+              
+              // Ensure rotation is applied (Fabric.js uses 'angle' property)
+              baseProps.angle = element.rotation !== undefined ? element.rotation : (baseProps.angle || 0);
 
-                  img.set({
-                    ...baseProps,
-                    angle: baseProps.angle,
-                    scaleX: baseProps.scaleX,
-                    scaleY: baseProps.scaleY
-                  });
-                  img.setCoords(); // Force recalculation of coordinates
-                  img.elementId = element.id;
-                  canvas.add(img);
-                  canvas.renderAll();
-                  resolve();
-                } catch (err) {
-                  console.error('Error setting image properties:', err);
-                  reject(err);
+              // Check if image should be flipped (negative scaleX/scaleY)
+              const shouldFlipX = baseProps.scaleX < 0;
+              const shouldFlipY = baseProps.scaleY < 0;
+              const absScaleX = Math.abs(baseProps.scaleX);
+              const absScaleY = Math.abs(baseProps.scaleY);
+              
+              console.log('Loading image with flip state:', {
+                elementId: element.id,
+                savedScaleX: baseProps.scaleX,
+                savedScaleY: baseProps.scaleY,
+                shouldFlipX: shouldFlipX,
+                shouldFlipY: shouldFlipY,
+                absScaleX: absScaleX,
+                absScaleY: absScaleY
+              });
+              
+              // Set properties - use negative scaleX/scaleY for flip
+              // Fabric.js may normalize these, so we'll verify and apply fallback if needed
+              img.set({
+                ...baseProps,
+                left: baseProps.left,
+                top: baseProps.top,
+                angle: baseProps.angle,
+                scaleX: shouldFlipX ? -absScaleX : absScaleX,
+                scaleY: shouldFlipY ? -absScaleY : absScaleY,
+                opacity: baseProps.opacity,
+                originX: baseProps.originX || 'center',
+                originY: baseProps.originY || 'center',
+                flipX: shouldFlipX, // Try setting flipX/flipY too
+                flipY: shouldFlipY
+              });
+              img.setCoords(); // Force recalculation of coordinates
+              
+              // Verify flip state was applied correctly
+              const verifyScaleX = img.scaleX || img.get('scaleX');
+              const verifyScaleY = img.scaleY || img.get('scaleY');
+              const verifyFlipX = img.flipX || img.get('flipX');
+              const verifyFlipY = img.flipY || img.get('flipY');
+              
+              console.log('Image flip state after set:', {
+                elementId: element.id,
+                scaleX: verifyScaleX,
+                scaleY: verifyScaleY,
+                flipX: verifyFlipX,
+                flipY: verifyFlipY,
+                isFlippedX: verifyFlipX || verifyScaleX < 0,
+                isFlippedY: verifyFlipY || verifyScaleY < 0
+              });
+              
+              // If Fabric.js normalized the negative scale, apply CSS transform as fallback
+              if (shouldFlipX && verifyScaleX > 0 && !verifyFlipX) {
+                console.warn('Fabric.js normalized negative scaleX, applying CSS transform fallback');
+                const element = img._element || img.getElement();
+                if (element) {
+                  element.style.transform = `scaleX(-1)`;
                 }
-              }, { crossOrigin: 'anonymous' });
-            });
-            continue; // Skip to next element, image was added in callback
+                // Also try setting flipX again
+                img.set({ flipX: true });
+              }
+              if (shouldFlipY && verifyScaleY > 0 && !verifyFlipY) {
+                console.warn('Fabric.js normalized negative scaleY, applying CSS transform fallback');
+                const element = img._element || img.getElement();
+                if (element) {
+                  const currentTransform = element.style.transform || '';
+                  element.style.transform = currentTransform ? `${currentTransform} scaleY(-1)` : `scaleY(-1)`;
+                }
+                // Also try setting flipY again
+                img.set({ flipY: true });
+              }
+              
+              img.elementId = element.id;
+              
+              // Store artwork metadata if available
+              if (element.artworkId) {
+                img.artworkId = element.artworkId;
+              }
+              if (element.category) {
+                img.category = element.category;
+              }
+              
+              // Apply color modifications if saved (for SVG images)
+              if (element.fill && imageSrc.toLowerCase().endsWith('.svg')) {
+                console.log('Applying saved color to SVG image:', {
+                  elementId: element.id,
+                  savedColor: element.fill,
+                  imageSrc: imageSrc
+                });
+                
+                // Use the same color change logic as OptionsPanel
+                try {
+                  // Fetch the SVG content
+                  const response = await fetch(imageSrc);
+                  if (response.ok) {
+                    const svgText = await response.text();
+                    
+                    // Parse SVG and modify fill attributes
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                    const svgElement = svgDoc.documentElement;
+                    
+                    // Function to recursively set fill on all elements
+                    const setFillRecursive = (el, color) => {
+                      const tagName = el.tagName?.toLowerCase();
+                      if (tagName === 'style' || tagName === 'script' || tagName === 'defs') {
+                        return;
+                      }
+                      
+                      const currentFill = el.getAttribute('fill');
+                      if (currentFill !== null) {
+                        if (!currentFill.startsWith('url(') && currentFill !== 'none') {
+                          el.setAttribute('fill', color);
+                        }
+                      } else {
+                        const shapeElements = ['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line'];
+                        if (shapeElements.includes(tagName)) {
+                          const hasStroke = el.hasAttribute('stroke') && el.getAttribute('stroke') !== 'none';
+                          if (!hasStroke || tagName === 'path' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'rect' || tagName === 'polygon') {
+                            el.setAttribute('fill', color);
+                          }
+                        }
+                      }
+                      
+                      Array.from(el.children).forEach(child => {
+                        setFillRecursive(child, color);
+                      });
+                    };
+                    
+                    // Set fill color on all elements
+                    setFillRecursive(svgElement, element.fill);
+                    
+                    // Serialize back to string
+                    const serializer = new XMLSerializer();
+                    const modifiedSvg = serializer.serializeToString(svgElement);
+                    
+                    // Convert SVG to data URL
+                    const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modifiedSvg);
+                    
+                    // Reload the image with the modified SVG
+                    const coloredImgResult = fabric.Image.fromURL(svgDataUrl, { crossOrigin: 'anonymous' });
+                    let coloredImg;
+                    
+                    if (coloredImgResult && typeof coloredImgResult.then === 'function') {
+                      coloredImg = await coloredImgResult;
+                    } else {
+                      coloredImg = await new Promise((resolve, reject) => {
+                        fabric.Image.fromURL(svgDataUrl, (loadedImg) => {
+                          if (loadedImg) {
+                            resolve(loadedImg);
+                          } else {
+                            reject(new Error('Failed to load colored SVG'));
+                          }
+                        }, { crossOrigin: 'anonymous' });
+                      });
+                    }
+                    
+                    if (coloredImg) {
+                      // Remove old image and add colored version
+                      canvas.remove(img);
+                      
+                      // Apply all properties to the colored image
+                      coloredImg.set({
+                        left: baseProps.left,
+                        top: baseProps.top,
+                        angle: baseProps.angle,
+                        scaleX: baseProps.scaleX,
+                        scaleY: baseProps.scaleY,
+                        opacity: baseProps.opacity,
+                        originX: baseProps.originX || 'center',
+                        originY: baseProps.originY || 'center'
+                      });
+                      coloredImg.setCoords();
+                      coloredImg.elementId = element.id;
+                      
+                      // Store metadata
+                      if (element.artworkId) {
+                        coloredImg.artworkId = element.artworkId;
+                      }
+                      if (element.category) {
+                        coloredImg.category = element.category;
+                      }
+                      
+                      // Store color in customData
+                      coloredImg.set('customData', {
+                        originalSource: imageSrc,
+                        currentColor: element.fill,
+                        currentColorId: element.colorId,
+                        currentOpacity: element.opacity
+                      });
+                      
+                      canvas.add(coloredImg);
+                      canvas.renderAll();
+                      
+                      console.log('Colored SVG image successfully added to canvas:', {
+                        elementId: element.id,
+                        color: element.fill,
+                        left: coloredImg.left,
+                        top: coloredImg.top
+                      });
+                      continue; // Skip to next element
+                    }
+                  }
+                } catch (colorErr) {
+                  console.error('Error applying color to SVG:', colorErr);
+                  // Continue with original image if color application fails
+                }
+              }
+              
+              // Store color in customData if available (even if not SVG)
+              if (element.fill) {
+                img.set('customData', {
+                  originalSource: imageSrc,
+                  currentColor: element.fill,
+                  currentColorId: element.colorId,
+                  currentOpacity: element.opacity
+                });
+              }
+              
+              canvas.add(img);
+              canvas.renderAll();
+              console.log('Image successfully added to canvas:', {
+                elementId: element.id,
+                type: img.type,
+                left: img.left,
+                top: img.top,
+                scaleX: img.scaleX,
+                scaleY: img.scaleY,
+                hasColorModification: !!element.fill
+              });
+            } catch (err) {
+              console.error('Error loading image:', err);
+              console.error('Error details:', {
+                message: err.message,
+                stack: err.stack,
+                imageSrc: imageSrc,
+                elementId: element.id,
+                elementType: element.type
+              });
+            }
+            continue; // Skip to next element, image was added
           } else {
+            console.warn('No image source found for image element:', {
+              elementId: element.id,
+              elementType: element.type,
+              content: element.content,
+              imageUrl: element.imageUrl
+            });
             // No image source, create placeholder
             fabricObject = new fabric.Image('', baseProps);
           }
@@ -1048,11 +1332,47 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               });
             }
             continue;
-          } else if (imageUrl) {
-            // Try loading as regular image
-            await new Promise((resolve, reject) => {
-              fabric.Image.fromURL(imageUrl, (img) => {
-                try {
+          } else if (imageUrl && imageUrl.trim()) {
+            // Try loading as regular image (including SVG files)
+            console.log('Loading artwork image (SVG or regular image):', {
+              imageUrl: imageUrl,
+              isSvg: imageUrl.toLowerCase().endsWith('.svg'),
+              elementId: element.id
+            });
+            
+            try {
+              // Try Promise-based API first (Fabric.js v6), then fallback to callback
+              let img;
+              const imgResult = fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' });
+              
+              if (imgResult && typeof imgResult.then === 'function') {
+                // Promise-based API
+                img = await imgResult;
+              } else {
+                // Callback-based API
+                img = await new Promise((resolve, reject) => {
+                  fabric.Image.fromURL(imageUrl, (loadedImg) => {
+                    if (loadedImg) {
+                      resolve(loadedImg);
+                    } else {
+                      reject(new Error('fabric.Image.fromURL returned null'));
+                    }
+                  }, { crossOrigin: 'anonymous' });
+                });
+              }
+              
+              if (!img) {
+                throw new Error('Failed to load image - img is null or undefined');
+              }
+              
+              console.log('Image loaded successfully:', {
+                type: img.type,
+                width: img.width,
+                height: img.height,
+                imageUrl: imageUrl
+              });
+              
+              try {
                   // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
                   const savedWidth = element.width || 0;
                   const savedHeight = element.height || 0;
@@ -1097,24 +1417,248 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   // Ensure rotation is applied (Fabric.js uses 'angle' property)
                   baseProps.angle = element.rotation !== undefined ? element.rotation : (baseProps.angle || 0);
 
+                  // Check if image should be flipped (negative scaleX/scaleY)
+                  const shouldFlipX = baseProps.scaleX < 0;
+                  const shouldFlipY = baseProps.scaleY < 0;
+                  const absScaleX = Math.abs(baseProps.scaleX);
+                  const absScaleY = Math.abs(baseProps.scaleY);
+                  
+                  console.log('Loading artwork image with flip state:', {
+                    elementId: element.id,
+                    savedScaleX: baseProps.scaleX,
+                    savedScaleY: baseProps.scaleY,
+                    shouldFlipX: shouldFlipX,
+                    shouldFlipY: shouldFlipY,
+                    absScaleX: absScaleX,
+                    absScaleY: absScaleY
+                  });
+                  
+                  // Set properties - use negative scaleX/scaleY for flip
                   img.set({
                     ...baseProps,
+                    left: baseProps.left,
+                    top: baseProps.top,
                     angle: baseProps.angle,
-                    scaleX: baseProps.scaleX,
-                    scaleY: baseProps.scaleY
+                    scaleX: shouldFlipX ? -absScaleX : absScaleX,
+                    scaleY: shouldFlipY ? -absScaleY : absScaleY,
+                    opacity: baseProps.opacity,
+                    originX: baseProps.originX || 'center',
+                    originY: baseProps.originY || 'center',
+                    flipX: shouldFlipX, // Try setting flipX/flipY too
+                    flipY: shouldFlipY
                   });
                   img.setCoords(); // Force recalculation of coordinates
+                  
+                  // Verify flip state was applied correctly
+                  const verifyScaleX = img.scaleX || img.get('scaleX');
+                  const verifyScaleY = img.scaleY || img.get('scaleY');
+                  const verifyFlipX = img.flipX || img.get('flipX');
+                  const verifyFlipY = img.flipY || img.get('flipY');
+                  
+                  console.log('Artwork image flip state after set:', {
+                    elementId: element.id,
+                    scaleX: verifyScaleX,
+                    scaleY: verifyScaleY,
+                    flipX: verifyFlipX,
+                    flipY: verifyFlipY,
+                    isFlippedX: verifyFlipX || verifyScaleX < 0,
+                    isFlippedY: verifyFlipY || verifyScaleY < 0
+                  });
+                  
+                  // If Fabric.js normalized the negative scale, apply CSS transform as fallback
+                  if (shouldFlipX && verifyScaleX > 0 && !verifyFlipX) {
+                    console.warn('Fabric.js normalized negative scaleX, applying CSS transform fallback');
+                    const element = img._element || img.getElement();
+                    if (element) {
+                      element.style.transform = `scaleX(-1)`;
+                    }
+                    // Also try setting flipX again
+                    img.set({ flipX: true });
+                  }
+                  if (shouldFlipY && verifyScaleY > 0 && !verifyFlipY) {
+                    console.warn('Fabric.js normalized negative scaleY, applying CSS transform fallback');
+                    const element = img._element || img.getElement();
+                    if (element) {
+                      const currentTransform = element.style.transform || '';
+                      element.style.transform = currentTransform ? `${currentTransform} scaleY(-1)` : `scaleY(-1)`;
+                    }
+                    // Also try setting flipY again
+                    img.set({ flipY: true });
+                  }
+                  
                   img.elementId = element.id;
+                
+                // Store artwork metadata
+                if (element.artworkId) {
+                  img.artworkId = element.artworkId;
+                }
+                if (element.category) {
+                  img.category = element.category;
+                }
+                
+                // Apply color modifications if saved (for SVG images)
+                if (element.fill && imageSrc.toLowerCase().endsWith('.svg')) {
+                  console.log('Applying saved color to SVG image:', {
+                    elementId: element.id,
+                    savedColor: element.fill,
+                    imageSrc: imageSrc
+                  });
+                  
+                  // Use the same color change logic as OptionsPanel
+                  try {
+                    // Fetch the SVG content
+                    const response = await fetch(imageSrc);
+                    if (response.ok) {
+                      const svgText = await response.text();
+                      
+                      // Parse SVG and modify fill attributes
+                      const parser = new DOMParser();
+                      const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                      const svgElement = svgDoc.documentElement;
+                      
+                      // Function to recursively set fill on all elements
+                      const setFillRecursive = (el, color) => {
+                        const tagName = el.tagName?.toLowerCase();
+                        if (tagName === 'style' || tagName === 'script' || tagName === 'defs') {
+                          return;
+                        }
+                        
+                        const currentFill = el.getAttribute('fill');
+                        if (currentFill !== null) {
+                          if (!currentFill.startsWith('url(') && currentFill !== 'none') {
+                            el.setAttribute('fill', color);
+                          }
+                        } else {
+                          const shapeElements = ['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line'];
+                          if (shapeElements.includes(tagName)) {
+                            const hasStroke = el.hasAttribute('stroke') && el.getAttribute('stroke') !== 'none';
+                            if (!hasStroke || tagName === 'path' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'rect' || tagName === 'polygon') {
+                              el.setAttribute('fill', color);
+                            }
+                          }
+                        }
+                        
+                        Array.from(el.children).forEach(child => {
+                          setFillRecursive(child, color);
+                        });
+                      };
+                      
+                      // Set fill color on all elements
+                      setFillRecursive(svgElement, element.fill);
+                      
+                      // Serialize back to string
+                      const serializer = new XMLSerializer();
+                      const modifiedSvg = serializer.serializeToString(svgElement);
+                      
+                      // Convert SVG to data URL
+                      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modifiedSvg);
+                      
+                      // Reload the image with the modified SVG
+                      const coloredImgResult = fabric.Image.fromURL(svgDataUrl, { crossOrigin: 'anonymous' });
+                      let coloredImg;
+                      
+                      if (coloredImgResult && typeof coloredImgResult.then === 'function') {
+                        coloredImg = await coloredImgResult;
+                      } else {
+                        coloredImg = await new Promise((resolve, reject) => {
+                          fabric.Image.fromURL(svgDataUrl, (loadedImg) => {
+                            if (loadedImg) {
+                              resolve(loadedImg);
+                            } else {
+                              reject(new Error('Failed to load colored SVG'));
+                            }
+                          }, { crossOrigin: 'anonymous' });
+                        });
+                      }
+                      
+                      if (coloredImg) {
+                        // Remove old image and add colored version
+                        canvas.remove(img);
+                        
+                        // Apply all properties to the colored image
+                        coloredImg.set({
+                          left: baseProps.left,
+                          top: baseProps.top,
+                          angle: baseProps.angle,
+                          scaleX: baseProps.scaleX,
+                          scaleY: baseProps.scaleY,
+                          opacity: baseProps.opacity,
+                          originX: baseProps.originX || 'center',
+                          originY: baseProps.originY || 'center'
+                        });
+                        coloredImg.setCoords();
+                        coloredImg.elementId = element.id;
+                        
+                        // Store metadata
+                        if (element.artworkId) {
+                          coloredImg.artworkId = element.artworkId;
+                        }
+                        if (element.category) {
+                          coloredImg.category = element.category;
+                        }
+                        
+                        // Store color in customData
+                        coloredImg.set('customData', {
+                          originalSource: imageSrc,
+                          currentColor: element.fill,
+                          currentColorId: element.colorId,
+                          currentOpacity: element.opacity
+                        });
+                        
+                        canvas.add(coloredImg);
+                        canvas.renderAll();
+                        
+                        console.log('Colored SVG image successfully added to canvas:', {
+                          elementId: element.id,
+                          color: element.fill,
+                          left: coloredImg.left,
+                          top: coloredImg.top
+                        });
+                      }
+                    }
+                  } catch (colorErr) {
+                    console.error('Error applying color to SVG:', colorErr);
+                    // Continue with original image if color application fails
+                    canvas.add(img);
+                    canvas.renderAll();
+                  }
+                } else {
+                  // No color modification or not SVG, just add the image
                   canvas.add(img);
                   canvas.renderAll();
-                  resolve();
-                } catch (err) {
-                  console.error('Error loading artwork image:', err);
-                  reject(err);
                 }
-              }, { crossOrigin: 'anonymous' });
-            });
+                
+                console.log('Image successfully added to canvas:', {
+                  elementId: element.id,
+                  type: img.type,
+                  left: img.left || baseProps.left,
+                  top: img.top || baseProps.top,
+                  scaleX: img.scaleX || baseProps.scaleX,
+                  scaleY: img.scaleY || baseProps.scaleY,
+                  hasColorModification: !!element.fill
+                });
+              } catch (setErr) {
+                console.error('Error setting image properties:', setErr);
+                throw setErr;
+              }
+            } catch (err) {
+              console.error('Error loading artwork image:', err);
+              console.error('Error details:', {
+                message: err.message,
+                stack: err.stack,
+                imageUrl: imageUrl,
+                elementId: element.id,
+                elementType: element.type
+              });
+            }
             continue;
+          } else {
+            console.warn('No imageUrl found for artwork element:', {
+              elementId: element.id,
+              elementType: element.type,
+              hasImageUrl: !!imageUrl,
+              imageUrl: imageUrl
+            });
           }
         } else if (element.type === 'path' || element.type === 'path-group') {
           // Path objects - treat similar to groups
