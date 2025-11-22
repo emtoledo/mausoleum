@@ -255,6 +255,50 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         baseMaterialImg.src = baseMaterial.textureUrl;
       });
     };
+
+    // Helper function to draw floral images (at highest layer)
+    const drawFloral = () => {
+      if (!initialData || !initialData.floral || !Array.isArray(initialData.floral)) {
+        return;
+      }
+      
+      // Draw each floral image
+      initialData.floral.forEach((floralItem) => {
+        if (!floralItem.imageUrl || floralItem.x === undefined || floralItem.y === undefined || !floralItem.width || !floralItem.height) {
+          console.warn(`Invalid floral item data:`, floralItem);
+          return;
+        }
+        
+        // Calculate pixel positions and dimensions from inches
+        const floralX = inchesToPixels(floralItem.x, scale.current);
+        const floralY = inchesToPixels(floralItem.y, scale.current);
+        const floralWidth = inchesToPixels(floralItem.width, scale.current);
+        const floralHeight = inchesToPixels(floralItem.height, scale.current);
+        
+        // Load and draw the floral image
+        const floralImg = new Image();
+        floralImg.crossOrigin = 'anonymous';
+        
+        floralImg.onload = () => {
+          // Save context state
+          ctx.save();
+          
+          // Draw the floral image at the specified position and size
+          ctx.drawImage(floralImg, floralX, floralY, floralWidth, floralHeight);
+          
+          // Restore context state
+          ctx.restore();
+          
+          console.log(`Floral image drawn: ${floralItem.id} at (${floralX}, ${floralY}) size ${floralWidth}x${floralHeight}`);
+        };
+        
+        floralImg.onerror = () => {
+          console.warn(`Failed to load floral image: ${floralItem.imageUrl} for item ${floralItem.id}`);
+        };
+        
+        floralImg.src = floralItem.imageUrl;
+      });
+    };
     
     // Calculate template SVG dimensions using realWorldWidth and realWorldHeight
     const templateWidthInches = initialData.realWorldWidth || 24;
@@ -342,6 +386,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             
             // Draw productBase rectangles after overlay
             drawProductBases();
+            
+            // Draw floral images at highest layer (on top of everything)
+            drawFloral();
           };
           
           materialImg.onerror = () => {
@@ -352,6 +399,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             drawOverlay();
             // Draw productBase rectangles
             drawProductBases();
+            // Draw floral images at highest layer
+            drawFloral();
           };
           
           materialImg.src = activeMaterial.textureUrl;
@@ -362,6 +411,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           drawOverlay();
           // Draw productBase rectangles
           drawProductBases();
+          // Draw floral images at highest layer
+          drawFloral();
         }
     };
     

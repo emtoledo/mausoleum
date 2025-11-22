@@ -1,6 +1,11 @@
 // This is the most important file.
 // It connects your product images to their real-world data.
 
+
+// Floral Collection
+import floral1 from '../assets/images/floral/floral1.png'
+import floral2 from '../assets/images/floral/floral2.png'
+
 // Import product images (using relative paths from src/data/ to src/assets/)
 import markerImg1 from '../assets/images/templates/estate1.svg';
 import markerImg1Overlay from '../assets/images/templates/estate1_overlay.svg';
@@ -48,6 +53,18 @@ export const templates = {
         x: 10, y: 2.5, width: 40, height: 15.5
       }
     ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral1,
+        x: 0, y: 5, width: 9, height: 13
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral1,
+        x: 50.5, y: 5, width: 9, height: 13
+      }
+    ],
     productBase: [
       {
         id: 'default-base',
@@ -77,6 +94,18 @@ export const templates = {
         x: 10, y: 2.5, width: 40, height: 15.5
       }
     ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral1,
+        x: 0, y: 5, width: 9, height: 13
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral2,
+        x: 50.1, y: 5, width: 10, height: 11
+      }
+    ],
     productBase: [
       {
         id: 'default-base',
@@ -104,6 +133,18 @@ export const templates = {
       {
         id: 'main-zone',
         x: 10, y: 2.5, width: 40, height: 15.5
+      }
+    ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral2,
+        x: 0, y: 5, width: 10, height: 11
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral2,
+        x: 50.1, y: 5, width: 10, height: 11
       }
     ],
     productBase: [
