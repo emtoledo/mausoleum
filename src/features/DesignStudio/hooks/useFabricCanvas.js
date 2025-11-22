@@ -308,51 +308,59 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     
     templateImg.onload = () => {
       // Helper function to draw overlay after base template/material is drawn
+      // Returns a Promise that resolves when overlay is drawn (or immediately if no overlay)
       const drawOverlay = () => {
-        if (initialData && initialData.overlayUrl) {
-          const overlayImg = new Image();
-          overlayImg.crossOrigin = 'anonymous';
-          
-          overlayImg.onload = () => {
-            ctx.save();
-            ctx.globalAlpha = 0.5;
+        return new Promise((resolve) => {
+          if (initialData && initialData.overlayUrl) {
+            const overlayImg = new Image();
+            overlayImg.crossOrigin = 'anonymous';
             
-            // If activeMaterial has overlayFill, fill the overlay SVG with that color
-            if (activeMaterial && activeMaterial.overlayFill) {
-              // Create a temporary canvas to draw the overlay with fill color
-              const overlayCanvas = document.createElement('canvas');
-              overlayCanvas.width = templateWidth;
-              overlayCanvas.height = templateHeight;
-              const overlayCtx = overlayCanvas.getContext('2d');
+            overlayImg.onload = () => {
+              ctx.save();
+              ctx.globalAlpha = 0.5;
               
-              // Fill the temporary canvas with the overlay fill color
-              overlayCtx.fillStyle = activeMaterial.overlayFill;
-              overlayCtx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+              // If activeMaterial has overlayFill, fill the overlay SVG with that color
+              if (activeMaterial && activeMaterial.overlayFill) {
+                // Create a temporary canvas to draw the overlay with fill color
+                const overlayCanvas = document.createElement('canvas');
+                overlayCanvas.width = templateWidth;
+                overlayCanvas.height = templateHeight;
+                const overlayCtx = overlayCanvas.getContext('2d');
+                
+                // Fill the temporary canvas with the overlay fill color
+                overlayCtx.fillStyle = activeMaterial.overlayFill;
+                overlayCtx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                
+                // Apply the overlay SVG shape as a mask using composite operation
+                // This will only show the fill color where the overlay SVG has pixels
+                overlayCtx.globalCompositeOperation = 'destination-in';
+                overlayCtx.drawImage(overlayImg, 0, 0, overlayCanvas.width, overlayCanvas.height);
+                
+                // Reset composite operation
+                overlayCtx.globalCompositeOperation = 'source-over';
+                
+                // Draw the filled overlay onto the main canvas at template position
+                ctx.drawImage(overlayCanvas, 0, 0, templateWidth, templateHeight);
+              } else {
+                // No overlayFill specified, just draw the overlay as-is at template size
+                ctx.drawImage(overlayImg, 0, 0, templateWidth, templateHeight);
+              }
               
-              // Apply the overlay SVG shape as a mask using composite operation
-              // This will only show the fill color where the overlay SVG has pixels
-              overlayCtx.globalCompositeOperation = 'destination-in';
-              overlayCtx.drawImage(overlayImg, 0, 0, overlayCanvas.width, overlayCanvas.height);
-              
-              // Reset composite operation
-              overlayCtx.globalCompositeOperation = 'source-over';
-              
-              // Draw the filled overlay onto the main canvas at template position
-              ctx.drawImage(overlayCanvas, 0, 0, templateWidth, templateHeight);
-            } else {
-              // No overlayFill specified, just draw the overlay as-is at template size
-              ctx.drawImage(overlayImg, 0, 0, templateWidth, templateHeight);
-            }
+              ctx.restore();
+              resolve(); // Resolve after overlay is drawn
+            };
             
-            ctx.restore();
-          };
-          
-          overlayImg.onerror = () => {
-            console.warn('Failed to load overlay image:', initialData.overlayUrl);
-          };
-          
-          overlayImg.src = initialData.overlayUrl;
-        }
+            overlayImg.onerror = () => {
+              console.warn('Failed to load overlay image:', initialData.overlayUrl);
+              resolve(); // Resolve even on error so floral can still be drawn
+            };
+            
+            overlayImg.src = initialData.overlayUrl;
+          } else {
+            // No overlay, resolve immediately
+            resolve();
+          }
+        });
       };
 
       // If we have an active material, fill the SVG shape with the material texture
@@ -360,7 +368,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         const materialImg = new Image();
         materialImg.crossOrigin = 'anonymous';
         
-        materialImg.onload = () => {
+        materialImg.onload = async () => {
           // Create a pattern from the material texture
           const pattern = ctx.createPattern(materialImg, 'repeat');
           
@@ -381,39 +389,40 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
           }
           
-            // Draw overlay on top of material-filled template
-            drawOverlay();
-            
-            // Draw productBase rectangles after overlay
-            drawProductBases();
-            
-            // Draw floral images at highest layer (on top of everything)
-            drawFloral();
-          };
+          // Draw overlay on top of material-filled template, wait for it to complete
+          await drawOverlay();
           
-          materialImg.onerror = () => {
-            console.warn('Failed to load material texture:', activeMaterial.textureUrl);
-            // Fallback: just draw the template without material fill
-            ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
-            // Draw overlay on top
-            drawOverlay();
-            // Draw productBase rectangles
-            drawProductBases();
-            // Draw floral images at highest layer
-            drawFloral();
-          };
+          // Draw productBase rectangles after overlay
+          drawProductBases();
           
-          materialImg.src = activeMaterial.textureUrl;
-        } else {
-          // No material selected, just draw the template SVG as-is at template size
+          // Draw floral images at highest layer (on top of everything, after overlay is done)
+          drawFloral();
+        };
+        
+        materialImg.onerror = async () => {
+          console.warn('Failed to load material texture:', activeMaterial.textureUrl);
+          // Fallback: just draw the template without material fill
           ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
-          // Draw overlay on top
-          drawOverlay();
+          // Draw overlay on top, wait for it to complete
+          await drawOverlay();
           // Draw productBase rectangles
           drawProductBases();
-          // Draw floral images at highest layer
+          // Draw floral images at highest layer (after overlay is done)
           drawFloral();
-        }
+        };
+        
+        materialImg.src = activeMaterial.textureUrl;
+      } else {
+        // No material selected, just draw the template SVG as-is at template size
+        ctx.drawImage(templateImg, 0, 0, templateWidth, templateHeight);
+        // Draw overlay on top, wait for it to complete, then draw floral
+        drawOverlay().then(() => {
+          // Draw productBase rectangles
+          drawProductBases();
+          // Draw floral images at highest layer (after overlay is done)
+          drawFloral();
+        });
+      }
     };
     
     templateImg.onerror = () => {
