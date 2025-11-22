@@ -149,7 +149,7 @@ const ApprovedView = () => {
     <div className="approved-view-container">
       <div className="approved-view-content">
         <div className="approved-status-card">
-          <div className="approved-icon">✓</div>
+          
           {previewImageUrl && (
             <div className="approved-preview-image-container">
               <img 
@@ -157,8 +157,10 @@ const ApprovedView = () => {
                 alt={`${project.title} preview`}
                 className="approved-preview-image"
               />
+              <div className="approved-icon">✓</div>
             </div>
           )}
+          
           <h1 className="approved-title">This project has been approved</h1>
           <p className="approved-subtitle">Project: {project.title}</p>
           

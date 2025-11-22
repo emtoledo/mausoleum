@@ -7,7 +7,8 @@ const BaseScreenLayout = ({ children }) => {
   const location = useLocation();
   const isAccountSettings = location.pathname === '/account-settings';
   const isAllProjects = location.pathname === '/projects';
-  const shouldHideFooter = isAccountSettings || isAllProjects;
+  const isApprovedView = location.pathname.includes('/approved');
+  const shouldHideFooter = isAccountSettings || isAllProjects || isApprovedView;
   const [headerHandlers, setHeaderHandlers] = useState(null);
 
   // Stabilize the callback to prevent infinite loops
