@@ -129,6 +129,7 @@ const EditModeView = ({ onHandlersReady }) => {
       const result = await updateProject(projectId, {
         template: updatedTemplate,
         material: updatedProjectData.material, // Include selected material
+        previewImageUrl: updatedProjectData.previewImageUrl, // Include preview image URL if captured
         lastEdited: new Date().toISOString()
       });
 

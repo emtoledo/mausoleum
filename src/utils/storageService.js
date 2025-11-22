@@ -56,6 +56,60 @@ export async function uploadApprovalPDF(pdfBlob, projectId, filename = 'approval
 }
 
 /**
+ * Upload preview image to Supabase Storage
+ * @param {Blob|File} imageBlob - Image file as blob
+ * @param {string} projectId - Project ID
+ * @param {string} filename - Filename for the image (default: 'preview.png')
+ * @returns {Promise<string>} Public URL of the uploaded image
+ */
+export async function uploadPreviewImage(imageBlob, projectId, filename = 'preview.png') {
+  try {
+    // Check if Supabase is configured
+    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+    if (!supabaseUrl) {
+      throw new Error('Supabase is not configured');
+    }
+
+    // Get current user
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      throw new Error('Not authenticated');
+    }
+
+    // Create file path: previews/{projectId}/{filename}
+    const filePath = `previews/${projectId}/${filename}`;
+
+    // Determine content type based on filename extension
+    const contentType = filename.endsWith('.png') ? 'image/png' : 
+                       filename.endsWith('.jpg') || filename.endsWith('.jpeg') ? 'image/jpeg' :
+                       'image/png';
+
+    // Upload file to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('project-files') // Use the same bucket as PDFs
+      .upload(filePath, imageBlob, {
+        contentType: contentType,
+        upsert: true // Overwrite if exists
+      });
+
+    if (error) {
+      console.error('Error uploading preview image:', error);
+      throw error;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('project-files')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error('Error in uploadPreviewImage:', error);
+    throw error;
+  }
+}
+
+/**
  * Fallback: Convert PDF blob to base64 and store in database
  * Use this if Supabase Storage is not set up
  * @param {Blob} pdfBlob - PDF file as blob

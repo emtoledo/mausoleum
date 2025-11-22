@@ -147,7 +147,12 @@ const AllProjectsView = () => {
   };
 
   const getProjectThumbnail = (project) => {
-    // Check if project has single template (new format)
+    // First priority: Use saved preview image from project (latest design snapshot)
+    if (project.previewImageUrl) {
+      return project.previewImageUrl;
+    }
+    
+    // Second priority: Use template preview image
     if (project.template) {
       // Use previewImage if available, otherwise fallback to baseImage
       return project.template.previewImage || project.template.baseImage;

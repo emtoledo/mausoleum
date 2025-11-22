@@ -18,6 +18,7 @@ import OptionsPanel from './components/OptionsPanel';
 import exportToDxf from './utils/dxfExporter';
 import { importDxfToFabric } from '../../utils/dxfImporter';
 import { captureCombinedCanvas } from '../../utils/canvasCapture';
+import { uploadPreviewImage } from '../../utils/storageService';
 import AlertMessage from '../../components/ui/AlertMessage';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
@@ -1426,12 +1427,38 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       console.log('=== SAVE: Canvas Dimensions ===');
       console.log('Canvas dimensions:', canvasDimensions);
 
+      // Capture preview image before saving
+      let previewImageUrl = null;
+      if (fabricInstance && productCanvasRef.current && currentProjectId) {
+        try {
+          console.log('Capturing preview image for project:', currentProjectId);
+          // Capture combined canvas (product canvas + fabric canvas)
+          const dataURL = await captureCombinedCanvas(fabricInstance, productCanvasRef.current, {
+            format: 'image/png',
+            quality: 0.9,
+            multiplier: 1 // Use 1x for preview thumbnails (faster, smaller file)
+          });
+          
+          // Convert data URL to blob
+          const response = await fetch(dataURL);
+          const blob = await response.blob();
+          
+          // Upload to Supabase Storage
+          previewImageUrl = await uploadPreviewImage(blob, currentProjectId, 'preview.png');
+          console.log('Preview image uploaded successfully:', previewImageUrl);
+        } catch (previewError) {
+          // Don't fail the save if preview capture fails, just log it
+          console.warn('Failed to capture/upload preview image:', previewError);
+        }
+      }
+
       // Create updated project data
       const updatedProjectData = {
         ...initialData,
         designElements,
         canvasDimensions, // Save canvas dimensions for accurate reloading
-        material: currentMaterial // Use ref value to ensure we have the latest
+        material: currentMaterial, // Use ref value to ensure we have the latest
+        previewImageUrl // Include preview image URL if captured
       };
 
       // Call parent's onSave callback
@@ -1455,7 +1482,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     } finally {
       setIsSaving(false);
     }
-  }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave]);
+  }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave, currentProjectId]);
 
   /**
    * Handler: Export to DXF

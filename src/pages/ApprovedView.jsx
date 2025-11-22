@@ -9,21 +9,30 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import Button from '../components/ui/Button';
-import { useProjectFlow } from '../context/ProjectFlowContext';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const ApprovedView = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { getProject } = useProjectMutations();
-  const { openWizard } = useProjectFlow();
+  const { getProject, deleteProject } = useProjectMutations();
   
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false });
 
   useEffect(() => {
     loadProject();
+    
+    // Enable scrolling on body when on approved view page
+    document.body.style.overflow = 'auto';
+    
+    // Cleanup: restore original overflow when component unmounts
+    return () => {
+      document.body.style.overflow = 'hidden';
+    };
   }, [projectId]);
 
   const loadProject = async () => {
@@ -69,10 +78,34 @@ const ApprovedView = () => {
     navigate('/projects');
   };
 
-  const handleCreateNewProject = () => {
-    openWizard(() => {
-      navigate('/projects');
-    });
+  const handleDeleteProject = () => {
+    setDeleteConfirm({ isOpen: true });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!projectId) return;
+
+    try {
+      setDeleting(true);
+      const result = await deleteProject(projectId);
+      if (result.success) {
+        // Navigate back to projects list after successful deletion
+        navigate('/projects');
+      } else {
+        alert('Error deleting project. Please try again.');
+        setDeleteConfirm({ isOpen: false });
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      alert('Error deleting project. Please try again.');
+      setDeleteConfirm({ isOpen: false });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm({ isOpen: false });
   };
 
   if (loading) {
@@ -92,11 +125,40 @@ const ApprovedView = () => {
     );
   }
 
+  // Get preview image URL (prioritize saved preview, fallback to template preview)
+  const getPreviewImage = () => {
+    if (project.previewImageUrl) {
+      return project.previewImageUrl;
+    }
+    if (project.template?.previewImage) {
+      return project.template.previewImage;
+    }
+    if (project.template?.baseImage) {
+      return project.template.baseImage;
+    }
+    // Legacy support
+    if (project.templates && project.templates.length > 0) {
+      return project.templates[0].previewImage || project.templates[0].baseImage;
+    }
+    return null;
+  };
+
+  const previewImageUrl = getPreviewImage();
+
   return (
     <div className="approved-view-container">
       <div className="approved-view-content">
         <div className="approved-status-card">
           <div className="approved-icon">✓</div>
+          {previewImageUrl && (
+            <div className="approved-preview-image-container">
+              <img 
+                src={previewImageUrl} 
+                alt={`${project.title} preview`}
+                className="approved-preview-image"
+              />
+            </div>
+          )}
           <h1 className="approved-title">This project has been approved</h1>
           <p className="approved-subtitle">Project: {project.title}</p>
           
@@ -136,15 +198,28 @@ const ApprovedView = () => {
               Back to Projects
             </Button>
             <Button
-              variant="primary"
-              onClick={handleCreateNewProject}
-              className="approved-new-btn"
+              variant="danger"
+              onClick={handleDeleteProject}
+              disabled={deleting}
+              className="button--primary alert"
             >
-              Create New Project
+              {deleting ? 'Deleting...' : 'Delete Project'}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Project"
+        message={`Are you sure you want to delete project "${project?.title || ''}"? This action cannot be undone.`}
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+      />
     </div>
   );
 };

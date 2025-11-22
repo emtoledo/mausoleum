@@ -96,6 +96,57 @@ If you want to test quickly, you can make the bucket public:
 
 **Note:** Public buckets allow anyone with the URL to read files. For production, use RLS policies instead.
 
+## Preview Images Policies
+
+Preview images are stored in `previews/{projectId}/preview.png`. You need to add similar policies for the `previews/` folder:
+
+### Policy: Users can upload to own project previews
+**Policy Name:** `Users can upload to own project previews`  
+**Allowed operation:** `INSERT`  
+**Policy definition:**
+```sql
+(bucket_id = 'project-files'::text) AND 
+((storage.foldername(name))[1] = 'previews'::text) AND 
+(EXISTS (
+  SELECT 1 FROM projects 
+  WHERE projects.id::text = (storage.foldername(name))[2] 
+  AND projects.user_account_id = auth.uid()
+))
+```
+
+### Policy: Users can read own project previews
+**Policy Name:** `Users can read own project previews`  
+**Allowed operation:** `SELECT`  
+**Policy definition:**
+```sql
+(bucket_id = 'project-files'::text) AND 
+((storage.foldername(name))[1] = 'previews'::text) AND 
+(EXISTS (
+  SELECT 1 FROM projects 
+  WHERE projects.id::text = (storage.foldername(name))[2] 
+  AND projects.user_account_id = auth.uid()
+))
+```
+
+### Policy: Users can update own project previews
+**Policy Name:** `Users can update own project previews`  
+**Allowed operation:** `UPDATE`  
+**Policy definition:**
+```sql
+(bucket_id = 'project-files'::text) AND 
+((storage.foldername(name))[1] = 'previews'::text) AND 
+(EXISTS (
+  SELECT 1 FROM projects 
+  WHERE projects.id::text = (storage.foldername(name))[2] 
+  AND projects.user_account_id = auth.uid()
+))
+```
+
+**Note:** If you want preview images to be publicly viewable (anyone can see project thumbnails), you can create a public SELECT policy that doesn't check ownership:
+```sql
+(bucket_id = 'project-files'::text) AND ((storage.foldername(name))[1] = 'previews'::text)
+```
+
 ## Testing
 
 After setting up the policies:
@@ -104,6 +155,7 @@ After setting up the policies:
 2. Navigate to an Approval Proof page
 3. Check the browser console for test results
 4. You should see: `✓ Can Upload: YES`
+5. Save a project to test preview image upload
 
 ## Troubleshooting
 

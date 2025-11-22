@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS projects (
   title VARCHAR(255) NOT NULL,
   status VARCHAR(50) DEFAULT 'draft',
   approval_pdf_url TEXT, -- URL to the approved PDF stored in Supabase Storage
+  preview_image_url TEXT, -- URL to the preview image stored in Supabase Storage
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   last_edited TIMESTAMP WITH TIME ZONE DEFAULT NOW()

@@ -262,6 +262,7 @@ class SupabaseService {
       if (updateData.title) projectUpdates.title = updateData.title;
       if (updateData.status) projectUpdates.status = updateData.status;
       if (updateData.approvalPdfUrl) projectUpdates.approval_pdf_url = updateData.approvalPdfUrl;
+      if (updateData.previewImageUrl) projectUpdates.preview_image_url = updateData.previewImageUrl;
       if (updateData.lastEdited) projectUpdates.last_edited = updateData.lastEdited;
       projectUpdates.updated_at = new Date().toISOString();
 
@@ -406,6 +407,7 @@ class SupabaseService {
       lastEdited: project.last_edited,
       status: project.status,
       approvalPdfUrl: project.approval_pdf_url,
+      previewImageUrl: project.preview_image_url, // Preview image from projects table
       template: template
     };
   }
