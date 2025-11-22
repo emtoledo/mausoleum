@@ -161,8 +161,8 @@ const ApprovedView = () => {
             </div>
           )}
           
-          <h1 className="approved-title">This project has been approved</h1>
-          <p className="approved-subtitle">Project: {project.title}</p>
+          <h1 className="approved-title">Project approved!</h1>
+          <p className="approved-subtitle">Project {project.title} has been approved and can no longer be edited.</p>
           
           {project.approvalPdfUrl && (
             <div className="approved-actions">
@@ -178,14 +178,14 @@ const ApprovedView = () => {
               </div>
               
               <div className="approved-action-item">
-                <p className="approved-action-label">Export Design to DXF:</p>
+                <p className="approved-action-label">Export Design to DXF (coming soon):</p>
                 <Button
                   variant="secondary"
                   onClick={handleExportDXF}
-                  disabled={exporting}
+                  disabled={true}
                   className="approved-export-btn"
                 >
-                  {exporting ? 'Exporting...' : 'Export DXF'}
+                  Export DXF
                 </Button>
               </div>
             </div>
