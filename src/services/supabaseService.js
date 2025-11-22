@@ -362,6 +362,35 @@ class SupabaseService {
 
       const user = session.user;
 
+      // First, try to get the project to check for associated files
+      // This helps us delete the files before deleting the project record
+      let projectData = null;
+      try {
+        const { data: project, error: fetchError } = await supabase
+          .from('projects')
+          .select('approval_pdf_url, preview_image_url')
+          .eq('id', projectId)
+          .eq('user_account_id', user.id)
+          .single();
+
+        if (!fetchError && project) {
+          projectData = project;
+        }
+      } catch (fetchErr) {
+        console.warn('Could not fetch project data before deletion:', fetchErr);
+        // Continue with deletion even if we can't fetch project data
+      }
+
+      // Delete associated files from storage (approval PDF and preview image)
+      // Import dynamically to avoid circular dependencies
+      try {
+        const { deleteProjectFiles } = await import('../utils/storageService');
+        await deleteProjectFiles(projectId);
+      } catch (storageErr) {
+        console.warn('Error deleting project files from storage:', storageErr);
+        // Continue with project deletion even if file deletion fails
+      }
+
       // Delete project (cascade will delete project_details)
       const { error } = await supabase
         .from('projects')
@@ -374,6 +403,7 @@ class SupabaseService {
         return dataService.deleteProject(projectId);
       }
 
+      console.log('Project deleted successfully:', projectId);
       return true;
     } catch (error) {
       console.error('Error deleting project in Supabase:', error);
