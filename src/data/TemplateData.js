@@ -106,6 +106,10 @@ export const templates = {
         x: 50.1, y: 5, width: 10, height: 11
       }
     ],
+    vaseDimensions: {
+      width: 10,
+      height: 11
+    },
     productBase: [
       {
         id: 'default-base',
