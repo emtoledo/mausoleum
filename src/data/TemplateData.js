@@ -65,6 +65,10 @@ export const templates = {
         x: 50.5, y: 5, width: 9, height: 13
       }
     ],
+    vaseDimensions: {
+      width: 8,
+      height: 10
+    },
     productBase: [
       {
         id: 'default-base',
@@ -107,8 +111,8 @@ export const templates = {
       }
     ],
     vaseDimensions: {
-      width: 10,
-      height: 11
+      width: 6,
+      height: 10
     },
     productBase: [
       {
@@ -136,7 +140,7 @@ export const templates = {
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: 2.5, width: 40, height: 15.5
+        x: 10, y: .5, width: 40, height: 18
       }
     ],
     floral: [
@@ -151,6 +155,10 @@ export const templates = {
         x: 50.1, y: 5, width: 10, height: 11
       }
     ],
+    vaseDimensions: {
+      width: 8,
+      height: 10
+    },
     productBase: [
       {
         id: 'default-base',
