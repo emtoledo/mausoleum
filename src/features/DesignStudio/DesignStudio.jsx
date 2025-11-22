@@ -15,7 +15,7 @@ import DesignStudioToolbar from './components/DesignStudioToolbar';
 import MaterialPicker from './components/MaterialPicker';
 import ArtworkLibrary from './components/ArtworkLibrary';
 import OptionsPanel from './components/OptionsPanel';
-import exportToDxf from './utils/dxfExporter';
+import exportToDxf, { exportToDxfUnified } from './utils/dxfExporter';
 import { importDxfToFabric } from '../../utils/dxfImporter';
 import { captureCombinedCanvas } from '../../utils/canvasCapture';
 import { uploadPreviewImage } from '../../utils/storageService';
@@ -1525,8 +1525,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     try {
       console.log('DesignStudio: Starting DXF export...');
       
-      await exportToDxf({
+      // Use unified exporter (prototype) - can switch back to exportToDxf if needed
+      await exportToDxfUnified({
         fabricCanvas: fabric,
+        productCanvas: productCanvasRef.current,
         productData: initialData,
         unitConverter: {
           calculateScale,

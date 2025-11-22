@@ -1062,4 +1062,641 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
   }
 }
 
+/**
+ * ============================================================================
+ * UNIFIED DXF EXPORTER (PROTOTYPE)
+ * ============================================================================
+ * 
+ * New approach: Capture entire canvas as unified SVG, then transform once
+ * instead of transforming each object individually.
+ */
+
+/**
+ * Converts a Fabric.js text object to an SVG path element
+ * Uses opentype.js to convert text to paths
+ * 
+ * @param {fabric.Text} textObj - Fabric.js text object
+ * @param {opentype.Font} font - Loaded opentype font
+ * @returns {Promise<string>} - SVG path element string
+ */
+async function convertTextToSvgPath(textObj, font) {
+  if (!font) {
+    console.warn('Font not loaded, skipping text conversion');
+    return null;
+  }
+
+  const text = textObj.text || '';
+  const fontSizePx = textObj.fontSize || 12;
+  
+  // Get text path from opentype
+  const path = font.getPath(text, 0, 0, fontSizePx);
+  
+  // Convert opentype path commands to SVG path string
+  const commands = path.commands || [];
+  const pathParts = [];
+  let currentX = 0;
+  let currentY = 0;
+
+  commands.forEach((cmd) => {
+    if (cmd.type === 'M' || cmd.type === 'm') {
+      if (cmd.type === 'M') {
+        currentX = cmd.x;
+        currentY = cmd.y;
+        pathParts.push(`M ${cmd.x} ${cmd.y}`);
+      } else {
+        currentX += cmd.x;
+        currentY += cmd.y;
+        pathParts.push(`M ${currentX} ${currentY}`);
+      }
+    } else if (cmd.type === 'L' || cmd.type === 'l') {
+      if (cmd.type === 'L') {
+        currentX = cmd.x;
+        currentY = cmd.y;
+        pathParts.push(`L ${cmd.x} ${cmd.y}`);
+      } else {
+        currentX += cmd.x;
+        currentY += cmd.y;
+        pathParts.push(`L ${currentX} ${currentY}`);
+      }
+    } else if (cmd.type === 'C' || cmd.type === 'c') {
+      if (cmd.type === 'C') {
+        pathParts.push(`C ${cmd.x1} ${cmd.y1} ${cmd.x2} ${cmd.y2} ${cmd.x} ${cmd.y}`);
+        currentX = cmd.x;
+        currentY = cmd.y;
+      } else {
+        const x1 = currentX + cmd.x1;
+        const y1 = currentY + cmd.y1;
+        const x2 = currentX + cmd.x2;
+        const y2 = currentY + cmd.y2;
+        currentX += cmd.x;
+        currentY += cmd.y;
+        pathParts.push(`C ${x1} ${y1} ${x2} ${y2} ${currentX} ${currentY}`);
+      }
+    } else if (cmd.type === 'Q' || cmd.type === 'q') {
+      if (cmd.type === 'Q') {
+        pathParts.push(`Q ${cmd.x1} ${cmd.y1} ${cmd.x} ${cmd.y}`);
+        currentX = cmd.x;
+        currentY = cmd.y;
+      } else {
+        const x1 = currentX + cmd.x1;
+        const y1 = currentY + cmd.y1;
+        currentX += cmd.x;
+        currentY += cmd.y;
+        pathParts.push(`Q ${x1} ${y1} ${currentX} ${currentY}`);
+      }
+    } else if (cmd.type === 'Z' || cmd.type === 'z') {
+      pathParts.push('Z');
+    }
+  });
+
+  const pathData = pathParts.join(' ');
+  
+  // Get text object properties
+  const left = textObj.left || 0;
+  const top = textObj.top || 0;
+  const angle = textObj.angle || 0;
+  const scaleX = textObj.scaleX || 1;
+  const scaleY = textObj.scaleY || 1;
+  const fill = textObj.fill || '#000000';
+  const stroke = textObj.stroke || null;
+  const strokeWidth = textObj.strokeWidth || 0;
+  
+  // Build transform string (SVG transforms are applied right-to-left)
+  // Order: translate → scale → rotate
+  const transforms = [];
+  transforms.push(`translate(${left} ${top})`);
+  if (scaleX !== 1 || scaleY !== 1) {
+    transforms.push(`scale(${scaleX} ${scaleY})`);
+  }
+  if (angle !== 0) {
+    transforms.push(`rotate(${angle})`);
+  }
+  
+  const transformAttr = transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
+  
+  // Build SVG path element
+  let pathElement = `<path d="${pathData}" fill="${fill}"`;
+  if (stroke) {
+    pathElement += ` stroke="${stroke}" stroke-width="${strokeWidth}"`;
+  }
+  pathElement += `${transformAttr} />`;
+  
+  return pathElement;
+}
+
+/**
+ * Converts Fabric Canvas to SVG, handling text objects specially
+ * 
+ * @param {fabric.Canvas} fabricCanvas - Fabric.js canvas instance
+ * @returns {Promise<string>} - SVG string
+ */
+async function captureFabricCanvasAsSvg(fabricCanvas) {
+  console.log('Capturing Fabric Canvas as SVG...');
+  
+  // Get all objects
+  const objects = fabricCanvas.getObjects();
+  console.log(`Found ${objects.length} objects on Fabric Canvas`);
+  
+  // Separate text objects from others
+  const textObjects = objects.filter(obj => obj.type === 'text' || obj.type === 'i-text');
+  const otherObjects = objects.filter(obj => obj.type !== 'text' && obj.type !== 'i-text');
+  
+  console.log(`Text objects: ${textObjects.length}, Other objects: ${otherObjects.length}`);
+  
+  // Load fonts for text objects
+  const uniqueFonts = [...new Set(textObjects.map(obj => obj.fontFamily || 'Arial'))];
+  await Promise.all(uniqueFonts.map(getFont));
+  
+  // Convert text objects to SVG paths
+  const textPaths = [];
+  for (const textObj of textObjects) {
+    const fontFamily = textObj.fontFamily || 'Arial';
+    const font = fontCache.get(fontFamily);
+    
+    if (font) {
+      const pathSvg = await convertTextToSvgPath(textObj, font);
+      if (pathSvg) {
+        textPaths.push(pathSvg);
+      }
+    } else {
+      console.warn(`Font not loaded for ${fontFamily}, skipping text object`);
+    }
+  }
+  
+  // Export other objects to SVG (this handles groups, paths, images, etc.)
+  let fabricSvg;
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+  
+  if (otherObjects.length > 0) {
+    // Create a temporary canvas with only non-text objects
+    const tempCanvas = new fabric.Canvas(null, {
+      width: fabricCanvas.width,
+      height: fabricCanvas.height
+    });
+    
+    // Clone non-text objects to temp canvas
+    otherObjects.forEach(obj => {
+      try {
+        const cloned = obj.clone();
+        tempCanvas.add(cloned);
+      } catch (err) {
+        console.warn('Failed to clone object for SVG export:', err);
+      }
+    });
+    
+    // Export temp canvas to SVG
+    fabricSvg = tempCanvas.toSVG({
+      width: fabricCanvas.width,
+      height: fabricCanvas.height,
+      viewBox: {
+        x: 0,
+        y: 0,
+        width: fabricCanvas.width,
+        height: fabricCanvas.height
+      }
+    });
+  } else {
+    // No non-text objects, create empty SVG
+    fabricSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${fabricCanvas.width}" height="${fabricCanvas.height}" viewBox="0 0 ${fabricCanvas.width} ${fabricCanvas.height}"></svg>`;
+  }
+  
+  // Parse SVG and inject text paths
+  const svgDoc = parser.parseFromString(fabricSvg, 'image/svg+xml');
+  const svgElement = svgDoc.documentElement;
+  
+  // Create a group for text paths
+  if (textPaths.length > 0) {
+    const textGroup = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g');
+    textGroup.setAttribute('id', 'text-paths');
+    
+    textPaths.forEach(pathSvg => {
+      try {
+        const pathDoc = parser.parseFromString(`<g>${pathSvg}</g>`, 'image/svg+xml');
+        const pathElement = pathDoc.documentElement.firstChild;
+        if (pathElement && pathElement.nodeName === 'path') {
+          textGroup.appendChild(pathElement.cloneNode(true));
+        }
+      } catch (err) {
+        console.warn('Failed to parse text path SVG:', err);
+      }
+    });
+    
+    if (textGroup.childNodes.length > 0) {
+      svgElement.appendChild(textGroup);
+    }
+  }
+  
+  // Serialize back to string
+  fabricSvg = serializer.serializeToString(svgElement);
+  
+  console.log('Fabric Canvas captured as SVG');
+  return fabricSvg;
+}
+
+/**
+ * Captures Product Canvas as SVG using source SVGs directly
+ * 
+ * @param {Object} productData - Product data with template/overlay URLs
+ * @param {number} canvasWidthPx - Canvas width in pixels
+ * @param {number} canvasHeightPx - Canvas height in pixels
+ * @returns {Promise<string>} - SVG string
+ */
+async function captureProductCanvasAsSvg(productData, canvasWidthPx, canvasHeightPx) {
+  console.log('Capturing Product Canvas as SVG...');
+  
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+  
+  // Create root SVG element using DOMParser
+  const svgTemplate = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasWidthPx}" height="${canvasHeightPx}" viewBox="0 0 ${canvasWidthPx} ${canvasHeightPx}"></svg>`;
+  const svgDoc = parser.parseFromString(svgTemplate, 'image/svg+xml');
+  const svgElement = svgDoc.documentElement;
+  
+  // Calculate dimensions in pixels
+  const canvasWidthInches = (productData.canvas && productData.canvas.width) 
+    ? productData.canvas.width 
+    : (productData.realWorldWidth || 24);
+  const canvasHeightInches = (productData.canvas && productData.canvas.height) 
+    ? productData.canvas.height 
+    : (productData.realWorldHeight || 18);
+  
+  // Calculate scale for converting inches to pixels
+  const scaleX = canvasWidthPx / canvasWidthInches;
+  const scaleY = canvasHeightPx / canvasHeightInches;
+  
+  // Add template SVG (if available)
+  if (productData.imageUrl) {
+    try {
+      const templateResponse = await fetch(productData.imageUrl);
+      const templateSvgText = await templateResponse.text();
+      const templateDoc = parser.parseFromString(templateSvgText, 'image/svg+xml');
+      const templateSvg = templateDoc.documentElement;
+      
+      // Create group for template
+      const templateGroup = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g');
+      templateGroup.setAttribute('id', 'template');
+      
+      // Scale and position template
+      templateGroup.setAttribute('transform', `translate(0, 0) scale(${scaleX} ${scaleY})`);
+      
+      // Clone paths from template SVG
+      const templatePaths = templateSvg.querySelectorAll('path, rect, circle, ellipse, line, polygon, polyline');
+      templatePaths.forEach(path => {
+        const clonedPath = path.cloneNode(true);
+        templateGroup.appendChild(clonedPath);
+      });
+      
+      svgElement.appendChild(templateGroup);
+      console.log('Template SVG added');
+    } catch (err) {
+      console.warn('Failed to load template SVG:', err);
+    }
+  }
+  
+  // Add overlay SVG (if available)
+  if (productData.overlayUrl) {
+    try {
+      const overlayResponse = await fetch(productData.overlayUrl);
+      const overlaySvgText = await overlayResponse.text();
+      const overlayDoc = parser.parseFromString(overlaySvgText, 'image/svg+xml');
+      const overlaySvg = overlayDoc.documentElement;
+      
+      // Create group for overlay
+      const overlayGroup = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g');
+      overlayGroup.setAttribute('id', 'overlay');
+      overlayGroup.setAttribute('opacity', '0.5');
+      
+      // Scale and position overlay (same as template)
+      overlayGroup.setAttribute('transform', `translate(0, 0) scale(${scaleX} ${scaleY})`);
+      
+      // Clone paths from overlay SVG
+      const overlayPaths = overlaySvg.querySelectorAll('path, rect, circle, ellipse, line, polygon, polyline');
+      overlayPaths.forEach(path => {
+        const clonedPath = path.cloneNode(true);
+        overlayGroup.appendChild(clonedPath);
+      });
+      
+      svgElement.appendChild(overlayGroup);
+      console.log('Overlay SVG added');
+    } catch (err) {
+      console.warn('Failed to load overlay SVG:', err);
+    }
+  }
+  
+  // Add productBase rectangles (if available)
+  if (productData.productBase && Array.isArray(productData.productBase)) {
+    const baseGroup = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g');
+    baseGroup.setAttribute('id', 'product-base');
+    
+    productData.productBase.forEach((base, index) => {
+      if (base.x !== undefined && base.y !== undefined && base.width && base.height) {
+        const rect = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', (base.x * scaleX).toString());
+        rect.setAttribute('y', (base.y * scaleY).toString());
+        rect.setAttribute('width', (base.width * scaleX).toString());
+        rect.setAttribute('height', (base.height * scaleY).toString());
+        rect.setAttribute('fill', '#cccccc'); // Default fill
+        rect.setAttribute('id', base.id || `base-${index}`);
+        baseGroup.appendChild(rect);
+      }
+    });
+    
+    if (baseGroup.childNodes.length > 0) {
+      svgElement.appendChild(baseGroup);
+      console.log(`ProductBase rectangles added: ${baseGroup.childNodes.length}`);
+    }
+  }
+  
+  const productSvg = serializer.serializeToString(svgElement);
+  console.log('Product Canvas captured as SVG');
+  return productSvg;
+}
+
+/**
+ * Combines Fabric SVG and Product SVG into unified SVG
+ * 
+ * @param {string} fabricSvg - Fabric Canvas SVG
+ * @param {string} productSvg - Product Canvas SVG
+ * @param {number} width - Canvas width in pixels
+ * @param {number} height - Canvas height in pixels
+ * @returns {string} - Unified SVG string
+ */
+function combineSvgs(fabricSvg, productSvg, width, height) {
+  console.log('Combining SVGs into unified document...');
+  
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+  
+  // Create root SVG using DOMParser
+  const svgTemplate = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"></svg>`;
+  const svgDoc = parser.parseFromString(svgTemplate, 'image/svg+xml');
+  const rootSvg = svgDoc.documentElement;
+  
+  // Parse product SVG (background layer)
+  const productDoc = parser.parseFromString(productSvg, 'image/svg+xml');
+  const productSvgElement = productDoc.documentElement;
+  
+  // Create background group
+  const bgGroup = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g');
+  bgGroup.setAttribute('id', 'background');
+  
+  // Clone all children from product SVG
+  Array.from(productSvgElement.childNodes).forEach(child => {
+    if (child.nodeType === 1) { // ELEMENT_NODE = 1
+      const cloned = child.cloneNode(true);
+      bgGroup.appendChild(cloned);
+    }
+  });
+  
+  rootSvg.appendChild(bgGroup);
+  
+  // Parse fabric SVG (foreground layer)
+  const fabricDoc = parser.parseFromString(fabricSvg, 'image/svg+xml');
+  const fabricSvgElement = fabricDoc.documentElement;
+  
+  // Create foreground group
+  const fgGroup = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g');
+  fgGroup.setAttribute('id', 'foreground');
+  
+  // Clone all children from fabric SVG
+  Array.from(fabricSvgElement.childNodes).forEach(child => {
+    if (child.nodeType === 1) { // ELEMENT_NODE = 1
+      const cloned = child.cloneNode(true);
+      fgGroup.appendChild(cloned);
+    }
+  });
+  
+  rootSvg.appendChild(fgGroup);
+  
+  const unifiedSvg = serializer.serializeToString(rootSvg);
+  console.log('SVGs combined into unified document');
+  return unifiedSvg;
+}
+
+/**
+ * Transforms unified SVG from pixel coordinates to real-world inches
+ * Applies scale and Y-flip transformation
+ * 
+ * @param {string} unifiedSvg - Unified SVG string
+ * @param {Object} options - Transformation options
+ * @param {number} options.canvasWidthPx - Canvas width in pixels
+ * @param {number} options.canvasHeightPx - Canvas height in pixels
+ * @param {number} options.realWorldWidthInches - Real-world width in inches
+ * @param {number} options.realWorldHeightInches - Real-world height in inches
+ * @returns {string} - Transformed SVG string
+ */
+function transformSvgToRealWorld(unifiedSvg, options) {
+  const {
+    canvasWidthPx,
+    canvasHeightPx,
+    realWorldWidthInches,
+    realWorldHeightInches
+  } = options;
+  
+  console.log('Transforming SVG to real-world coordinates...');
+  console.log(`Canvas: ${canvasWidthPx}px × ${canvasHeightPx}px`);
+  console.log(`Real-world: ${realWorldWidthInches}" × ${realWorldHeightInches}"`);
+  
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+  
+  const svgDoc = parser.parseFromString(unifiedSvg, 'image/svg+xml');
+  const svgElement = svgDoc.documentElement;
+  
+  // Calculate scale factors
+  const scaleX = realWorldWidthInches / canvasWidthPx;
+  const scaleY = realWorldHeightInches / canvasHeightPx;
+  
+  console.log(`Scale factors: X=${scaleX}, Y=${scaleY}`);
+  
+  // Apply transformation: scale + Y-flip
+  // Y-flip: scale(1, -1) then translate(0, -height)
+  // Combined: scale(scaleX, -scaleY) translate(0, -realWorldHeightInches)
+  const transform = `scale(${scaleX} ${-scaleY}) translate(0 ${-realWorldHeightInches})`;
+  
+  // Wrap everything in a group with the transformation
+  const transformGroup = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g');
+  transformGroup.setAttribute('transform', transform);
+  
+  // Move all children to the transform group
+  Array.from(svgElement.childNodes).forEach(child => {
+    if (child.nodeType === 1) { // ELEMENT_NODE = 1
+      transformGroup.appendChild(child);
+    }
+  });
+  
+  // Clear and update SVG element
+  while (svgElement.firstChild) {
+    svgElement.removeChild(svgElement.firstChild);
+  }
+  
+  // Update SVG dimensions to real-world
+  svgElement.setAttribute('width', realWorldWidthInches.toString());
+  svgElement.setAttribute('height', realWorldHeightInches.toString());
+  svgElement.setAttribute('viewBox', `0 0 ${realWorldWidthInches} ${realWorldHeightInches}`);
+  
+  svgElement.appendChild(transformGroup);
+  
+  const transformedSvg = serializer.serializeToString(svgElement);
+  console.log('SVG transformed to real-world coordinates');
+  return transformedSvg;
+}
+
+/**
+ * Converts SVG string to Maker.js model
+ * 
+ * @param {string} svgString - SVG string
+ * @returns {Promise<Object>} - Maker.js model
+ */
+async function svgStringToMakerModel(svgString) {
+  console.log('Converting SVG to Maker.js model...');
+  
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svgElement = svgDoc.documentElement;
+  
+  const makerModel = { paths: {}, models: {} };
+  let modelIndex = 0;
+  
+  // Extract all paths
+  const paths = svgElement.querySelectorAll('path');
+  paths.forEach((path) => {
+    const pathData = path.getAttribute('d');
+    if (pathData) {
+      try {
+        const pathModel = maker.importer.fromSVGPathData(pathData);
+        if (pathModel && pathModel.paths) {
+          // Apply transform if present
+          const transform = path.getAttribute('transform');
+          if (transform) {
+            // Parse transform (simplified - handles translate, scale, rotate)
+            // For now, just add the path - transforms are already applied in SVG
+            makerModel.models[`path-${modelIndex++}`] = pathModel;
+          } else {
+            makerModel.models[`path-${modelIndex++}`] = pathModel;
+          }
+        }
+      } catch (err) {
+        console.warn(`Failed to convert path ${modelIndex}:`, err);
+      }
+    }
+  });
+  
+  // Extract rectangles
+  const rects = svgElement.querySelectorAll('rect');
+  rects.forEach((rect) => {
+    try {
+      const x = parseFloat(rect.getAttribute('x')) || 0;
+      const y = parseFloat(rect.getAttribute('y')) || 0;
+      const w = parseFloat(rect.getAttribute('width')) || 0;
+      const h = parseFloat(rect.getAttribute('height')) || 0;
+      if (w > 0 && h > 0) {
+        const rectModel = new maker.models.Rectangle(w, h);
+        maker.model.move(rectModel, [x, y]);
+        makerModel.models[`rect-${modelIndex++}`] = rectModel;
+      }
+    } catch (err) {
+      console.warn(`Failed to convert rect ${modelIndex}:`, err);
+    }
+  });
+  
+  // Extract circles
+  const circles = svgElement.querySelectorAll('circle');
+  circles.forEach((circle) => {
+    try {
+      const cx = parseFloat(circle.getAttribute('cx')) || 0;
+      const cy = parseFloat(circle.getAttribute('cy')) || 0;
+      const r = parseFloat(circle.getAttribute('r')) || 0;
+      if (r > 0) {
+        const circleModel = new maker.models.Circle([cx, cy], r);
+        makerModel.models[`circle-${modelIndex++}`] = circleModel;
+      }
+    } catch (err) {
+      console.warn(`Failed to convert circle ${modelIndex}:`, err);
+    }
+  });
+  
+  console.log(`Maker.js model created with ${Object.keys(makerModel.models).length} sub-models`);
+  return makerModel;
+}
+
+/**
+ * Unified DXF Export Function (PROTOTYPE)
+ * 
+ * Captures entire canvas as unified SVG, then transforms once to real-world coordinates
+ * 
+ * @param {Object} params - Export parameters
+ * @param {fabric.Canvas} params.fabricCanvas - Fabric.js canvas instance
+ * @param {HTMLCanvasElement} params.productCanvas - Product canvas element (optional, for reference)
+ * @param {Object} params.productData - Product data with dimensions and template info
+ * @param {Object} params.unitConverter - Unit converter utility
+ * @returns {Promise<void>}
+ */
+export async function exportToDxfUnified({ fabricCanvas, productCanvas, productData, unitConverter }) {
+  try {
+    console.log('=== UNIFIED DXF EXPORT (PROTOTYPE) ===');
+    console.log('Starting unified export...');
+    
+    // Step 1: Calculate dimensions and scale
+    const scale = unitConverter.calculateScale(
+      productData.realWorldWidth,
+      fabricCanvas.width
+    );
+    
+    const canvasWidthPx = fabricCanvas.width;
+    const canvasHeightPx = fabricCanvas.height;
+    
+    const canvasWidthInches = (productData.canvas && productData.canvas.width) 
+      ? productData.canvas.width 
+      : (productData.realWorldWidth || 24);
+    const canvasHeightInches = (productData.canvas && productData.canvas.height) 
+      ? productData.canvas.height 
+      : (productData.realWorldHeight || 18);
+    
+    console.log(`Canvas: ${canvasWidthPx}px × ${canvasHeightPx}px`);
+    console.log(`Real-world: ${canvasWidthInches}" × ${canvasHeightInches}"`);
+    console.log(`Scale: ${scale} pixels/inch`);
+    
+    // Step 2: Capture Fabric Canvas as SVG
+    const fabricSvg = await captureFabricCanvasAsSvg(fabricCanvas);
+    
+    // Step 3: Capture Product Canvas as SVG
+    const productSvg = await captureProductCanvasAsSvg(
+      productData,
+      canvasWidthPx,
+      canvasHeightPx
+    );
+    
+    // Step 4: Combine SVGs into unified document
+    const unifiedSvg = combineSvgs(fabricSvg, productSvg, canvasWidthPx, canvasHeightPx);
+    
+    // Step 5: Transform unified SVG to real-world coordinates
+    const transformedSvg = transformSvgToRealWorld(unifiedSvg, {
+      canvasWidthPx,
+      canvasHeightPx,
+      realWorldWidthInches: canvasWidthInches,
+      realWorldHeightInches: canvasHeightInches
+    });
+    
+    // Step 6: Convert transformed SVG to Maker.js model
+    const makerModel = await svgStringToMakerModel(transformedSvg);
+    
+    // Step 7: Export Maker.js model to DXF
+    console.log('Exporting Maker.js model to DXF...');
+    const dxfString = maker.exporter.toDXF(makerModel);
+    
+    // Step 8: Download DXF file
+    const filename = (productData.name || productData.id || 'design') + '-unified-export.dxf';
+    triggerDownload(filename, dxfString);
+    
+    console.log('=== UNIFIED DXF EXPORT COMPLETE ===');
+    console.log(`DXF file downloaded: ${filename}`);
+    
+  } catch (error) {
+    console.error('Error in unified DXF export:', error);
+    throw error;
+  }
+}
+
 export default exportToDxf;
