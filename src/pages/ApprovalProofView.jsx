@@ -365,7 +365,7 @@ const ApprovalProofView = () => {
                   <div className="approval-detail-item">
                     <span className="approval-detail-label">Letter Style:</span>
                     <div className="approval-detail-value">
-                      <div>{fontFamilies}</div>
+                      <div>{fontFamilies} V-Sunk</div>
                       
                     </div>
                   </div>
@@ -394,41 +394,32 @@ const ApprovalProofView = () => {
               {/* Right Column: Customer Details */}
               <div className="approval-details-column">
 
-                <div>
-
-                    <div className="approval-detail-item">
-                      <span className="approval-detail-label">Customer:</span>
-                      <input
+                  <div className="approval-detail-item">
+                    <span className="approval-detail-label">Customer:</span>
+                    <input
                         type="text"
                         value={customer.name}
                         onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
                         className="approval-input"
                         placeholder="Customer Name"
                       />
-                
-                      <input
+                    <input
                         type="tel"
                         value={customer.phone}
                         onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
                         className="approval-input"
                         placeholder="Phone Number"
                       />
-
-                      <input
+                    <input
                         type="email"
                         value={customer.email}
                         onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
                         className="approval-input"
                         placeholder="Email Address"
                       />
-                    </div>
-
                 </div>
-                
 
-              
-
-
+      
                 <div className="approval-detail-item">
                   <span className="approval-detail-label">Address:</span>
                   <input
@@ -436,7 +427,7 @@ const ApprovalProofView = () => {
                     value={customer.address_line1}
                     onChange={(e) => setCustomer({ ...customer, address_line1: e.target.value })}
                     className="approval-input"
-                    placeholder="1234 Road Road"
+                    placeholder="Address"
                   />
                   <input
                     type="text"
@@ -472,26 +463,31 @@ const ApprovalProofView = () => {
             <h2 className="approval-panel-title">Approval</h2>
             
             <div className="approval-signature-fields">
-              <div className="approval-signature-field">
-                <label className="approval-field-label">Date:</label>
-                <input
-                  type="date"
-                  value={signDate}
-                  onChange={(e) => setSignDate(e.target.value)}
-                  className="approval-field-input"
-                />
+
+            <div style={{ display: 'flex', gap: '20px', justifyContent: 'space-between' }}>                
+                <div className="approval-signature-field">
+                  <label className="approval-field-label">Name:</label>
+                  <input
+                    type="text"
+                    value={signerName}
+                    onChange={(e) => setSignerName(e.target.value)}
+                    className="approval-field-input"
+                    placeholder="Signer Name"
+                  />
+                </div>
+
+                <div className="approval-signature-field">
+                  <label className="approval-field-label">Date:</label>
+                  <input
+                    type="date"
+                    value={signDate}
+                    onChange={(e) => setSignDate(e.target.value)}
+                    className="approval-field-input"
+                  />
+                </div>
+
               </div>
-              
-              <div className="approval-signature-field">
-                <label className="approval-field-label">Name:</label>
-                <input
-                  type="text"
-                  value={signerName}
-                  onChange={(e) => setSignerName(e.target.value)}
-                  className="approval-field-input"
-                  placeholder="Enter signer name"
-                />
-              </div>
+
               
               <div className="approval-signature-field">
                 <label className="approval-field-label">Signature:</label>

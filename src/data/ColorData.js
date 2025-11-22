@@ -8,7 +8,7 @@
 export const colorData = [
   {
     id: 'black',
-    name: 'BLACK',
+    name: 'BLACK - CARVED',
     fillColor: '#000000',
     opacity: 1.0,
     strokeColor: '#000000',
@@ -16,7 +16,7 @@ export const colorData = [
   },
   {
     id: 'gold',
-    name: 'GOLD',
+    name: 'GOLD - CARVED',
     fillColor: '#D2A81B',
     opacity: 1.0,
     strokeColor: '#000000',
@@ -24,7 +24,7 @@ export const colorData = [
   },
   {
     id: 'silver',
-    name: 'SILVER',
+    name: 'SILVER - CARVED',
     fillColor: '#C0C0C0',
     opacity: 1.0,
     strokeColor: '#000000',
@@ -33,7 +33,7 @@ export const colorData = [
   },
   {
     id: 'white',
-    name: 'WHITE',
+    name: 'WHITE - CARVED',
     fillColor: '#FFFFFF',
     opacity: 1.0,
     strokeColor: '#000000',
@@ -41,7 +41,7 @@ export const colorData = [
   },
   {
     id: 'grey',
-    name: 'GREY',
+    name: 'GREY - CARVED',
     fillColor: '#808080',
     opacity: 1.0,
     strokeColor: '#000000',
@@ -49,7 +49,7 @@ export const colorData = [
   },
   {
     id: 'highlight',
-    name: 'HIGHLIGHT',
+    name: 'HIGHLIGHT - CARVED',
     fillColor: '#FFFFFF',
     opacity: 0.5,
     strokeColor: '#000000',
@@ -57,7 +57,7 @@ export const colorData = [
   },
   {
     id: 'no-lith',
-    name: 'NO LITH',
+    name: 'NO LITH - CARVED',
     fillColor: '#FFFFFF',
     opacity: 0.4,
     strokeColor: '#000000',
