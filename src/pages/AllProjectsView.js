@@ -336,7 +336,7 @@ const AllProjectsView = () => {
                 >
                   <option value="draft">Draft</option>
                   <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
+                  {/*<option value="completed">Completed</option>*/}
                   <option value="approved">Approved</option>
                 </select>
               )}
