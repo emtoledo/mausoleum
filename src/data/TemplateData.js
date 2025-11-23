@@ -230,9 +230,25 @@ export const templates = {
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: 2.5, width: 40, height: 15.5
+        x: 10, y: 2, width: 40, height: 16
       }
     ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral2,
+        x: 0, y: 5, width: 10, height: 11
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral2,
+        x: 50.1, y: 5, width: 10, height: 11
+      }
+    ],
+    vaseDimensions: {
+      width: 8,
+      height: 10
+    },
     productBase: [
       {
         id: 'default-base',
@@ -262,6 +278,22 @@ export const templates = {
         x: 10, y: 2.5, width: 40, height: 15.5
       }
     ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral1,
+        x: 0, y: 5, width: 9, height: 13
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral2,
+        x: 50.1, y: 5, width: 10, height: 11
+      }
+    ],
+    vaseDimensions: {
+      width: 6,
+      height: 10
+    },
     productBase: [
       {
         id: 'default-base',
