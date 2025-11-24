@@ -31,6 +31,10 @@ import template006 from '../assets/images/templates/estate6.svg';
 import template006Overlay from '../assets/images/templates/estate6_overlay.svg';
 import template006Preview from '../assets/images/previews/estate6.png';
 
+import template007 from '../assets/images/templates/estate7.svg';
+import template007Overlay from '../assets/images/templates/estate7_overlay.svg';
+import template007Preview from '../assets/images/previews/estate7.png';
+
 export const templates = {
   'template-001': {
     id: 'template-001',
@@ -298,6 +302,51 @@ export const templates = {
       {
         id: 'default-base',
         x: 0, y: 23, width: 60, height: 3,
+        material: 'mat-006'
+      }
+    ]    
+  },
+  'template-007': {
+    id: 'template-007',
+    name: 'Estate Collection 7',
+    productCategory: 'Estate Collection',
+    imageUrl: template007,
+    overlayUrl: template007Overlay,    
+    previewImage: template007Preview,
+    realWorldWidth: 66, // inches
+    realWorldHeight: 30, // inches
+    availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
+    defaultMaterialId: 'mat-001', 
+    canvas: {
+      width: 66, // inches - overall canvas width
+      height: 34 // inches - overall canvas height
+    },    
+    editZones: [
+      {
+        id: 'main-zone',
+        x: 10, y: 2.5, width: 46, height: 21.5
+      }
+    ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral2,
+        x: 0, y: 6, width: 9, height: 13
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral2,
+        x: 56.5, y: 6, width: 9, height: 13
+      }
+    ],
+    vaseDimensions: {
+      width: 8,
+      height: 10
+    },
+    productBase: [
+      {
+        id: 'default-base',
+        x: 0, y: 30, width: 66, height: 4,
         material: 'mat-006'
       }
     ]    
