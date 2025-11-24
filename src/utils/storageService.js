@@ -218,8 +218,9 @@ export async function deleteProjectFiles(projectId) {
 
   try {
     // Delete both files in parallel
+    // Use the same filename format as upload: approval-proof-{projectId}.pdf
     const [pdfResult, previewResult] = await Promise.allSettled([
-      deleteApprovalPDF(projectId),
+      deleteApprovalPDF(projectId, `approval-proof-${projectId}.pdf`),
       deletePreviewImage(projectId)
     ]);
 
