@@ -43,30 +43,30 @@ export const templates = {
     imageUrl: markerImg1,
     overlayUrl: markerImg1Overlay,    
     previewImage: markerPreview1,
-    realWorldWidth: 60, // inches
-    realWorldHeight: 23, // inches
+    realWorldWidth: 84, // inches
+    realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
     defaultMaterialId: 'mat-002', 
     canvas: {
-      width: 60, // inches - overall canvas width
-      height: 26 // inches - overall canvas height
+      width: 84, // inches - overall canvas width
+      height: 36 // inches - overall canvas height
     },    
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: 2.5, width: 40, height: 15.5
+        x: 14, y: 2.5, width: 56, height: 23
       }
     ],
     floral: [
       {
         id: 'floral1',
         imageUrl: floral1,
-        x: 0, y: 5, width: 9, height: 13
+        x: 1, y: 8.5, width: 10, height: 15
       },
       {
         id: 'floral2',
         imageUrl: floral1,
-        x: 50.5, y: 5, width: 9, height: 13
+        x: 72.5, y: 8.5, width: 10, height: 15
       }
     ],
     vaseDimensions: {
@@ -76,7 +76,7 @@ export const templates = {
     productBase: [
       {
         id: 'default-base',
-        x: 0, y: 23, width: 60, height: 3,
+        x: 0, y: 32, width: 84, height: 4,
         material: 'mat-006'
       }
     ]
@@ -88,13 +88,13 @@ export const templates = {
     imageUrl: template002,
     overlayUrl: template002Overlay,    
     previewImage: template002Preview,
-    realWorldWidth: 60, // inches
-    realWorldHeight: 23, // inches
+    realWorldWidth: 84, // inches
+    realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
     defaultMaterialId: 'mat-001', 
     canvas: {
-      width: 60, // inches - overall canvas width
-      height: 26 // inches - overall canvas height
+      width: 84, // inches - overall canvas width
+      height: 36 // inches - overall canvas height
     },    
     editZones: [
       {
@@ -121,7 +121,7 @@ export const templates = {
     productBase: [
       {
         id: 'default-base',
-        x: 0, y: 23, width: 60, height: 3,
+        x: 0, y: 32, width: 84, height: 4,
         material: 'mat-006'
       }
     ]

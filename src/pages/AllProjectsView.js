@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -17,6 +17,16 @@ const AllProjectsView = () => {
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, project: null });
   const [editModal, setEditModal] = useState({ isOpen: false, project: null });
   const [editValues, setEditValues] = useState({ name: '', status: '' });
+
+  useEffect(() => {
+    // Enable scrolling on body when on all projects view page
+    document.body.style.overflow = 'auto';
+    
+    // Cleanup: restore original overflow when component unmounts
+    return () => {
+      document.body.style.overflow = 'hidden';
+    };
+  }, []);
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - Project clicked:', project);
