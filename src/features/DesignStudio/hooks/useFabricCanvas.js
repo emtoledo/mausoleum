@@ -1038,15 +1038,28 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           // Also check if we can infer artworkId from category or other properties
           let artworkId = element.artworkId;
           
-          // If artworkId is missing but we have category 'Panels' and textureUrl, try to find matching artwork
-          if (!artworkId && element.category === 'Panels' && textureUrl) {
-            const panelArtwork = artwork.find(a => a.category === 'Panels' && a.textureUrl === textureUrl);
-            if (panelArtwork) {
-              artworkId = panelArtwork.id;
-              console.log('Inferred artworkId from category and textureUrl:', {
-                category: element.category,
+          // If artworkId is missing but we have textureUrl, try to find matching artwork
+          // First try with category if available, then fall back to textureUrl only
+          if (!artworkId && textureUrl) {
+            let foundArtwork = null;
+            
+            // Try with category first if available
+            if (element.category) {
+              foundArtwork = artwork.find(a => a.category === element.category && a.textureUrl === textureUrl);
+            }
+            
+            // If not found with category, try textureUrl only
+            if (!foundArtwork) {
+              foundArtwork = artwork.find(a => a.textureUrl === textureUrl);
+            }
+            
+            if (foundArtwork) {
+              artworkId = foundArtwork.id;
+              console.log('Inferred artworkId from textureUrl:', {
+                category: element.category || 'none',
                 textureUrl: textureUrl,
-                artworkId: artworkId
+                artworkId: artworkId,
+                foundCategory: foundArtwork.category
               });
             }
           }
@@ -1084,20 +1097,33 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             elementKeys: Object.keys(element)
           });
           
-          // Final check: if we still don't have imageUrl but have textureUrl and category, try one more lookup
-          if ((!imageUrl || !imageUrl.trim()) && textureUrl && element.category === 'Panels') {
-            const panelArtwork = artwork.find(a => a.category === 'Panels' && a.textureUrl === textureUrl);
-            if (panelArtwork && panelArtwork.imageUrl) {
-              imageUrl = panelArtwork.imageUrl;
-              console.log('Final fallback: Found imageUrl from category/textureUrl match:', {
-                category: element.category,
+          // Final check: if we still don't have imageUrl but have textureUrl, try one more lookup
+          // Try with category first if available, then fall back to textureUrl only
+          if ((!imageUrl || !imageUrl.trim()) && textureUrl) {
+            let foundArtwork = null;
+            
+            // Try with category first if available
+            if (element.category) {
+              foundArtwork = artwork.find(a => a.category === element.category && a.textureUrl === textureUrl && a.imageUrl);
+            }
+            
+            // If not found with category, try textureUrl only
+            if (!foundArtwork) {
+              foundArtwork = artwork.find(a => a.textureUrl === textureUrl && a.imageUrl);
+            }
+            
+            if (foundArtwork && foundArtwork.imageUrl) {
+              imageUrl = foundArtwork.imageUrl;
+              console.log('Final fallback: Found imageUrl from textureUrl match:', {
+                category: element.category || 'none',
                 textureUrl: textureUrl,
                 imageUrl: imageUrl,
-                artworkId: panelArtwork.id
+                artworkId: foundArtwork.id,
+                foundCategory: foundArtwork.category
               });
               // Update artworkId if we found it
-              if (!artworkId && panelArtwork.id) {
-                artworkId = panelArtwork.id;
+              if (!artworkId && foundArtwork.id) {
+                artworkId = foundArtwork.id;
               }
             }
           }
@@ -1795,12 +1821,25 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             }
             continue;
           } else {
-            console.warn('No imageUrl found for artwork element:', {
-              elementId: element.id,
-              elementType: element.type,
-              hasImageUrl: !!imageUrl,
-              imageUrl: imageUrl
-            });
+            // Only warn if we don't have textureUrl either (texture-only artworks are valid)
+            if (!textureUrl) {
+              console.warn('No imageUrl found for artwork element:', {
+                elementId: element.id,
+                elementType: element.type,
+                hasImageUrl: !!imageUrl,
+                imageUrl: imageUrl,
+                hasTextureUrl: !!textureUrl,
+                textureUrl: textureUrl
+              });
+            } else {
+              // Log info instead of warning for texture-only artworks
+              console.log('Artwork element has textureUrl but no imageUrl (texture-only artwork):', {
+                elementId: element.id,
+                elementType: element.type,
+                textureUrl: textureUrl,
+                artworkId: element.artworkId
+              });
+            }
           }
         } else if (element.type === 'path' || element.type === 'path-group') {
           // Path objects - treat similar to groups
@@ -1857,15 +1896,23 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     
     // FIXED CANVAS SIZE: Always use 1000px width for consistent scaling
     const FIXED_CANVAS_WIDTH = 1000;
-    const realWorldWidth = initialData.realWorldWidth || 24;
-    const realWorldHeight = initialData.realWorldHeight || 18;
     
-    // Calculate canvas height to maintain aspect ratio
+    // Use canvas dimensions from template if available, otherwise fall back to realWorld dimensions
+    // canvas.width/height includes the base, while realWorldWidth/Height is just the product
+    const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
+      ? initialData.canvas.width 
+      : (initialData.realWorldWidth || 24);
+    const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+      ? initialData.canvas.height 
+      : (initialData.realWorldHeight || 18);
+    
+    // Calculate canvas height to maintain aspect ratio based on canvas dimensions
     const canvasWidth = FIXED_CANVAS_WIDTH;
-    const canvasHeight = (canvasWidth / realWorldWidth) * realWorldHeight;
+    const canvasHeight = (canvasWidth / canvasWidthInches) * canvasHeightInches;
 
     // Calculate scale for display purposes (converting pixels to inches in UI)
-    scale.current = calculateScale(realWorldWidth, canvasWidth);
+    // Use canvas width for scale calculation to match the actual canvas dimensions
+    scale.current = calculateScale(canvasWidthInches, canvasWidth);
 
     // Create or update Fabric.js canvas
     if (!fabricCanvasInstance.current) {

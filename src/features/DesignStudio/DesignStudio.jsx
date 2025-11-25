@@ -875,11 +875,18 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     try {
       // FIXED CANVAS SIZE: Always use 1000px for consistent scaling
       const FIXED_CANVAS_WIDTH = 1000;
-      const realWorldWidth = initialData.realWorldWidth || 24;
-      const realWorldHeight = initialData.realWorldHeight || 18;
+      
+      // Use canvas dimensions from template if available, otherwise fall back to realWorld dimensions
+      const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
+        ? initialData.canvas.width 
+        : (initialData.realWorldWidth || 24);
+      const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+        ? initialData.canvas.height 
+        : (initialData.realWorldHeight || 18);
       
       // Calculate scale for display purposes only (converting pixels to inches in UI)
-      const scale = calculateScale(realWorldWidth, FIXED_CANVAS_WIDTH);
+      // Use canvas width for scale calculation to match the actual canvas dimensions
+      const scale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
 
       // Get all objects from Fabric instance
       const objects = fabricInstance.getObjects();
@@ -1416,11 +1423,14 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       }
 
       // Save fixed canvas dimensions (always 1000px width)
+      // Calculate height based on canvas dimensions (not realWorld dimensions)
       const canvasDimensions = {
         width: FIXED_CANVAS_WIDTH,
-        height: (FIXED_CANVAS_WIDTH / realWorldWidth) * realWorldHeight,
-        realWorldWidth: realWorldWidth,
-        realWorldHeight: realWorldHeight,
+        height: (FIXED_CANVAS_WIDTH / canvasWidthInches) * canvasHeightInches,
+        realWorldWidth: initialData.realWorldWidth || 24,
+        realWorldHeight: initialData.realWorldHeight || 18,
+        canvasWidth: canvasWidthInches,
+        canvasHeight: canvasHeightInches,
         timestamp: Date.now()
       };
 
