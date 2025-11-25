@@ -99,19 +99,19 @@ export const templates = {
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: 2.5, width: 40, height: 15.5
+        x: 14, y: 2.5, width: 56, height: 23
       }
     ],
     floral: [
       {
         id: 'floral1',
         imageUrl: floral1,
-        x: 0, y: 5, width: 9, height: 13
+        x: 1, y: 8.5, width: 10, height: 15
       },
       {
         id: 'floral2',
         imageUrl: floral2,
-        x: 50.1, y: 5, width: 10, height: 11
+        x: 72, y: 9, width: 10, height: 12
       }
     ],
     vaseDimensions: {
@@ -133,30 +133,30 @@ export const templates = {
     imageUrl: template003,
     overlayUrl: template003Overlay,    
     previewImage: template003Preview,
-    realWorldWidth: 60, // inches
-    realWorldHeight: 23, // inches
+    realWorldWidth: 84, // inches
+    realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
     defaultMaterialId: 'mat-004', 
     canvas: {
-      width: 60, // inches - overall canvas width
-      height: 26 // inches - overall canvas height
-    },    
+      width: 84, // inches - overall canvas width
+      height: 36 // inches - overall canvas height
+    },  
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: .5, width: 40, height: 18
+        x: 14, y: 1, width: 56, height: 24.5
       }
     ],
     floral: [
       {
         id: 'floral1',
         imageUrl: floral2,
-        x: 0, y: 5, width: 10, height: 11
+        x: 1, y: 9, width: 10, height: 12
       },
       {
         id: 'floral2',
         imageUrl: floral2,
-        x: 50.1, y: 5, width: 10, height: 11
+        x: 72.5, y: 9, width: 10, height: 12
       }
     ],
     vaseDimensions: {
@@ -166,7 +166,7 @@ export const templates = {
     productBase: [
       {
         id: 'default-base',
-        x: 0, y: 23, width: 60, height: 3,
+        x: 0, y: 32, width: 84, height: 4,
         material: 'mat-006'
       }
     ]    
@@ -178,30 +178,30 @@ export const templates = {
     imageUrl: template004,
     overlayUrl: template004Overlay,    
     previewImage: template004Preview,
-    realWorldWidth: 60, // inches
-    realWorldHeight: 23, // inches
+    realWorldWidth: 84, // inches
+    realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
     defaultMaterialId: 'mat-003', 
     canvas: {
-      width: 60, // inches - overall canvas width
-      height: 26 // inches - overall canvas height
-    },    
+      width: 84, // inches - overall canvas width
+      height: 36 // inches - overall canvas height
+    },  
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: .5, width: 40, height: 18
+        x: 14, y: 1, width: 56, height: 24.5
       }
     ],
     floral: [
       {
         id: 'floral1',
         imageUrl: floral1,
-        x: 0, y: 5, width: 9, height: 13
+        x: 1.5, y: 8.5, width: 10, height: 15
       },
       {
         id: 'floral2',
         imageUrl: floral2,
-        x: 50.1, y: 5, width: 10, height: 11
+        x: 72.5, y: 9, width: 10, height: 12
       }
     ],
     vaseDimensions: {
@@ -211,7 +211,7 @@ export const templates = {
     productBase: [
       {
         id: 'default-base',
-        x: 0, y: 23, width: 60, height: 3,
+        x: 0, y: 32, width: 84, height: 4,
         material: 'mat-006'
       }
     ]    
@@ -223,30 +223,30 @@ export const templates = {
     imageUrl: template005,
     overlayUrl: template005Overlay,    
     previewImage: template005Preview,
-    realWorldWidth: 60, // inches
-    realWorldHeight: 23, // inches
+    realWorldWidth: 84, // inches
+    realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
     defaultMaterialId: 'mat-002', 
     canvas: {
-      width: 60, // inches - overall canvas width
-      height: 26 // inches - overall canvas height
+      width: 84, // inches - overall canvas width
+      height: 36 // inches - overall canvas height
     },    
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: 2, width: 40, height: 16
+        x: 14, y: 1, width: 56, height: 24.5
       }
     ],
     floral: [
       {
         id: 'floral1',
         imageUrl: floral2,
-        x: 0, y: 5, width: 10, height: 11
+        x: 1, y: 9, width: 10, height: 12
       },
       {
         id: 'floral2',
         imageUrl: floral2,
-        x: 50.1, y: 5, width: 10, height: 11
+        x: 72.5, y: 9, width: 10, height: 12
       }
     ],
     vaseDimensions: {
@@ -256,9 +256,9 @@ export const templates = {
     productBase: [
       {
         id: 'default-base',
-        x: 0, y: 23, width: 60, height: 3,
+        x: 0, y: 32, width: 84, height: 4,
         material: 'mat-006'
-      }     
+      }  
     ]    
   },
   'template-006': {
@@ -268,30 +268,30 @@ export const templates = {
     imageUrl: template006,
     overlayUrl: template006Overlay,    
     previewImage: template006Preview,
-    realWorldWidth: 60, // inches
-    realWorldHeight: 23, // inches
+    realWorldWidth: 84, // inches
+    realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
     defaultMaterialId: 'mat-005', 
     canvas: {
-      width: 60, // inches - overall canvas width
-      height: 26 // inches - overall canvas height
+      width: 84, // inches - overall canvas width
+      height: 36 // inches - overall canvas height
     },    
     editZones: [
       {
         id: 'main-zone',
-        x: 10, y: 2.5, width: 40, height: 15.5
+        x: 14, y: 1, width: 56, height: 24.5
       }
     ],
     floral: [
       {
         id: 'floral1',
         imageUrl: floral1,
-        x: 0, y: 5, width: 9, height: 13
+        x: 1.5, y: 8.5, width: 10, height: 15
       },
       {
         id: 'floral2',
         imageUrl: floral2,
-        x: 50.1, y: 5, width: 10, height: 11
+        x: 72.25, y: 9, width: 10, height: 12
       }
     ],
     vaseDimensions: {
@@ -301,9 +301,9 @@ export const templates = {
     productBase: [
       {
         id: 'default-base',
-        x: 0, y: 23, width: 60, height: 3,
+        x: 0, y: 32, width: 84, height: 4,
         material: 'mat-006'
-      }
+      }  
     ]    
   },
   'template-007': {
