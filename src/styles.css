@@ -2421,6 +2421,7 @@ body:has(.canvas-layout) .footer-branding {
     grid-row: 2;
     position: relative;
     background-color: #f0f0f0;
+    margin-bottom: 60px;
 }
 
 /* Loading Overlay */

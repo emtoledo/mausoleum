@@ -1730,6 +1730,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               />
             </div>
           )}
+          
 
         </div>
 
