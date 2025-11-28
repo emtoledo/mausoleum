@@ -1325,7 +1325,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
 
           <label className="form-label">
-                Color
+                Color: <span style={{ fontSize: '12px', color: '#666' }}>{selectedColorId ? colorData.find(c => c.id === selectedColorId)?.name || '' : ''}</span>
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                 {colorData.map((colorItem) => {
@@ -1495,7 +1495,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
           <div className="form-group">
             <label className="form-label">
-              Color
+              Color: <span style={{ fontSize: '12px', color: '#666' }}>{selectedColorId ? colorData.find(c => c.id === selectedColorId)?.name || '' : ''}</span>
             </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                 {colorData.map((colorItem) => {
