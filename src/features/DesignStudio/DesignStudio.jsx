@@ -1763,6 +1763,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               onSendToBack={handleSendToBack}
               realWorldWidth={initialData?.realWorldWidth || 24}
               canvasSize={canvasSize}
+              initialData={initialData}
             />
      
         )}

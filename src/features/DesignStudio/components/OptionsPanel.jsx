@@ -26,7 +26,7 @@ import { artwork } from '../../../data/ArtworkData';
  * @param {Object} canvasSize - Canvas size in pixels {width, height}
  * @returns {JSX.Element}
  */
-const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical, onBringToFront, onSendToBack, realWorldWidth = 24, canvasSize = { width: 800 } }) => {
+const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical, onBringToFront, onSendToBack, realWorldWidth = 24, canvasSize = { width: 800 }, initialData = null }) => {
   // Text properties state
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
@@ -1128,6 +1128,131 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     }
   };
 
+  const handleClone = async () => {
+    if (!selectedElement || !selectedElement.canvas) {
+      console.warn('Cannot clone: no selected element or canvas');
+      return;
+    }
+
+    const canvas = selectedElement.canvas;
+    
+    try {
+      // Clone the object using serialization/deserialization method
+      // This works reliably across all Fabric.js versions and object types
+      const objectData = selectedElement.toObject();
+      
+      // Get the appropriate class based on object type
+      let ObjectClass;
+      const type = selectedElement.type;
+      if (type === 'i-text' || type === 'itext') {
+        ObjectClass = fabric.IText;
+      } else if (type === 'text') {
+        ObjectClass = fabric.Text;
+      } else if (type === 'image') {
+        ObjectClass = fabric.Image;
+      } else if (type === 'group') {
+        ObjectClass = fabric.Group;
+      } else if (type === 'path') {
+        ObjectClass = fabric.Path;
+      } else {
+        // Fallback to generic Object
+        ObjectClass = fabric.Object;
+      }
+      
+      // Deserialize to create clone
+      const clonedObj = await ObjectClass.fromObject(objectData);
+
+      if (!clonedObj) {
+        console.error('Failed to clone object');
+        return;
+      }
+
+      // Calculate center position of edit zone
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      let centerX = canvasWidth / 2; // Default to canvas center
+      let centerY = canvasHeight / 2; // Default to canvas center
+
+      // Check if editZones are defined
+      if (initialData && initialData.editZones && initialData.editZones.length > 0) {
+        const editZone = initialData.editZones[0];
+        const realWorldWidth = initialData.realWorldWidth || 24;
+        const realWorldHeight = initialData.realWorldHeight || 18;
+        
+        // Calculate scale for converting inches to pixels
+        const scaleX = canvasWidth / realWorldWidth;
+        const scaleY = canvasHeight / realWorldHeight;
+        
+        // Convert editZone coordinates from inches to pixels
+        const editZoneLeft = editZone.x * scaleX;
+        const editZoneTop = editZone.y * scaleY;
+        const editZoneWidth = editZone.width * scaleX;
+        const editZoneHeight = editZone.height * scaleY;
+        
+        // Calculate center of the edit zone
+        centerX = editZoneLeft + (editZoneWidth / 2);
+        centerY = editZoneTop + (editZoneHeight / 2);
+      }
+
+      // Account for object origin point when positioning
+      const originX = clonedObj.originX || 'left';
+      const originY = clonedObj.originY || 'top';
+      
+      // Get object dimensions
+      const objWidth = Math.abs(clonedObj.width * clonedObj.scaleX);
+      const objHeight = Math.abs(clonedObj.height * clonedObj.scaleY);
+      
+      // Calculate position based on origin point
+      let newLeft = centerX;
+      let newTop = centerY;
+      
+      if (originX === 'center') {
+        // Object is already centered at its origin
+        newLeft = centerX;
+      } else {
+        // Object origin is at left, need to adjust for object width
+        newLeft = centerX - (objWidth / 2);
+      }
+      
+      if (originY === 'center') {
+        // Object is already centered at its origin
+        newTop = centerY;
+      } else {
+        // Object origin is at top, need to adjust for object height
+        newTop = centerY - (objHeight / 2);
+      }
+
+      // Set position
+      clonedObj.set({
+        left: newLeft,
+        top: newTop
+      });
+
+      // Generate new elementId for the clone
+      clonedObj.elementId = `${selectedElement.elementId || 'element'}-clone-${Date.now()}`;
+
+      // Add to canvas (this automatically places it at the end/top of the layer stack)
+      canvas.add(clonedObj);
+
+      // Ensure it's at the very top by removing and re-adding (same as handleBringToFront)
+      canvas.remove(clonedObj);
+      canvas.add(clonedObj);
+
+      // Select the cloned object
+      canvas.setActiveObject(clonedObj);
+      canvas.renderAll();
+
+      // Notify parent of the new element
+      if (onUpdateElement) {
+        onUpdateElement(clonedObj);
+      }
+
+      console.log('Object cloned successfully:', clonedObj);
+    } catch (error) {
+      console.error('Error cloning object:', error);
+    }
+  };
+
   // Render empty state
   if (!selectedElement) {
     return (
@@ -1144,15 +1269,25 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     return (
       <div className="options-panel">
         <div className="options-panel-header">
-          <h3 className="options-panel-title">Text Properties</h3>
-          <button
-            type="button"
-            className="options-panel-delete-button"
-            onClick={handleDelete}
-            title="Delete element"
-          >
-            <img src="/images/delete_icon.png" alt="Text" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
-          </button>
+          <h3 className="options-panel-title">Text</h3>
+          <div className="group" style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              type="button" 
+              className="options-panel-delete-button" 
+              onClick={handleClone}
+              title="Clone element"
+            >
+              <img src="/images/clone_icon.png" alt="Clone" className="options-panel-icon" style={{ width: '14px', height: '14px' }} />
+            </button>
+            <button
+              type="button"
+              className="options-panel-delete-button"
+              onClick={handleDelete}
+              title="Delete element"
+            >
+              <img src="/images/delete_icon.png" alt="Delete" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
+            </button>
+          </div>
         </div>
 
         {/* Center buttons */}
@@ -1363,20 +1498,31 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   // Artwork properties panel (for image, group, and path types)
   if (selectedElement.type === 'image' || selectedElement.type === 'group' || selectedElement.type === 'path') {
     const panelTitle = selectedElement.type === 'group' || selectedElement.type === 'path' 
-      ? 'Artwork Properties' 
-      : 'Image Properties';
+      ? 'Artwork' 
+      : 'Image';
     return (
       <div className="options-panel">
         <div className="options-panel-header">
           <h3 className="options-panel-title">{panelTitle}</h3>
-          <button
-            type="button"
-            className="options-panel-delete-button"
-            onClick={handleDelete}
-            title="Delete element"
-          >
-            <img src="/images/delete_icon.png" alt="Text" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
-          </button>
+
+         <div className="group" style={{ display: 'flex', gap: '8px' }}>
+             <button 
+               type="button" 
+               className="options-panel-delete-button" 
+               onClick={handleClone}
+               title="Clone element"
+             >
+               <img src="/images/clone_icon.png" alt="Clone" className="options-panel-icon" style={{ width: '14px', height: '14px' }} />
+             </button>
+            <button
+              type="button"
+              className="options-panel-delete-button"
+              onClick={handleDelete}
+              title="Delete element"
+            >
+              <img src="/images/delete_icon.png" alt="Text" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
+            </button>
+          </div>
         </div>
 
         {/* Center buttons */}
