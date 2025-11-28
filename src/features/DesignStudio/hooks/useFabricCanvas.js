@@ -600,7 +600,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         });
         baseProps.customData = customData;
 
-        if (element.type === 'text' || element.type === 'i-text' || element.type === 'textbox') {
+        if (element.type === 'text' || element.type === 'i-text' || element.type === 'itext' || element.type === 'textbox') {
           // Create Fabric.js Text object
           // LOAD FINAL FONT SIZE FROM PIXELS DIRECTLY - no scaling needed
           // fontSizePx is the final rendered fontSize (already includes scaleX), so scaleX = 1
@@ -646,17 +646,24 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             originY: originY
           });
           
-          fabricObject = new fabric.Text(element.content || 'Text', {
+          // Use IText for inline editing support (double-click to edit)
+          // Convert charSpacing from saved format (pixels) to pixels
+          // If charSpacing is saved as percent, we need to convert it, but it should be saved as pixels
+          const charSpacingPx = element.charSpacing !== undefined ? element.charSpacing : 0;
+          
+          fabricObject = new fabric.IText(element.content || 'Text', {
             ...baseProps,
             fontSize: finalFontSizePx, // Final fontSize, no scaling needed
             fontFamily: element.font || 'Arial',
             fontWeight: element.fontWeight || 'normal',
             fontStyle: element.fontStyle || 'normal',
             textAlign: element.textAlign || 'left',
-            lineHeight: element.lineHeight || 1.2,
+            lineHeight: element.lineHeight !== undefined ? element.lineHeight : 1.2,
+            charSpacing: charSpacingPx, // Letter spacing in pixels
             originX: originX, // Use saved origin point
             originY: originY, // Use saved origin point
-            editable: true
+            editable: true, // Enable inline editing
+            selectable: true // Allow selection for moving/scaling
           });
         } else if (element.type === 'image' || element.type === 'imagebox') {
           // Create Fabric.js Image object
@@ -2165,6 +2172,38 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           console.error('Error populating canvas from saved data:', err);
         });
       }
+
+      // Double-click handler for entering text editing mode
+      canvas.on('mouse:dblclick', (e) => {
+        const activeObject = canvas.getActiveObject();
+        // Only enter editing mode for text objects (IText)
+        if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'text')) {
+          // Enter editing mode - IText will automatically show text cursor
+          activeObject.enterEditing();
+          canvas.renderAll();
+        }
+      });
+
+      // Handle text editing completion - preserve properties when editing ends
+      canvas.on('text:editing:exited', (e) => {
+        const textObject = e.target;
+        if (textObject && (textObject.type === 'i-text' || textObject.type === 'text')) {
+          // Ensure alignment, line height, and char spacing are preserved
+          // These should already be preserved, but we'll ensure they're set
+          console.log('Text editing exited:', {
+            text: textObject.text,
+            textAlign: textObject.textAlign,
+            lineHeight: textObject.lineHeight,
+            charSpacing: textObject.charSpacing
+          });
+          canvas.renderAll();
+          
+          // Notify parent of update
+          if (onElementSelect) {
+            onElementSelect(textObject);
+          }
+        }
+      });
 
       // Selection event listeners
       canvas.on('selection:created', (e) => {

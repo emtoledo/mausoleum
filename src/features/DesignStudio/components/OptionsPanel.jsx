@@ -69,7 +69,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     }
 
     // Update based on element type
-    if (selectedElement.type === 'text') {
+    if (selectedElement.type === 'text' || selectedElement.type === 'i-text' || selectedElement.type === 'itext') {
       setContent(selectedElement.get('text') || '');
       // Calculate effective font size accounting for scale (when text is resized via handles)
       const baseFontSizePx = selectedElement.get('fontSize') || 12;
@@ -182,7 +182,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
    * Listen for object modifications (resizing) to update font size display
    */
   useEffect(() => {
-    if (!selectedElement || selectedElement.type !== 'text' || !selectedElement.canvas) {
+    if (!selectedElement || (selectedElement.type !== 'text' && selectedElement.type !== 'i-text' && selectedElement.type !== 'itext') || !selectedElement.canvas) {
       return;
     }
 
@@ -192,7 +192,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       const modifiedObject = e.target;
       
       // Only update if the modified object is the currently selected text object
-      if (modifiedObject === selectedElement && modifiedObject.type === 'text') {
+      if (modifiedObject === selectedElement && (modifiedObject.type === 'text' || modifiedObject.type === 'i-text' || modifiedObject.type === 'itext')) {
         // When text is resized, Fabric.js uses scaleX/scaleY, not fontSize directly
         // Calculate effective font size: fontSize * scaleY (height is typically what matters for text)
         const baseFontSizePx = modifiedObject.get('fontSize') || 12;
@@ -1140,7 +1140,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   }
 
   // Render text properties panel
-  if (selectedElement.type === 'text') {
+  if (selectedElement.type === 'text' || selectedElement.type === 'i-text' || selectedElement.type === 'itext') {
     return (
       <div className="options-panel">
         <div className="options-panel-header">
@@ -1199,20 +1199,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
 
         <div className="options-panel-form">
-          <div className="form-group">
-            <label htmlFor="text-content" className="form-label">
-              Content
-            </label>
-            <textarea
-              id="text-content"
-              className="form-input"
-              value={content}
-              onChange={handleContentChange}
-              rows="4"
-              placeholder="Enter text content"
-              style={{ textAlign: textAlign }}
-            />
-          </div>
+
 
 
           <div className="form-group">

@@ -7,7 +7,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FabricImage, FabricText } from 'fabric';
+import { FabricImage, FabricText, IText } from 'fabric';
 import * as makerjs from 'makerjs';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { pixelsToInches, calculateScale, inchesToPixels } from './utils/unitConverter';
@@ -190,15 +190,17 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
     console.log('Add text clicked');
     
-    // Create a new text object using FabricText (Fabric v6 API)
-    const textObject = new FabricText('Edit Me', {
+    // Create a new text object using IText for inline editing support
+    const textObject = new IText('Edit Me', {
       left: fabricInstance.width / 2,
       top: fabricInstance.height / 2,
       fontSize: 20,
       fontFamily: 'Times New Roman',
       fill: '#000000',
       originX: 'center',
-      originY: 'center'
+      originY: 'center',
+      editable: true, // Enable inline editing
+      selectable: true // Allow selection for moving/scaling
     });
 
     // Add metadata for tracking
@@ -1087,7 +1089,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         if (customData.category) element.category = customData.category;
 
         // Type-specific properties
-        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'itext' || obj.type === 'textbox') {
           // Get actual text properties using get() method
           const actualText = obj.get ? obj.get('text') : (obj.text ?? '');
           const actualFontSize = obj.get ? obj.get('fontSize') : (obj.fontSize ?? 12);
@@ -1096,6 +1098,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           const actualFontStyle = obj.get ? obj.get('fontStyle') : (obj.fontStyle ?? 'normal');
           const actualTextAlign = obj.get ? obj.get('textAlign') : (obj.textAlign ?? 'left');
           const actualLineHeight = obj.get ? obj.get('lineHeight') : (obj.lineHeight ?? 1.2);
+          const actualCharSpacing = obj.get ? obj.get('charSpacing') : (obj.charSpacing ?? 0);
           const actualOriginX = obj.get ? obj.get('originX') : (obj.originX || 'left');
           const actualOriginY = obj.get ? obj.get('originY') : (obj.originY || 'top');
           
@@ -1117,6 +1120,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.fontStyle = actualFontStyle;
           element.textAlign = actualTextAlign;
           element.lineHeight = actualLineHeight;
+          // Save charSpacing (letter spacing) - Fabric.js stores it in pixels
+          element.charSpacing = actualCharSpacing; // Save in pixels
           // Text-specific fill (already in base fill)
         } else if (obj.type === 'image' || obj.type === 'imagebox') {
           // Get image source - prefer customData.originalSource to avoid blob URLs
