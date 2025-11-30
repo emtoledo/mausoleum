@@ -166,7 +166,7 @@ export const templates = {
     editZones: [
       {
         id: 'main-zone',
-        x: 14, y: 1, width: 56, height: 24.5
+        x: 13, y: 2, width: 58, height: 23.5
       }
     ],
     floral: [
@@ -211,7 +211,7 @@ export const templates = {
     editZones: [
       {
         id: 'main-zone',
-        x: 14, y: 1, width: 56, height: 24.5
+        x: 13, y: 2, width: 58, height: 23.5
       }
     ],
     floral: [
