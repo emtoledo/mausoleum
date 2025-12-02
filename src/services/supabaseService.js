@@ -190,12 +190,12 @@ class SupabaseService {
           .from('project_details')
           .insert({
             project_id: project.id,
-            template_id: template.id,
-            template_name: template.name,
-            template_category: template.productCategory || null,
+            product_id: template.id,
+            product_name: template.name,
+            product_category: template.productCategory || null,
             preview_image_url: template.previewImage || null,
-            template_image_url: template.imageUrl || null,
-            template_overlay_url: template.overlayUrl || null,
+            product_image_url: template.imageUrl || null,
+            product_overlay_url: template.overlayUrl || null,
             real_world_width: template.realWorldWidth || 24,
             real_world_height: template.realWorldHeight || 18,
             available_materials: template.availableMaterials || [],
@@ -447,11 +447,11 @@ class SupabaseService {
    */
   transformProjectDetails(details) {
     return {
-      templateId: details.template_id,
-      templateName: details.template_name,
+      templateId: details.product_id || details.template_id, // Support both old and new field names
+      templateName: details.product_name || details.template_name, // Support both old and new field names
       previewImage: details.preview_image_url,
-      imageUrl: details.template_image_url,
-      overlayUrl: details.template_overlay_url,
+      imageUrl: details.product_image_url || details.template_image_url, // Support both old and new field names
+      overlayUrl: details.product_overlay_url || details.template_overlay_url, // Support both old and new field names
       realWorldWidth: parseFloat(details.real_world_width) || 24,
       realWorldHeight: parseFloat(details.real_world_height) || 18,
       availableMaterials: Array.isArray(details.available_materials) 

@@ -23,15 +23,15 @@ CREATE TABLE IF NOT EXISTS project_details (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE UNIQUE,
   
-  -- Template Information
-  template_id VARCHAR(100) NOT NULL,
-  template_name VARCHAR(255) NOT NULL,
-  template_category VARCHAR(100),
+  -- Product Information
+  product_id VARCHAR(100) NOT NULL,
+  product_name VARCHAR(255) NOT NULL,
+  product_category VARCHAR(100),
   preview_image_url TEXT,
-  template_image_url TEXT,
-  template_overlay_url TEXT,
+  product_image_url TEXT,
+  product_overlay_url TEXT,
   
-  -- Template Dimensions
+  -- Product Dimensions
   real_world_width DECIMAL(10, 2) NOT NULL DEFAULT 24,
   real_world_height DECIMAL(10, 2) NOT NULL DEFAULT 18,
   canvas_width DECIMAL(10, 2),
@@ -93,7 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_project_approvals_project_id ON project_approvals
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_project_details_project_id ON project_details(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_details_template_id ON project_details(template_id);
+CREATE INDEX IF NOT EXISTS idx_project_details_product_id ON project_details(product_id);
 CREATE INDEX IF NOT EXISTS idx_projects_user_account_id ON projects(user_account_id);
 
 -- ============================================
