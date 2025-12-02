@@ -55,6 +55,11 @@ import product012 from '../assets/images/products/estate/estate12.svg';
 import product012Overlay from '../assets/images/products/estate/estate12_overlay.svg';
 import product012Preview from '../assets/images/previews/estate/estate12.png';
 
+import product013 from '../assets/images/products/prestige/prestige1.svg';
+import product013Overlay from '../assets/images/products/prestige/prestige1_overlay.svg';
+import product013Preview from '../assets/images/previews/prestige/prestige1.png';
+
+
 
 export const products = {
   'product-001': {
@@ -596,7 +601,75 @@ export const products = {
         material: 'mat-006'
       }
     ]    
+  },
+  'product-013': {
+    id: 'product-013',
+    name: 'Prestige Collection 1',
+    productCategory: 'Prestige Collection',
+    imageUrl: product013,
+    overlayUrl: product013Overlay,    
+    previewImage: product013Preview,
+    realWorldWidth: 66, // inches
+    realWorldHeight: 30, // inches
+    availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
+    defaultMaterialId: 'mat-002', 
+    canvas: {
+      width: 66, // inches - overall canvas width
+      height: 34 // inches - overall canvas height
+    },    
+    editZones: [
+      {
+        id: 'main-zone',
+        x: 10, y: 2.5, width: 46, height: 21
+      }
+    ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral2,
+        x: 0, y: 7, width: 9, height: 11
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral2,
+        x: 57, y: 7, width: 9, height: 11
+      }
+    ],
+    vaseDimensions: {
+      width: 6,
+      height: 10
+    },
+    productBase: [
+      {
+        id: 'default-base',
+        x: 0, y: 30, width: 66, height: 4,
+        material: 'mat-006'
+      }
+    ]    
   }
 };
 
+// Helper functions for category-based access
+export const getProductsByCategory = (category) => {
+  return Object.values(products).filter(product => product.productCategory === category);
+};
 
+export const getAllCategories = () => {
+  const categories = new Set();
+  Object.values(products).forEach(product => {
+    if (product.productCategory) {
+      categories.add(product.productCategory);
+    }
+  });
+  return Array.from(categories).sort();
+};
+
+export const getProductById = (id) => {
+  return products[id] || null;
+};
+
+// Export products grouped by category for easier access
+export const productsByCategory = getAllCategories().reduce((acc, category) => {
+  acc[category] = getProductsByCategory(category);
+  return acc;
+}, {});

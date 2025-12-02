@@ -6,6 +6,7 @@ import { useProjectMutations } from '../../hooks/useProjectMutations';
 
 // Import step components
 import NewMemorialForm from './steps/NewMemorialForm';
+import ProductCategorySelectionForm from './steps/ProductCategorySelectionForm';
 import TemplateSelectionForm from './steps/TemplateSelectionForm';
 
 const ProjectCreationWizard = () => {
@@ -18,7 +19,8 @@ const ProjectCreationWizard = () => {
 
   const steps = [
     { component: NewMemorialForm, title: 'New Project' },
-    { component: TemplateSelectionForm, title: 'Template Selection' }
+    { component: ProductCategorySelectionForm, title: 'Select Category' },
+    { component: TemplateSelectionForm, title: 'Select Product' }
   ];
 
   const handleNext = (stepData) => {
@@ -108,6 +110,8 @@ const ProjectCreationWizard = () => {
     if (currentStep === 1) {
       return `${baseClass} wizard-step-new-memorial`;
     } else if (currentStep === 2) {
+      return `${baseClass} wizard-step-category-selection`;
+    } else if (currentStep === 3) {
       return `${baseClass} wizard-step-template-selection`;
     }
     return baseClass;

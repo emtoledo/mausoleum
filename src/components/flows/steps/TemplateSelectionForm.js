@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
-import { products } from '../../../data/ProductData';
+import React, { useState, useMemo } from 'react';
+import { products, getProductsByCategory } from '../../../data/ProductData';
 import Button from '../../ui/Button';
 
 const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, isCreating }) => {
   const [selectedProductId, setSelectedProductId] = useState(data.selectedTemplateId || null);
+  
+  // Filter products by selected category
+  const productsArray = useMemo(() => {
+    if (data.selectedCategory) {
+      return getProductsByCategory(data.selectedCategory);
+    }
+    // Fallback to all products if no category selected (shouldn't happen in normal flow)
+    return Object.values(products);
+  }, [data.selectedCategory]);
 
   const handleProductSelect = (productId) => {
     setSelectedProductId(productId);
@@ -28,12 +37,14 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
     onNext({ selectedTemplate: selectedProduct, selectedTemplateId: selectedProductId }); // Keep selectedTemplate key for backward compatibility
   };
 
-  // Convert products object to array
-  const productsArray = Object.values(products);
-
   return (
     <div className="step-form">
       <div className="form-title">Select Product</div>
+      {data.selectedCategory && (
+        <div style={{ marginTop: '8px', marginBottom: '16px', color: '#666', fontSize: '14px' }}>
+          Category: <strong>{data.selectedCategory}</strong>
+        </div>
+      )}
       
       <div className="template-grid-container">
         <div className="template-grid">
