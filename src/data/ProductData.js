@@ -6,59 +6,59 @@ import floral1 from '../assets/images/floral/floral1.png'
 import floral2 from '../assets/images/floral/floral2.png'
 
 // Import product images (using relative paths from src/data/ to src/assets/)
-import markerImg1 from '../assets/images/templates/estate/estate1.svg';
-import markerImg1Overlay from '../assets/images/templates/estate/estate1_overlay.svg';
+import markerImg1 from '../assets/images/products/estate/estate1.svg';
+import markerImg1Overlay from '../assets/images/products/estate/estate1_overlay.svg';
 import markerPreview1 from '../assets/images/previews/estate/estate1.png';
 
-import template002 from '../assets/images/templates/estate/estate2.svg';
-import template002Overlay from '../assets/images/templates/estate/estate2_overlay.svg';
-import template002Preview from '../assets/images/previews/estate/estate2.png';
+import product002 from '../assets/images/products/estate/estate2.svg';
+import product002Overlay from '../assets/images/products/estate/estate2_overlay.svg';
+import product002Preview from '../assets/images/previews/estate/estate2.png';
 
-import template003 from '../assets/images/templates/estate/estate3.svg';
-import template003Overlay from '../assets/images/templates/estate/estate3_overlay.svg';
-import template003Preview from '../assets/images/previews/estate/estate3.png';
+import product003 from '../assets/images/products/estate/estate3.svg';
+import product003Overlay from '../assets/images/products/estate/estate3_overlay.svg';
+import product003Preview from '../assets/images/previews/estate/estate3.png';
 
-import template004 from '../assets/images/templates/estate/estate4.svg';
-import template004Overlay from '../assets/images/templates/estate/estate4_overlay.svg';
-import template004Preview from '../assets/images/previews/estate/estate4.png';
+import product004 from '../assets/images/products/estate/estate4.svg';
+import product004Overlay from '../assets/images/products/estate/estate4_overlay.svg';
+import product004Preview from '../assets/images/previews/estate/estate4.png';
 
-import template005 from '../assets/images/templates/estate/estate5.svg';
-import template005Overlay from '../assets/images/templates/estate/estate5_overlay.svg';
-import template005Preview from '../assets/images/previews/estate/estate5.png';
+import product005 from '../assets/images/products/estate/estate5.svg';
+import product005Overlay from '../assets/images/products/estate/estate5_overlay.svg';
+import product005Preview from '../assets/images/previews/estate/estate5.png';
 
-import template006 from '../assets/images/templates/estate/estate6.svg';
-import template006Overlay from '../assets/images/templates/estate/estate6_overlay.svg';
-import template006Preview from '../assets/images/previews/estate/estate6.png';
+import product006 from '../assets/images/products/estate/estate6.svg';
+import product006Overlay from '../assets/images/products/estate/estate6_overlay.svg';
+import product006Preview from '../assets/images/previews/estate/estate6.png';
 
-import template007 from '../assets/images/templates/estate/estate7.svg';
-import template007Overlay from '../assets/images/templates/estate/estate7_overlay.svg';
-import template007Preview from '../assets/images/previews/estate/estate7.png';
+import product007 from '../assets/images/products/estate/estate7.svg';
+import product007Overlay from '../assets/images/products/estate/estate7_overlay.svg';
+import product007Preview from '../assets/images/previews/estate/estate7.png';
 
-import template008 from '../assets/images/templates/estate/estate8.svg';
-import template008Overlay from '../assets/images/templates/estate/estate8_overlay.svg';
-import template008Preview from '../assets/images/previews/estate/estate8.png';
+import product008 from '../assets/images/products/estate/estate8.svg';
+import product008Overlay from '../assets/images/products/estate/estate8_overlay.svg';
+import product008Preview from '../assets/images/previews/estate/estate8.png';
 
-import template009 from '../assets/images/templates/estate/estate9.svg';
-import template009Overlay from '../assets/images/templates/estate/estate9_overlay.svg';
-import template009Preview from '../assets/images/previews/estate/estate9.png';
+import product009 from '../assets/images/products/estate/estate9.svg';
+import product009Overlay from '../assets/images/products/estate/estate9_overlay.svg';
+import product009Preview from '../assets/images/previews/estate/estate9.png';
 
-import template010 from '../assets/images/templates/estate/estate10.svg';
-import template010Overlay from '../assets/images/templates/estate/estate10_overlay.svg';
-import template010Preview from '../assets/images/previews/estate/estate10.png';
+import product010 from '../assets/images/products/estate/estate10.svg';
+import product010Overlay from '../assets/images/products/estate/estate10_overlay.svg';
+import product010Preview from '../assets/images/previews/estate/estate10.png';
 
 
-import template011 from '../assets/images/templates/estate/estate11.svg';
-import template011Overlay from '../assets/images/templates/estate/estate11_overlay.svg';
-import template011Preview from '../assets/images/previews/estate/estate11.png';
+import product011 from '../assets/images/products/estate/estate11.svg';
+import product011Overlay from '../assets/images/products/estate/estate11_overlay.svg';
+import product011Preview from '../assets/images/previews/estate/estate11.png';
 
-import template012 from '../assets/images/templates/estate/estate12.svg';
-import template012Overlay from '../assets/images/templates/estate/estate12_overlay.svg';
-import template012Preview from '../assets/images/previews/estate/estate12.png';
+import product012 from '../assets/images/products/estate/estate12.svg';
+import product012Overlay from '../assets/images/products/estate/estate12_overlay.svg';
+import product012Preview from '../assets/images/previews/estate/estate12.png';
 
 
 export const products = {
-  'template-001': {
-    id: 'template-001',
+  'product-001': {
+    id: 'product-001',
     name: 'Estate Collection 1',
     productCategory: 'Estate Collection',
     imageUrl: markerImg1,
@@ -102,13 +102,13 @@ export const products = {
       }
     ]
   },
-  'template-002': {
-    id: 'template-002',
+  'product-002': {
+    id: 'product-002',
     name: 'Estate Collection 2',
     productCategory: 'Estate Collection',
-    imageUrl: template002,
-    overlayUrl: template002Overlay,    
-    previewImage: template002Preview,
+    imageUrl: product002,
+    overlayUrl: product002Overlay,    
+    previewImage: product002Preview,
     realWorldWidth: 84, // inches
     realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -147,13 +147,13 @@ export const products = {
       }
     ]
   },
-  'template-003': {
-    id: 'template-003',
+  'product-003': {
+    id: 'product-003',
     name: 'Estate Collection 3',
     productCategory: 'Estate Collection',
-    imageUrl: template003,
-    overlayUrl: template003Overlay,    
-    previewImage: template003Preview,
+    imageUrl: product003,
+    overlayUrl: product003Overlay,    
+    previewImage: product003Preview,
     realWorldWidth: 84, // inches
     realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -192,13 +192,13 @@ export const products = {
       }
     ]    
   },
-  'template-004': {
-    id: 'template-004',
+  'product-004': {
+    id: 'product-004',
     name: 'Estate Collection 4',
     productCategory: 'Estate Collection',
-    imageUrl: template004,
-    overlayUrl: template004Overlay,    
-    previewImage: template004Preview,
+    imageUrl: product004,
+    overlayUrl: product004Overlay,    
+    previewImage: product004Preview,
     realWorldWidth: 84, // inches
     realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -237,13 +237,13 @@ export const products = {
       }
     ]    
   },
-  'template-005': {
-    id: 'template-005',
+  'product-005': {
+    id: 'product-005',
     name: 'Estate Collection 5',
     productCategory: 'Estate Collection',
-    imageUrl: template005,
-    overlayUrl: template005Overlay,    
-    previewImage: template005Preview,
+    imageUrl: product005,
+    overlayUrl: product005Overlay,    
+    previewImage: product005Preview,
     realWorldWidth: 84, // inches
     realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -282,13 +282,13 @@ export const products = {
       }  
     ]    
   },
-  'template-006': {
-    id: 'template-006',
+  'product-006': {
+    id: 'product-006',
     name: 'Estate Collection 6',
     productCategory: 'Estate Collection',
-    imageUrl: template006,
-    overlayUrl: template006Overlay,    
-    previewImage: template006Preview,
+    imageUrl: product006,
+    overlayUrl: product006Overlay,    
+    previewImage: product006Preview,
     realWorldWidth: 84, // inches
     realWorldHeight: 32, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -327,13 +327,13 @@ export const products = {
       }  
     ]    
   },
-  'template-007': {
-    id: 'template-007',
+  'product-007': {
+    id: 'product-007',
     name: 'Estate Collection 7',
     productCategory: 'Estate Collection',
-    imageUrl: template007,
-    overlayUrl: template007Overlay,    
-    previewImage: template007Preview,
+    imageUrl: product007,
+    overlayUrl: product007Overlay,    
+    previewImage: product007Preview,
     realWorldWidth: 66, // inches
     realWorldHeight: 30, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -372,13 +372,13 @@ export const products = {
       }
     ]    
   },
-  'template-008': {
-    id: 'template-008',
+  'product-008': {
+    id: 'product-008',
     name: 'Estate Collection 8',
     productCategory: 'Estate Collection',
-    imageUrl: template008,
-    overlayUrl: template008Overlay,    
-    previewImage: template008Preview,
+    imageUrl: product008,
+    overlayUrl: product008Overlay,    
+    previewImage: product008Preview,
     realWorldWidth: 66, // inches
     realWorldHeight: 30, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -417,13 +417,13 @@ export const products = {
       }
     ]    
   },
-  'template-009': {
-    id: 'template-009',
+  'product-009': {
+    id: 'product-009',
     name: 'Estate Collection 9',
     productCategory: 'Estate Collection',
-    imageUrl: template009,
-    overlayUrl: template009Overlay,    
-    previewImage: template009Preview,
+    imageUrl: product009,
+    overlayUrl: product009Overlay,    
+    previewImage: product009Preview,
     realWorldWidth: 66, // inches
     realWorldHeight: 30, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -462,13 +462,13 @@ export const products = {
       }
     ]    
   },
-  'template-010': {
-    id: 'template-010',
+  'product-010': {
+    id: 'product-010',
     name: 'Estate Collection 10',
     productCategory: 'Estate Collection',
-    imageUrl: template010,
-    overlayUrl: template010Overlay,    
-    previewImage: template010Preview,
+    imageUrl: product010,
+    overlayUrl: product010Overlay,    
+    previewImage: product010Preview,
     realWorldWidth: 66, // inches
     realWorldHeight: 30, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -507,13 +507,13 @@ export const products = {
       }
     ]    
   },
-  'template-011': {
-    id: 'template-011',
+  'product-011': {
+    id: 'product-011',
     name: 'Estate Collection 11',
     productCategory: 'Estate Collection',
-    imageUrl: template011,
-    overlayUrl: template011Overlay,    
-    previewImage: template011Preview,
+    imageUrl: product011,
+    overlayUrl: product011Overlay,    
+    previewImage: product011Preview,
     realWorldWidth: 66, // inches
     realWorldHeight: 30, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -552,13 +552,13 @@ export const products = {
       }
     ]    
   },
-  'template-012': {
-    id: 'template-012',
+  'product-012': {
+    id: 'product-012',
     name: 'Estate Collection 12',
     productCategory: 'Estate Collection',
-    imageUrl: template012,
-    overlayUrl: template012Overlay,    
-    previewImage: template012Preview,
+    imageUrl: product012,
+    overlayUrl: product012Overlay,    
+    previewImage: product012Preview,
     realWorldWidth: 66, // inches
     realWorldHeight: 30, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
@@ -598,6 +598,15 @@ export const products = {
     ]    
   }
 };
+
+// Add backward compatibility: map old template-XXX IDs to new product-XXX IDs
+// This allows existing projects with template-001, template-002, etc. to still work
+Object.keys(products).forEach(key => {
+  if (key.startsWith('product-')) {
+    const oldKey = key.replace('product-', 'template-');
+    products[oldKey] = products[key];
+  }
+});
 
 // Export templates as alias for backward compatibility during migration
 export const templates = products;
