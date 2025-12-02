@@ -599,15 +599,4 @@ export const products = {
   }
 };
 
-// Add backward compatibility: map old template-XXX IDs to new product-XXX IDs
-// This allows existing projects with template-001, template-002, etc. to still work
-Object.keys(products).forEach(key => {
-  if (key.startsWith('product-')) {
-    const oldKey = key.replace('product-', 'template-');
-    products[oldKey] = products[key];
-  }
-});
-
-// Export templates as alias for backward compatibility during migration
-export const templates = products;
 

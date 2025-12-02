@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 809.1 314.4">
+  <!-- Generator: Adobe Illustrator 30.0.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 123)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: url(#radial-gradient);
+      }
+
+      .st1 {
+        fill: #e6e6e6;
+        opacity: .3;
+      }
+
+      .st2, .st3 {
+        fill: none;
+        stroke: #e6e6e6;
+        stroke-miterlimit: 10;
+      }
+
+      .st4 {
+        fill: url(#radial-gradient1);
+      }
+
+      .st3 {
+        stroke-width: 2px;
+      }
+    </style>
+    <radialGradient id="radial-gradient" cx="683.1" cy="51.2" fx="683.1" fy="51.2" r="24.1" gradientTransform="translate(39 105.6) rotate(14.1) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="0" stop-color="#fff" stop-opacity=".8"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity=".6"/>
+      <stop offset=".4" stop-color="#fff" stop-opacity=".4"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity=".3"/>
+      <stop offset=".6" stop-color="#fff" stop-opacity=".1"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".9" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="radial-gradient1" cx="-17.3" cy="34.6" fx="-17.3" fy="34.6" r="24.1" gradientTransform="translate(35.5 260.8) rotate(14.1) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="0" stop-color="#fff" stop-opacity=".8"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity=".6"/>
+      <stop offset=".4" stop-color="#fff" stop-opacity=".4"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity=".3"/>
+      <stop offset=".6" stop-color="#fff" stop-opacity=".1"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".9" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse class="st0" cx="723.4" cy="229.5" rx="13.9" ry="20.5" transform="translate(-35.5 238.7) rotate(-18.3)"/>
+  <ellipse class="st4" cx="36.6" cy="230.5" rx="13.9" ry="20.5" transform="translate(-77 26.6) rotate(-20.1)"/>
+  <path class="st2" d="M93.5,282.3c-2.6-.9-4.2-1.8-4.6-3-.4-1.1-.6-3.3-1.7-3.8-1-.5-3.8-1.3-4.6-2.3-.8-1-2-4.3-.7-5.8s2.7-2.6,2.7-2.6v-3.4s8.2-10.9,11.8-20.2c3.6-9.3,4.1-21.4,1-25.8-2.4-3.5-2.8-3.9-2.8-3.9v-2s-3.4-2.9-3.3-4.5c0-1.6,0-3.7,3.4-6,0,0,.5-2.1,0-3.1-.6-1-1-1.6-1-1.6H28s-.5.6-1,1.6c-.6,1,0,3.1,0,3.1,3.4,2.3,3.4,4.4,3.4,6s-3.4,4.5-3.4,4.5v2s-.3.4-2.7,3.9c-3,4.4-2.6,16.5,1,25.8s11.8,20.2,11.8,20.2v3.4s1.4,1.1,2.7,2.6,0,4.8-.7,5.8c-.8,1-3.5,1.8-4.6,2.3-1,.5-1.3,2.6-1.7,3.8-.4,1.1-2.1,2.1-4.6,3s-4.2,1.8-4.8,3.4.8,4.9.8,4.9h73.4s1.4-3.3.8-4.9-2.2-2.6-4.8-3.4h0Z"/>
+  <rect class="st2" x="116.1" y="12.5" width="576.9" height="278"/>
+  <rect class="st2" y="290.5" width="809.1" height="23.8"/>
+  <path class="st2" d="M780.3,282.3c-2.6-.9-4.2-1.8-4.6-3-.4-1.1-.6-3.3-1.7-3.8-1-.5-3.8-1.3-4.6-2.3s-2-4.3-.7-5.8,2.7-2.6,2.7-2.6v-3.4s8.2-10.9,11.8-20.2,4.1-21.4,1-25.8c-2.4-3.5-2.8-3.9-2.8-3.9v-2s-3.4-2.9-3.3-4.5c0-1.6,0-3.7,3.4-6,0,0,.5-2.1,0-3.1-.6-1-1-1.6-1-1.6h-65.6s-.5.6-1,1.6c-.6,1,0,3.1,0,3.1,3.4,2.3,3.4,4.4,3.4,6s-3.4,4.5-3.4,4.5v2s-.3.4-2.7,3.9c-3,4.4-2.6,16.5,1,25.8s11.8,20.2,11.8,20.2v3.4s1.4,1.1,2.7,2.6,0,4.8-.7,5.8c-.8,1-3.5,1.8-4.6,2.3-1,.5-1.3,2.6-1.7,3.8-.4,1.1-2.1,2.1-4.6,3s-4.2,1.8-4.8,3.4.8,4.9.8,4.9h73.4s1.4-3.3.8-4.9c-.6-1.6-2.2-2.6-4.8-3.4h-.2Z"/>
+  <line class="st3" x1="26.9" y1="199.1" x2="94.8" y2="199.1"/>
+  <path class="st3" d="M37,264.7"/>
+  <line class="st3" x1="27" y1="211.6" x2="94.6" y2="211.6"/>
+  <line class="st3" x1="32.8" y1="279.3" x2="88.8" y2="279.3"/>
+  <line class="st3" x1="713.7" y1="199.1" x2="781.6" y2="199.1"/>
+  <line class="st3" x1="713.9" y1="211.6" x2="781.5" y2="211.6"/>
+  <line class="st3" x1="719.7" y1="279.3" x2="775.7" y2="279.3"/>
+  <rect class="st2" x="125.3" y="2.3" width="558.4" height="10.2"/>
+  <rect class="st1" x="125.3" y="2.3" width="558.4" height="10.2"/>
+</svg>
