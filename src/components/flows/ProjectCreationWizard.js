@@ -57,17 +57,17 @@ const ProjectCreationWizard = () => {
     
     try {
       // Prepare project data for creation
-      const selectedTemplate = finalWizardData.selectedTemplate;
+      const selectedProduct = finalWizardData.selectedTemplate; // Still called selectedTemplate for backward compatibility
       
-      if (!selectedTemplate) {
-        alert('No template selected. Please select a template.');
+      if (!selectedProduct) {
+        alert('No product selected. Please select a product.');
         setIsCreating(false);
         return;
       }
 
       const projectData = {
         title: finalWizardData.projectName,
-        selectedTemplate: selectedTemplate, // Pass the full template object
+        selectedTemplate: selectedProduct, // Pass the full product object (still called selectedTemplate for API compatibility)
         selectedTemplateId: finalWizardData.selectedTemplateId
       };
 
@@ -84,7 +84,7 @@ const ProjectCreationWizard = () => {
         setWizardData({});
         closeWizard();
         
-        // Navigate directly to DesignStudio (no templateId needed since each project has one template)
+        // Navigate directly to DesignStudio (no templateId needed since each project has one product)
         navigate(`/projects/${result.data.id}/edit`);
       } else {
         console.error('Failed to create project:', result.error);

@@ -1,55 +1,55 @@
 import React, { useState } from 'react';
-import { templates } from '../../../data/TemplateData';
+import { products } from '../../../data/ProductData';
 import Button from '../../ui/Button';
 
 const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, isCreating }) => {
-  const [selectedTemplateId, setSelectedTemplateId] = useState(data.selectedTemplateId || null);
+  const [selectedProductId, setSelectedProductId] = useState(data.selectedTemplateId || null);
 
-  const handleTemplateSelect = (templateId) => {
-    setSelectedTemplateId(templateId);
+  const handleProductSelect = (productId) => {
+    setSelectedProductId(productId);
   };
 
   const handleNext = () => {
-    if (!selectedTemplateId) {
-      alert('Please select a template.');
+    if (!selectedProductId) {
+      alert('Please select a product.');
       return;
     }
 
-    // Get the selected template object
-    const selectedTemplate = templates[selectedTemplateId];
+    // Get the selected product object
+    const selectedProduct = products[selectedProductId];
     
-    if (!selectedTemplate) {
-      alert('Selected template not found.');
+    if (!selectedProduct) {
+      alert('Selected product not found.');
       return;
     }
 
-    console.log('TemplateSelectionForm - Selected template:', selectedTemplate);
+    console.log('TemplateSelectionForm - Selected product:', selectedProduct);
 
-    onNext({ selectedTemplate, selectedTemplateId });
+    onNext({ selectedTemplate: selectedProduct, selectedTemplateId: selectedProductId }); // Keep selectedTemplate key for backward compatibility
   };
 
-  // Convert templates object to array
-  const templatesArray = Object.values(templates);
+  // Convert products object to array
+  const productsArray = Object.values(products);
 
   return (
     <div className="step-form">
-      <div className="form-title">Select Template</div>
+      <div className="form-title">Select Product</div>
       
       <div className="template-grid-container">
         <div className="template-grid">
-          {templatesArray.map((template) => (
+          {productsArray.map((product) => (
             <div 
-              key={template.id} 
-              className={`template-item ${selectedTemplateId === template.id ? 'selected' : ''}`}
-              onClick={() => handleTemplateSelect(template.id)}
+              key={product.id} 
+              className={`template-item ${selectedProductId === product.id ? 'selected' : ''}`}
+              onClick={() => handleProductSelect(product.id)}
             >
               <div className="template-preview">
                 <img 
-                  src={template.previewImage} 
-                  alt={template.name}
+                  src={product.previewImage} 
+                  alt={product.name}
                   className="template-preview-image"
                 />
-                <div className="template-name">{template.name}</div>
+                <div className="template-name">{product.name}</div>
               </div>
   
             </div>
@@ -68,7 +68,7 @@ const TemplateSelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep, 
         <Button 
           variant="primary"
           onClick={handleNext}
-          disabled={!selectedTemplateId || isCreating}
+          disabled={!selectedProductId || isCreating}
         >
           {isCreating ? 'Creating Project...' : 'Continue'}
         </Button>

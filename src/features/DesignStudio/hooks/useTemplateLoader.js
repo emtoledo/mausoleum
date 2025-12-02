@@ -1,1 +1,1 @@
-// fill this with logic to load a template from src/data/templates.js and set up the canvas
+// fill this with logic to load a product from src/data/ProductData.js and set up the canvas

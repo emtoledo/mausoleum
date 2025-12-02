@@ -5,7 +5,7 @@ import { useProjectMutations } from '../hooks/useProjectMutations';
 import DesignStudio from '../features/DesignStudio/DesignStudio';
 import { materials } from '../data/MaterialsData.js';
 import { artwork } from '../data/ArtworkData.js';
-import { templates } from '../data/TemplateData';
+import { products } from '../data/ProductData';
 
 const EditModeView = ({ onHandlersReady }) => {
   const { projectId } = useParams();
@@ -13,7 +13,7 @@ const EditModeView = ({ onHandlersReady }) => {
   const { getProject, updateProject } = useProjectMutations();
   
   const [project, setProject] = useState(null);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [designStudioHandlers, setDesignStudioHandlers] = useState(null);
@@ -44,16 +44,16 @@ const EditModeView = ({ onHandlersReady }) => {
           return;
         }
         
-        // Get the single template for this project
+        // Get the single product for this project
         if (result.data.template) {
-          // New format: single template object
-          setSelectedTemplate(result.data.template);
+          // New format: single product object (still called template in DB for backward compatibility)
+          setSelectedProduct(result.data.template);
         } else if (result.data.templates && result.data.templates.length > 0) {
-          // Legacy format: use first template from array
-          console.log('EditModeView - Using first template from legacy templates array');
-          setSelectedTemplate(result.data.templates[0]);
+          // Legacy format: use first product from array
+          console.log('EditModeView - Using first product from legacy templates array');
+          setSelectedProduct(result.data.templates[0]);
         } else {
-          setError('No template found for this project');
+          setError('No product found for this project');
         }
       } else {
         setError(result.error);
@@ -76,37 +76,37 @@ const EditModeView = ({ onHandlersReady }) => {
 
   // Prepare initial data for Design Studio
   const getInitialData = () => {
-    if (!selectedTemplate || !project) return null;
+    if (!selectedProduct || !project) return null;
 
-    // Find the template configuration from templates data using templateId
-    const templateConfig = templates[selectedTemplate.templateId];
+    // Find the product configuration from products data using templateId (ID format kept for backward compatibility)
+    const productConfig = products[selectedProduct.templateId];
     
-    if (!templateConfig) {
-      console.error('Template config not found for templateId:', selectedTemplate.templateId);
+    if (!productConfig) {
+      console.error('Product config not found for templateId:', selectedProduct.templateId);
       return null;
     }
     
-    // Get saved material from template or project
+    // Get saved material from product or project
     // Always look up the full material object from the materials array using the ID
-    const savedMaterialId = selectedTemplate.selectedMaterialId || 
-                            (selectedTemplate.selectedMaterial && selectedTemplate.selectedMaterial.id);
+    const savedMaterialId = selectedProduct.selectedMaterialId || 
+                            (selectedProduct.selectedMaterial && selectedProduct.selectedMaterial.id);
     const savedMaterial = savedMaterialId ? materials.find(m => m.id === savedMaterialId) : null;
     
     console.log('Loading saved material:', {
-      selectedTemplateId: selectedTemplate.selectedMaterialId,
-      selectedMaterial: selectedTemplate.selectedMaterial,
+      selectedProductId: selectedProduct.selectedMaterialId,
+      selectedMaterial: selectedProduct.selectedMaterial,
       savedMaterialId,
       savedMaterial
     });
     
-    // Merge template config with any saved customizations
+    // Merge product config with any saved customizations
     return {
-      ...templateConfig,
-      realWorldWidth: templateConfig.realWorldWidth || 24,
-      realWorldHeight: templateConfig.realWorldHeight || 18,
-      editZones: templateConfig.editZones || [],
-      designElements: selectedTemplate.customizations?.designElements || [],
-      canvasDimensions: selectedTemplate.customizations?.canvasDimensions || null, // Include saved canvas dimensions
+      ...productConfig,
+      realWorldWidth: productConfig.realWorldWidth || 24,
+      realWorldHeight: productConfig.realWorldHeight || 18,
+      editZones: productConfig.editZones || [],
+      designElements: selectedProduct.customizations?.designElements || [],
+      canvasDimensions: selectedProduct.customizations?.canvasDimensions || null, // Include saved canvas dimensions
       material: savedMaterial // Include saved material in initial data
     };
   };
@@ -115,11 +115,11 @@ const EditModeView = ({ onHandlersReady }) => {
     console.log('Saving project:', updatedProjectData);
     
     try {
-      // Update the single template's customizations with the saved design elements
-      const updatedTemplate = {
-        ...selectedTemplate,
+      // Update the single product's customizations with the saved design elements
+      const updatedProduct = {
+        ...selectedProduct,
         customizations: {
-          ...selectedTemplate.customizations,
+          ...selectedProduct.customizations,
           designElements: updatedProjectData.designElements || [],
           canvasDimensions: updatedProjectData.canvasDimensions || null // Save canvas dimensions
         },
@@ -127,7 +127,7 @@ const EditModeView = ({ onHandlersReady }) => {
       };
 
       const result = await updateProject(projectId, {
-        template: updatedTemplate,
+        template: updatedProduct, // Still called 'template' in DB for backward compatibility
         material: updatedProjectData.material, // Include selected material
         previewImageUrl: updatedProjectData.previewImageUrl, // Include preview image URL if captured
         lastEdited: new Date().toISOString()
@@ -136,14 +136,14 @@ const EditModeView = ({ onHandlersReady }) => {
       if (result.success) {
         // Update local project state
         setProject(result.data);
-        // Update selectedTemplate with the new material from the saved result
-        const updatedTemplateFromResult = {
-          ...(result.data.template || updatedTemplate),
+        // Update selectedProduct with the new material from the saved result
+        const updatedProductFromResult = {
+          ...(result.data.template || updatedProduct),
           selectedMaterialId: updatedProjectData.material?.id,
           selectedMaterialName: updatedProjectData.material?.name,
           selectedMaterial: updatedProjectData.material // Include full material object
         };
-        setSelectedTemplate(updatedTemplateFromResult);
+        setSelectedProduct(updatedProductFromResult);
         // Success message is handled by AlertMessage component in DesignStudio
       } else {
         // Error message is handled by AlertMessage component in DesignStudio
@@ -161,7 +161,7 @@ const EditModeView = ({ onHandlersReady }) => {
   if (loading) {
     return (
       <div className="canvas-layout">
-        <div className="loading-message">Loading template...</div>
+        <div className="loading-message">Loading product...</div>
       </div>
     );
   }
@@ -175,10 +175,10 @@ const EditModeView = ({ onHandlersReady }) => {
     );
   }
 
-  if (!project || !selectedTemplate) {
+  if (!project || !selectedProduct) {
     return (
       <div className="canvas-layout">
-        <div className="error-message">Template not found</div>
+        <div className="error-message">Product not found</div>
         <Button onClick={handleBack}>Back to Projects</Button>
       </div>
     );
@@ -189,7 +189,7 @@ const EditModeView = ({ onHandlersReady }) => {
   if (!initialData) {
     return (
       <div className="canvas-layout">
-        <div className="error-message">Failed to load template data</div>
+        <div className="error-message">Failed to load product data</div>
         <Button onClick={handleBack}>Back to Projects</Button>
       </div>
     );

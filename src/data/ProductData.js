@@ -1,5 +1,4 @@
-// This is the most important file.
-// It connects your product images to their real-world data.
+// Estate Collection Product Data for Studio 
 
 
 // Floral Collection
@@ -7,57 +6,57 @@ import floral1 from '../assets/images/floral/floral1.png'
 import floral2 from '../assets/images/floral/floral2.png'
 
 // Import product images (using relative paths from src/data/ to src/assets/)
-import markerImg1 from '../assets/images/templates/estate1.svg';
-import markerImg1Overlay from '../assets/images/templates/estate1_overlay.svg';
-import markerPreview1 from '../assets/images/previews/estate1.png';
+import markerImg1 from '../assets/images/templates/estate/estate1.svg';
+import markerImg1Overlay from '../assets/images/templates/estate/estate1_overlay.svg';
+import markerPreview1 from '../assets/images/previews/estate/estate1.png';
 
-import template002 from '../assets/images/templates/estate2.svg';
-import template002Overlay from '../assets/images/templates/estate2_overlay.svg';
-import template002Preview from '../assets/images/previews/estate2.png';
+import template002 from '../assets/images/templates/estate/estate2.svg';
+import template002Overlay from '../assets/images/templates/estate/estate2_overlay.svg';
+import template002Preview from '../assets/images/previews/estate/estate2.png';
 
-import template003 from '../assets/images/templates/estate3.svg';
-import template003Overlay from '../assets/images/templates/estate3_overlay.svg';
-import template003Preview from '../assets/images/previews/estate3.png';
+import template003 from '../assets/images/templates/estate/estate3.svg';
+import template003Overlay from '../assets/images/templates/estate/estate3_overlay.svg';
+import template003Preview from '../assets/images/previews/estate/estate3.png';
 
-import template004 from '../assets/images/templates/estate4.svg';
-import template004Overlay from '../assets/images/templates/estate4_overlay.svg';
-import template004Preview from '../assets/images/previews/estate4.png';
+import template004 from '../assets/images/templates/estate/estate4.svg';
+import template004Overlay from '../assets/images/templates/estate/estate4_overlay.svg';
+import template004Preview from '../assets/images/previews/estate/estate4.png';
 
-import template005 from '../assets/images/templates/estate5.svg';
-import template005Overlay from '../assets/images/templates/estate5_overlay.svg';
-import template005Preview from '../assets/images/previews/estate5.png';
+import template005 from '../assets/images/templates/estate/estate5.svg';
+import template005Overlay from '../assets/images/templates/estate/estate5_overlay.svg';
+import template005Preview from '../assets/images/previews/estate/estate5.png';
 
-import template006 from '../assets/images/templates/estate6.svg';
-import template006Overlay from '../assets/images/templates/estate6_overlay.svg';
-import template006Preview from '../assets/images/previews/estate6.png';
+import template006 from '../assets/images/templates/estate/estate6.svg';
+import template006Overlay from '../assets/images/templates/estate/estate6_overlay.svg';
+import template006Preview from '../assets/images/previews/estate/estate6.png';
 
-import template007 from '../assets/images/templates/estate7.svg';
-import template007Overlay from '../assets/images/templates/estate7_overlay.svg';
-import template007Preview from '../assets/images/previews/estate7.png';
+import template007 from '../assets/images/templates/estate/estate7.svg';
+import template007Overlay from '../assets/images/templates/estate/estate7_overlay.svg';
+import template007Preview from '../assets/images/previews/estate/estate7.png';
 
-import template008 from '../assets/images/templates/estate8.svg';
-import template008Overlay from '../assets/images/templates/estate8_overlay.svg';
-import template008Preview from '../assets/images/previews/estate8.png';
+import template008 from '../assets/images/templates/estate/estate8.svg';
+import template008Overlay from '../assets/images/templates/estate/estate8_overlay.svg';
+import template008Preview from '../assets/images/previews/estate/estate8.png';
 
-import template009 from '../assets/images/templates/estate9.svg';
-import template009Overlay from '../assets/images/templates/estate9_overlay.svg';
-import template009Preview from '../assets/images/previews/estate9.png';
+import template009 from '../assets/images/templates/estate/estate9.svg';
+import template009Overlay from '../assets/images/templates/estate/estate9_overlay.svg';
+import template009Preview from '../assets/images/previews/estate/estate9.png';
 
-import template010 from '../assets/images/templates/estate10.svg';
-import template010Overlay from '../assets/images/templates/estate10_overlay.svg';
-import template010Preview from '../assets/images/previews/estate10.png';
-
-
-import template011 from '../assets/images/templates/estate11.svg';
-import template011Overlay from '../assets/images/templates/estate11_overlay.svg';
-import template011Preview from '../assets/images/previews/estate11.png';
-
-import template012 from '../assets/images/templates/estate12.svg';
-import template012Overlay from '../assets/images/templates/estate12_overlay.svg';
-import template012Preview from '../assets/images/previews/estate12.png';
+import template010 from '../assets/images/templates/estate/estate10.svg';
+import template010Overlay from '../assets/images/templates/estate/estate10_overlay.svg';
+import template010Preview from '../assets/images/previews/estate/estate10.png';
 
 
-export const templates = {
+import template011 from '../assets/images/templates/estate/estate11.svg';
+import template011Overlay from '../assets/images/templates/estate/estate11_overlay.svg';
+import template011Preview from '../assets/images/previews/estate/estate11.png';
+
+import template012 from '../assets/images/templates/estate/estate12.svg';
+import template012Overlay from '../assets/images/templates/estate/estate12_overlay.svg';
+import template012Preview from '../assets/images/previews/estate/estate12.png';
+
+
+export const products = {
   'template-001': {
     id: 'template-001',
     name: 'Estate Collection 1',
@@ -599,3 +598,7 @@ export const templates = {
     ]    
   }
 };
+
+// Export templates as alias for backward compatibility during migration
+export const templates = products;
+
