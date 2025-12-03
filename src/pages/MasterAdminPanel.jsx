@@ -65,12 +65,6 @@ const MasterAdminPanel = () => {
     <div className="master-admin-panel">
       <div className="admin-header app-header">
         <h1>Mausoleum Admin</h1>
-        <button 
-          className="admin-back-button"
-          onClick={() => navigate('/')}
-        >
-          ← Back to Home
-        </button>
       </div>
 
     <div className="admin-body">

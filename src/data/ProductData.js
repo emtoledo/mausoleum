@@ -552,6 +552,48 @@ export const products = {
         material: 'mat-006'
       }
     ]    
+  },
+  'prestige-2': {
+    id: 'prestige-2',
+    name: 'Prestige Collection 2',
+    productCategory: 'Prestige Collection',
+    realWorldWidth: 60, // inches
+    realWorldHeight: 44, // inches
+    availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
+    defaultMaterialId: 'mat-002', 
+    canvas: {
+      width: 60, // inches - overall canvas width
+      height: 48 // inches - overall canvas height
+    },    
+    editZones: [
+      {
+        id: 'main-zone',
+        x: 10, y: 2.5, width: 46, height: 21
+      }
+    ],
+    floral: [
+      {
+        id: 'floral1',
+        imageUrl: floral2,
+        x: 0, y: 7, width: 9, height: 11
+      },
+      {
+        id: 'floral2',
+        imageUrl: floral2,
+        x: 57, y: 7, width: 9, height: 11
+      }
+    ],
+    vaseDimensions: {
+      width: 6,
+      height: 10
+    },
+    productBase: [
+      {
+        id: 'default-base',
+        x: 0, y: 30, width: 60, height: 4,
+        material: 'mat-006'
+      }
+    ]    
   }
 };
 
