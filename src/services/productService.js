@@ -1,0 +1,257 @@
+/**
+ * Product Service
+ * Handles CRUD operations for products in the database
+ */
+
+import { supabase } from '../lib/supabase';
+import { products as productData } from '../data/ProductData';
+
+class ProductService {
+  /**
+   * Check if current user is a master admin
+   */
+  async isMasterAdmin() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data, error } = await supabase
+        .from('master_admins')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      return !error && !!data;
+    } catch (error) {
+      console.error('Error checking master admin status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all products from database
+   */
+  async getAllProducts(includeInactive = false) {
+    try {
+      let query = supabase
+        .from('products')
+        .select('*')
+        .order('product_category', { ascending: true })
+        .order('name', { ascending: true });
+
+      if (!includeInactive) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get a single product by ID
+   */
+  async getProductById(productId) {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .single();
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Create a new product
+   */
+  async createProduct(product) {
+    try {
+      const productData = {
+        id: product.id,
+        name: product.name,
+        product_category: product.productCategory,
+        preview_image_url: product.previewImage || null,
+        product_image_url: product.imageUrl || null,
+        product_overlay_url: product.overlayUrl || null,
+        real_world_width: product.realWorldWidth,
+        real_world_height: product.realWorldHeight,
+        canvas_width: product.canvas?.width || null,
+        canvas_height: product.canvas?.height || null,
+        available_materials: product.availableMaterials || [],
+        default_material_id: product.defaultMaterialId || null,
+        edit_zones: product.editZones || [],
+        product_base: product.productBase || [],
+        floral: product.floral || [],
+        vase_dimensions: product.vaseDimensions || {},
+        is_active: product.isActive !== undefined ? product.isActive : true,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('products')
+        .insert(productData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error creating product:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update an existing product
+   */
+  async updateProduct(productId, updates) {
+    try {
+      const updateData = {
+        name: updates.name,
+        product_category: updates.productCategory,
+        preview_image_url: updates.previewImage || null,
+        product_image_url: updates.imageUrl || null,
+        product_overlay_url: updates.overlayUrl || null,
+        real_world_width: updates.realWorldWidth,
+        real_world_height: updates.realWorldHeight,
+        canvas_width: updates.canvas?.width || null,
+        canvas_height: updates.canvas?.height || null,
+        available_materials: updates.availableMaterials || [],
+        default_material_id: updates.defaultMaterialId || null,
+        edit_zones: updates.editZones || [],
+        product_base: updates.productBase || [],
+        floral: updates.floral || [],
+        vase_dimensions: updates.vaseDimensions || {},
+        is_active: updates.isActive !== undefined ? updates.isActive : true,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', productId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error updating product:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete a product
+   */
+  async deleteProduct(productId) {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Sync products from ProductData.js to database
+   * Useful for initial migration
+   * Will skip products that already exist (by ID)
+   */
+  async syncProductsFromData() {
+    try {
+      const productsArray = Object.values(productData);
+      const results = [];
+
+      for (const product of productsArray) {
+        // Check if product already exists
+        const existing = await this.getProductById(product.id);
+        
+        if (existing.success && existing.data) {
+          // Product exists, skip it
+          results.push({ 
+            id: product.id, 
+            success: true, 
+            skipped: true,
+            message: 'Product already exists, skipped' 
+          });
+        } else {
+          // Product doesn't exist, create it
+          const result = await this.createProduct(product);
+          results.push({ 
+            id: product.id, 
+            success: result.success, 
+            error: result.error,
+            skipped: false
+          });
+        }
+      }
+
+      return { success: true, results };
+    } catch (error) {
+      console.error('Error syncing products:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get products by category
+   */
+  async getProductsByCategory(category) {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('product_category', category)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      console.error('Error fetching products by category:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get all categories
+   */
+  async getAllCategories() {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('product_category')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      const categories = [...new Set(data.map(p => p.product_category))].sort();
+      return { success: true, data: categories };
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+const productService = new ProductService();
+export default productService;
+

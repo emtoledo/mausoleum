@@ -16,6 +16,7 @@ import EditModeView from './pages/EditModeView';
 import ApprovalProofView from './pages/ApprovalProofView';
 import ApprovedView from './pages/ApprovedView';
 import AccountSettingsView from './pages/AccountSettingsView';
+import MasterAdminPanel from './pages/MasterAdminPanel';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Protected Route Component
@@ -136,6 +137,12 @@ const App = () => {
                   <BaseScreenLayout>
                     <AccountSettingsView />
                   </BaseScreenLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin" element={
+                <ProtectedRoute>
+                  <MasterAdminPanel />
                 </ProtectedRoute>
               } />
               

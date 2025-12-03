@@ -266,14 +266,12 @@ CREATE POLICY "Users can delete own project approvals"
   );
 
 -- ============================================
--- PHASE 2: Hierarchy Tables (Optional - Add Later)
+-- PHASE 2: Hierarchy Tables
 -- ============================================
--- Uncomment these when you're ready to implement the full hierarchy
 
-/*
 -- Master Admins
 CREATE TABLE IF NOT EXISTS master_admins (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email VARCHAR(255) UNIQUE NOT NULL,
   name VARCHAR(255) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -310,9 +308,88 @@ CREATE TABLE IF NOT EXISTS user_accounts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Then update projects table to reference user_accounts instead:
--- ALTER TABLE projects DROP CONSTRAINT projects_user_account_id_fkey;
--- ALTER TABLE projects ADD CONSTRAINT projects_user_account_id_fkey 
---   FOREIGN KEY (user_account_id) REFERENCES user_accounts(id) ON DELETE CASCADE;
-*/
+-- Products Catalog (for master admin management)
+CREATE TABLE IF NOT EXISTS products (
+  id VARCHAR(100) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  product_category VARCHAR(100) NOT NULL,
+  preview_image_url TEXT,
+  product_image_url TEXT,
+  product_overlay_url TEXT,
+  real_world_width DECIMAL(10, 2) NOT NULL,
+  real_world_height DECIMAL(10, 2) NOT NULL,
+  canvas_width DECIMAL(10, 2),
+  canvas_height DECIMAL(10, 2),
+  available_materials JSONB DEFAULT '[]'::jsonb,
+  default_material_id VARCHAR(100),
+  edit_zones JSONB DEFAULT '[]'::jsonb,
+  product_base JSONB DEFAULT '[]'::jsonb,
+  floral JSONB DEFAULT '[]'::jsonb,
+  vase_dimensions JSONB DEFAULT '{}'::jsonb,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for products
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(product_category);
+CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
+
+-- RLS for master_admins
+ALTER TABLE master_admins ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to check if they are a master admin (for access control)
+CREATE POLICY "Users can check own master admin status"
+  ON master_admins FOR SELECT
+  USING (id = auth.uid());
+
+-- Allow master admins to view all master admins
+CREATE POLICY "Master admins can view all master admins"
+  ON master_admins FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM master_admins
+      WHERE master_admins.id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Master admins can update own record"
+  ON master_admins FOR UPDATE
+  USING (id = auth.uid());
+
+-- RLS for products (master admins can manage, all authenticated users can view active products)
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view active products"
+  ON products FOR SELECT
+  USING (is_active = true OR EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
+
+CREATE POLICY "Master admins can manage products"
+  ON products FOR ALL
+  USING (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
+
+-- RLS for parent_companies
+ALTER TABLE parent_companies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Master admins can manage parent companies"
+  ON parent_companies FOR ALL
+  USING (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
+
+-- RLS for locations
+ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Master admins can manage locations"
+  ON locations FOR ALL
+  USING (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
+
+-- RLS for user_accounts
+ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Master admins can manage user accounts"
+  ON user_accounts FOR ALL
+  USING (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
 

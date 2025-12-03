@@ -18,15 +18,6 @@ const AllProjectsView = () => {
   const [editModal, setEditModal] = useState({ isOpen: false, project: null });
   const [editValues, setEditValues] = useState({ name: '', status: '' });
 
-  useEffect(() => {
-    // Enable scrolling on body when on all projects view page
-    document.body.style.overflow = 'auto';
-    
-    // Cleanup: restore original overflow when component unmounts
-    return () => {
-      document.body.style.overflow = 'hidden';
-    };
-  }, []);
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - Project clicked:', project);
