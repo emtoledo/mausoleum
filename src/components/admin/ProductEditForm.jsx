@@ -20,7 +20,8 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     editZones: [],
     productBase: [],
     floral: [],
-    dimensionsForDisplay: ''
+    dimensionsForDisplay: '',
+    availableViews: ['front']
   });
 
   const [materialsInput, setMaterialsInput] = useState('');
@@ -58,7 +59,8 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         editZones: product.edit_zones || [],
         productBase: product.product_base || [],
         floral: product.floral || [],
-        dimensionsForDisplay: product.dimensions_for_display || ''
+        dimensionsForDisplay: product.dimensions_for_display || '',
+        availableViews: product.available_views || ['front']
       });
 
       setMaterialsInput((product.available_materials || []).join(', '));
@@ -130,7 +132,8 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         editZones: defaultEditZones,
         productBase: defaultProductBase,
         floral: defaultFloral,
-        dimensionsForDisplay: defaultDimensionsForDisplay
+        dimensionsForDisplay: defaultDimensionsForDisplay,
+        availableViews: ['front']
       });
       setMaterialsInput('mat-001, mat-002, mat-003, mat-004, mat-005');
       setEditZonesJson(JSON.stringify(defaultEditZones, null, 2));
@@ -210,7 +213,8 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       editZones,
       productBase,
       floral,
-      dimensionsForDisplay: formData.dimensionsForDisplay || null
+      dimensionsForDisplay: formData.dimensionsForDisplay || null,
+      availableViews: formData.availableViews || ['front']
     };
 
     onSave(productData);
@@ -221,15 +225,6 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       <div className="form-header">
         <h3>{product ? 'Edit Product' : 'Add New Product'}</h3>
         <div className="form-actions-header">
-          {product && onDelete && (
-            <button
-              type="button"
-              className="delete-button"
-              onClick={() => onDelete(product.id)}
-            >
-              Delete
-            </button>
-          )}
           <button type="button" className="cancel-button" onClick={onCancel}>
             Cancel
           </button>
@@ -282,18 +277,75 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             </div>
 
             <div className="form-group">
-              
+            <label>
                 <input
                   type="checkbox"
                   name="isActive"
                   checked={formData.isActive}
                   onChange={handleChange}
                 />
-                <label>
-                Active
+                <span>Active</span>
               </label>
             </div>
+
+            <div className="form-group">
+              <label>Select available views for this product:</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.availableViews.includes('front')}
+                    disabled={formData.availableViews.includes('top')}
+                    onChange={(e) => {
+                      const views = e.target.checked
+                        ? [...formData.availableViews.filter(v => v !== 'top'), 'front']
+                        : formData.availableViews.filter(v => v !== 'front');
+                      setFormData({ ...formData, availableViews: views.length > 0 ? views : ['front'] });
+                    }}
+                  />
+                  <span>Front</span>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.availableViews.includes('back')}
+                    disabled={formData.availableViews.includes('top')}
+                    onChange={(e) => {
+                      const views = e.target.checked
+                        ? [...formData.availableViews.filter(v => v !== 'top'), 'back']
+                        : formData.availableViews.filter(v => v !== 'back');
+                      setFormData({ ...formData, availableViews: views.length > 0 ? views : ['front'] });
+                    }}
+                  />
+                  <span>Back</span>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.availableViews.includes('top')}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        // If Top is selected, only allow Top (clear Front/Back)
+                        setFormData({ ...formData, availableViews: ['top'] });
+                      } else {
+                        // If Top is deselected, default to Front
+                        setFormData({ ...formData, availableViews: ['front'] });
+                      }
+                    }}
+                  />
+                  <span>Top</span>
+                </label>
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                  Note: Selecting "Top" will disable Front/Back options. Products with Front + Back allow switching between views in the design studio.
+                </p>
+              </div>
+            </div>
+
+
+
           </div>
+
+
 
           <div className="form-section">
             <h4>Images</h4>
@@ -301,6 +353,9 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             <div className="form-group">
               <label>Preview Image</label>
               <div className="image-upload-container">
+              {formData.previewImage && (
+                <img src={formData.previewImage} alt="Preview" className="preview-image" />
+              )}
                 <input
                   type="file"
                   accept="image/*"
@@ -337,7 +392,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                   disabled={uploadingImages.preview || !imageFiles.preview || !formData.id}
                   className="upload-button"
                 >
-                  {uploadingImages.preview ? 'Uploading...' : 'Upload Preview'}
+                  {uploadingImages.preview ? 'Uploading...' : 'Upload'}
                 </button>
               </div>
               <input
@@ -348,9 +403,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                 placeholder="Or enter image URL directly"
                 style={{ marginTop: '8px' }}
               />
-              {formData.previewImage && (
-                <img src={formData.previewImage} alt="Preview" className="preview-image" />
-              )}
+              
             </div>
 
             <div className="form-group">
@@ -392,7 +445,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                   disabled={uploadingImages.product || !imageFiles.product || !formData.id}
                   className="upload-button"
                 >
-                  {uploadingImages.product ? 'Uploading...' : 'Upload Product Image'}
+                  {uploadingImages.product ? 'Uploading...' : 'Upload'}
                 </button>
               </div>
               <input
@@ -444,7 +497,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                   disabled={uploadingImages.overlay || !imageFiles.overlay || !formData.id}
                   className="upload-button"
                 >
-                  {uploadingImages.overlay ? 'Uploading...' : 'Upload Overlay'}
+                  {uploadingImages.overlay ? 'Uploading...' : 'Upload'}
                 </button>
               </div>
               <input
@@ -558,6 +611,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                 HTML is supported for formatting.
               </small>
             </div>
+
           </div>
 
           <div className="form-section full-width">
@@ -603,6 +657,19 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
           </div>
         </div>
       </form>
+
+      <div className="form-actions-footer">            
+      {product && onDelete && (
+            <button
+              type="button"
+              className="delete-button"
+              onClick={() => onDelete(product.id)}
+            >
+              Delete Product
+            </button>
+          )}
+          </div>
+      
     </div>
   );
 };

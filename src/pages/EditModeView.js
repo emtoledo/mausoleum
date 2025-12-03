@@ -88,7 +88,8 @@ const EditModeView = ({ onHandlersReady }) => {
               editZones: dbProduct.edit_zones || [],
               productBase: dbProduct.product_base || [],
               floral: dbProduct.floral || [],
-              vaseDimensions: dbProduct.vase_dimensions || {}
+              vaseDimensions: dbProduct.vase_dimensions || {},
+              availableViews: dbProduct.available_views || ['front']
             };
             setProductConfig(config);
           } else {
@@ -134,13 +135,30 @@ const EditModeView = ({ onHandlersReady }) => {
       savedMaterial
     });
     
+    // Get current view from project or default to 'front'
+    const currentView = selectedProduct.currentView || 'front';
+    
+    // Get view-specific design elements (new structure: { "front": [...], "back": [...] })
+    // Support both new format (object with view keys) and old format (array)
+    let designElements = [];
+    if (selectedProduct.customizations?.designElements) {
+      if (Array.isArray(selectedProduct.customizations.designElements)) {
+        // Old format: array - use for current view only
+        designElements = selectedProduct.customizations.designElements;
+      } else if (typeof selectedProduct.customizations.designElements === 'object') {
+        // New format: object with view keys
+        designElements = selectedProduct.customizations.designElements[currentView] || [];
+      }
+    }
+    
     // Merge product config with any saved customizations
     return {
       ...productConfig,
       realWorldWidth: productConfig.realWorldWidth || 24,
       realWorldHeight: productConfig.realWorldHeight || 18,
       editZones: productConfig.editZones || [],
-      designElements: selectedProduct.customizations?.designElements || [],
+      designElements,
+      currentView,
       canvasDimensions: selectedProduct.customizations?.canvasDimensions || null, // Include saved canvas dimensions
       material: savedMaterial // Include saved material in initial data
     };
@@ -153,9 +171,10 @@ const EditModeView = ({ onHandlersReady }) => {
       // Update the single product's customizations with the saved design elements
       const updatedProduct = {
         ...selectedProduct,
+        currentView: updatedProjectData.currentView || 'front', // Save current view
         customizations: {
           ...selectedProduct.customizations,
-          designElements: updatedProjectData.designElements || [],
+          designElements: updatedProjectData.designElements || [], // Now an object with view keys
           canvasDimensions: updatedProjectData.canvasDimensions || null // Save canvas dimensions
         },
         configured: true

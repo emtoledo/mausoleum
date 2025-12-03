@@ -51,8 +51,11 @@ CREATE TABLE IF NOT EXISTS project_details (
   selected_material_id VARCHAR(100),
   selected_material_name VARCHAR(255),
   
-  -- Design Elements (stored as JSONB array)
-  design_elements JSONB DEFAULT '[]'::jsonb,
+  -- Current View (front, back, or top)
+  current_view VARCHAR(50) DEFAULT 'front',
+  
+  -- Design Elements (stored as JSONB object with view keys: { "front": [...], "back": [...], "top": [...] })
+  design_elements JSONB DEFAULT '{"front": []}'::jsonb,
   
   -- Additional customizations
   customizations JSONB DEFAULT '{}'::jsonb,
@@ -326,6 +329,7 @@ CREATE TABLE IF NOT EXISTS products (
   product_base JSONB DEFAULT '[]'::jsonb,
   floral JSONB DEFAULT '[]'::jsonb,
   dimensions_for_display TEXT,
+  available_views JSONB DEFAULT '["front"]'::jsonb,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

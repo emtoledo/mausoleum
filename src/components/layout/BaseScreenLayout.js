@@ -88,6 +88,9 @@ const BaseScreenLayout = ({ children }) => {
         isExporting={headerHandlers?.isExporting || false}
         isCanvasReady={headerHandlers?.isCanvasReady || false}
         pageTitle={headerHandlers?.projectTitle}
+        availableViews={headerHandlers?.availableViews}
+        currentView={headerHandlers?.currentView}
+        onViewChange={headerHandlers?.onViewChange}
       />
       <main className="main-content">
         {childrenWithHandlers}

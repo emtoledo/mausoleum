@@ -52,6 +52,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [isExporting, setIsExporting] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
+  const [currentView, setCurrentView] = useState(initialData?.currentView || 'front');
+  const [availableViews, setAvailableViews] = useState(initialData?.availableViews || ['front']);
   const [saveAlert, setSaveAlert] = useState(null);
   const [loadingState, setLoadingState] = useState({ isLoading: false, loaded: 0, total: 0, message: '' });
 
@@ -151,10 +153,53 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     setLoadingState(state);
   }, []);
 
+  // Create view-specific initialData that updates when view changes
+  // Use state instead of ref so useFabricCanvas hook detects changes
+  const [viewSpecificInitialData, setViewSpecificInitialData] = useState(() => {
+    // Get design elements for current view
+    let designElements = [];
+    if (initialData?.designElements) {
+      if (Array.isArray(initialData.designElements)) {
+        designElements = initialData.designElements;
+      } else if (typeof initialData.designElements === 'object') {
+        designElements = initialData.designElements[currentView] || [];
+      }
+    }
+    
+    return {
+      ...initialData,
+      designElements,
+      currentView
+    };
+  });
+
+  // Update view-specific data when view or initialData changes
+  useEffect(() => {
+    if (!initialData) return;
+    
+    // Get design elements for current view
+    let designElements = [];
+    if (initialData.designElements) {
+      if (Array.isArray(initialData.designElements)) {
+        // Old format: array - use for current view only
+        designElements = initialData.designElements;
+      } else if (typeof initialData.designElements === 'object') {
+        // New format: object with view keys
+        designElements = initialData.designElements[currentView] || [];
+      }
+    }
+    
+    setViewSpecificInitialData({
+      ...initialData,
+      designElements,
+      currentView
+    });
+  }, [initialData, currentView]);
+
   const fabricFromHook = useFabricCanvas(
     fabricCanvasRef,
     productCanvasRef,
-    initialData,
+    viewSpecificInitialData, // Use view-specific data (state, not ref)
     setSelectedElement,
     canvasSize,
     setFabricInstance, // Callback when canvas is ready
@@ -1606,15 +1651,56 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     }
   }, [onClose]);
 
+  /**
+   * Handler: Change View (Front/Back/Top)
+   */
+  const handleViewChange = useCallback((newView) => {
+    if (!availableViews.includes(newView)) {
+      console.warn(`View ${newView} is not available. Available views:`, availableViews);
+      return;
+    }
+    
+    if (currentView === newView) {
+      return; // Already on this view
+    }
+    
+    // Clear selection when switching views
+    if (fabricInstance) {
+      fabricInstance.discardActiveObject();
+      fabricInstance.renderAll();
+    }
+    setSelectedElement(null);
+    
+    // Switch to new view - the useEffect will update viewSpecificInitialData
+    // and useFabricCanvas will reload the canvas with the new view's elements
+    setCurrentView(newView);
+  }, [availableViews, fabricInstance, currentView]);
+
   // Expose handlers to parent component (for AppHeader integration)
   // Store handlers in ref to always have latest version without causing re-renders
-  const handlersRef = useRef({ onSave: handleSave, onExport: handleExport, onApproval: handleApproval, projectTitle });
+  const handlersRef = useRef({ 
+    onSave: handleSave, 
+    onExport: handleExport, 
+    onApproval: handleApproval, 
+    projectTitle,
+    onViewChange: handleViewChange,
+    currentView,
+    availableViews
+  });
   const prevStateRef = useRef({ isSaving: false, isExporting: false, canvasReady: false, initialized: false });
   
   // Update handlers ref when they change (without triggering effects)
   useEffect(() => {
-    handlersRef.current = { onSave: handleSave, onExport: handleExport, onApproval: handleApproval, projectTitle };
-  }, [handleSave, handleExport, handleApproval, projectTitle]);
+    handlersRef.current = { 
+      onSave: handleSave, 
+      onExport: handleExport, 
+      onApproval: handleApproval, 
+      projectTitle,
+      onViewChange: handleViewChange,
+      currentView,
+      availableViews
+    };
+  }, [handleSave, handleExport, handleApproval, projectTitle, handleViewChange, currentView, availableViews]);
   
   // Only expose handlers when state changes or on initial mount
   useEffect(() => {

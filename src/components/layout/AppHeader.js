@@ -22,7 +22,10 @@ const AppHeader = ({
   showShareButton = true,
   isSaving = false,
   isExporting = false,
-  isCanvasReady = false
+  isCanvasReady = false,
+  availableViews = ['front'],
+  currentView = 'front',
+  onViewChange
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -238,13 +241,43 @@ const AppHeader = ({
               </div>
             </div>
             
-            <div className="control-group">
-              <div className="control-separator">|</div>
-              <div className="control-item active">
-                <span className="control-text">Front</span>
+            {availableViews && availableViews.length > 0 && (
+              <div className="control-group">
+                <div className="control-separator">|</div>
+                {availableViews.includes('top') && !availableViews.includes('front') && !availableViews.includes('back') ? (
+                  // Top-only view: just show "Top" without selection
+                  <div className="control-item active">
+                    <span className="control-text">Top</span>
+                  </div>
+                ) : (
+                  // Front/Back views: show selectable options
+                  <>
+                    {availableViews.includes('front') && (
+                      <div 
+                        className={`control-item ${currentView === 'front' ? 'active' : ''}`}
+                        onClick={() => onViewChange && onViewChange('front')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <span className="control-text">Front</span>
+                      </div>
+                    )}
+                    {availableViews.includes('front') && availableViews.includes('back') && (
+                      <div className="control-separator">|</div>
+                    )}
+                    {availableViews.includes('back') && (
+                      <div 
+                        className={`control-item ${currentView === 'back' ? 'active' : ''}`}
+                        onClick={() => onViewChange && onViewChange('back')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <span className="control-text">Back</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="control-separator">|</div>
               </div>
-              <div className="control-separator">|</div>
-            </div>
+            )}
             
             <div className="control-group">
               <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-in')}>

@@ -100,6 +100,15 @@
   font-weight: 500;
   color: #555;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  display: flex;
+}
+
+.form-group input {
+  margin-bottom: 0;
 }
 
 .form-group input[type="text"],
@@ -116,7 +125,10 @@
 }
 
 .form-group input[type="checkbox"] {
-  margin-right: 8px;
+  width: 20px;
+  height: 20px;
+  margin-bottom: 0;
+  margin-right: 0;
 }
 
 .form-row {
@@ -136,9 +148,8 @@
 }
 
 .preview-image {
-  max-width: 200px;
-  max-height: 200px;
-  margin-top: 10px;
+  max-width: 80px;
+  max-height: 70px;
   border-radius: 4px;
   border: 1px solid #ddd;
 }
@@ -179,3 +190,9 @@
   opacity: 0.6;
 }
 
+.form-actions-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}

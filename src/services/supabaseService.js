@@ -206,7 +206,8 @@ class SupabaseService {
             product_base: template.productBase || [],
             selected_material_id: null,
             selected_material_name: null,
-            design_elements: [],
+            current_view: 'front', // Default to front view
+            design_elements: { front: [] }, // New format: object with view keys
             customizations: {}
           })
           .select()
@@ -290,9 +291,13 @@ class SupabaseService {
         const template = updateData.template;
         hasDetailsUpdates = true;
 
-        // Update design elements
+        // Update design elements (now an object with view keys: { "front": [...], "back": [...] })
         if (template.customizations?.designElements) {
           detailsUpdates.design_elements = template.customizations.designElements;
+        }
+        // Update current view
+        if (template.currentView) {
+          detailsUpdates.current_view = template.currentView;
         }
 
         // Update customizations
@@ -464,8 +469,9 @@ class SupabaseService {
       },
       editZones: details.edit_zones || [],
       productBase: details.product_base || [],
+      currentView: details.current_view || 'front', // Include current view
       customizations: {
-        designElements: details.design_elements || [],
+        designElements: details.design_elements || [], // Now an object with view keys: { "front": [...], "back": [...] }
         colors: details.customizations?.colors || {},
         fonts: details.customizations?.fonts || {},
         layout: details.customizations?.layout || {}
