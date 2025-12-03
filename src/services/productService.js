@@ -220,15 +220,42 @@ class ProductService {
    */
   async getProductsByCategory(category) {
     try {
+      // Fetch products and sort by extracting the numeric part of the name
+      // This ensures "Estate 1" comes before "Estate 2" and "Estate 10" comes after "Estate 9"
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .eq('product_category', category)
-        .eq('is_active', true)
-        .order('name', { ascending: true });
+        .eq('is_active', true);
 
       if (error) throw error;
-      return { success: true, data: data || [] };
+
+      // Sort products by extracting the number from the name
+      // Handles patterns like "Estate 1", "Estate Collection 2", etc.
+      const sortedData = (data || []).sort((a, b) => {
+        // Extract number from product name (e.g., "Estate 1" -> 1, "Estate Collection 12" -> 12)
+        const extractNumber = (name) => {
+          const match = name.match(/(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        };
+
+        const numA = extractNumber(a.name);
+        const numB = extractNumber(b.name);
+
+        // If both have numbers, sort numerically
+        if (numA > 0 && numB > 0) {
+          return numA - numB;
+        }
+
+        // If only one has a number, put it first
+        if (numA > 0) return -1;
+        if (numB > 0) return 1;
+
+        // If neither has a number, sort alphabetically
+        return a.name.localeCompare(b.name);
+      });
+
+      return { success: true, data: sortedData };
     } catch (error) {
       console.error('Error fetching products by category:', error);
       return { success: false, error: error.message };
