@@ -1,11 +1,28 @@
-import React, { useState } from 'react';
-import { getAllCategories } from '../../../data/ProductData';
+import React, { useState, useEffect } from 'react';
+import productService from '../../../services/productService';
 import Button from '../../ui/Button';
 
 const ProductCategorySelectionForm = ({ data, onNext, onBack, isFirstStep, isLastStep }) => {
   const [selectedCategory, setSelectedCategory] = useState(data.selectedCategory || null);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  const categories = getAllCategories();
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const result = await productService.getAllCategories();
+        if (result.success) {
+          setCategories(result.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadCategories();
+  }, []);
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
@@ -21,6 +38,17 @@ const ProductCategorySelectionForm = ({ data, onNext, onBack, isFirstStep, isLas
     onNext({ selectedCategory });
   };
 
+  if (loading) {
+    return (
+      <div className="step-form">
+        <div className="form-title">Select Product Category</div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          Loading categories...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="step-form">
       <div className="form-title">Select Product Category</div>
@@ -32,7 +60,12 @@ const ProductCategorySelectionForm = ({ data, onNext, onBack, isFirstStep, isLas
           gap: '16px',
           padding: '20px 0'
         }}>
-          {categories.map((category) => (
+          {categories.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
+              No categories found
+            </div>
+          ) : (
+            categories.map((category) => (
             <div 
               key={category} 
               className={`category-item ${selectedCategory === category ? 'selected' : ''}`}
@@ -62,7 +95,8 @@ const ProductCategorySelectionForm = ({ data, onNext, onBack, isFirstStep, isLas
             >
               <div style={{ fontSize: '18px', color: '#333' }}>{category}</div>
             </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
       

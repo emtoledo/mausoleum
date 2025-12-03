@@ -5,7 +5,7 @@ import { useProjectMutations } from '../hooks/useProjectMutations';
 import DesignStudio from '../features/DesignStudio/DesignStudio';
 import { materials } from '../data/MaterialsData.js';
 import { artwork } from '../data/ArtworkData.js';
-import { products } from '../data/ProductData';
+import productService from '../services/productService';
 
 const EditModeView = ({ onHandlersReady }) => {
   const { projectId } = useParams();
@@ -14,6 +14,7 @@ const EditModeView = ({ onHandlersReady }) => {
   
   const [project, setProject] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productConfig, setProductConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [designStudioHandlers, setDesignStudioHandlers] = useState(null);
@@ -45,15 +46,57 @@ const EditModeView = ({ onHandlersReady }) => {
         }
         
         // Get the single product for this project
+        let product = null;
         if (result.data.template) {
           // New format: single product object (still called template in DB for backward compatibility)
-          setSelectedProduct(result.data.template);
+          product = result.data.template;
         } else if (result.data.templates && result.data.templates.length > 0) {
           // Legacy format: use first product from array
           console.log('EditModeView - Using first product from legacy templates array');
-          setSelectedProduct(result.data.templates[0]);
+          product = result.data.templates[0];
         } else {
           setError('No product found for this project');
+          setLoading(false);
+          return;
+        }
+
+        setSelectedProduct(product);
+
+        // Load product configuration from database using product ID
+        if (product.templateId || product.id) {
+          const productId = product.templateId || product.id;
+          const productResult = await productService.getProductById(productId);
+          
+          if (productResult.success && productResult.data) {
+            // Transform database format to match expected format
+            const dbProduct = productResult.data;
+            const config = {
+              id: dbProduct.id,
+              name: dbProduct.name,
+              productCategory: dbProduct.product_category,
+              previewImage: dbProduct.preview_image_url,
+              imageUrl: dbProduct.product_image_url,
+              overlayUrl: dbProduct.product_overlay_url,
+              realWorldWidth: dbProduct.real_world_width,
+              realWorldHeight: dbProduct.real_world_height,
+              canvas: dbProduct.canvas_width || dbProduct.canvas_height ? {
+                width: dbProduct.canvas_width,
+                height: dbProduct.canvas_height
+              } : null,
+              availableMaterials: dbProduct.available_materials || [],
+              defaultMaterialId: dbProduct.default_material_id,
+              editZones: dbProduct.edit_zones || [],
+              productBase: dbProduct.product_base || [],
+              floral: dbProduct.floral || [],
+              vaseDimensions: dbProduct.vase_dimensions || {}
+            };
+            setProductConfig(config);
+          } else {
+            console.warn('Product config not found in database for productId:', productId);
+            setError(`Product configuration not found for product: ${productId}`);
+          }
+        } else {
+          setError('Product ID not found in project data');
         }
       } else {
         setError(result.error);
@@ -76,15 +119,7 @@ const EditModeView = ({ onHandlersReady }) => {
 
   // Prepare initial data for Design Studio
   const getInitialData = () => {
-    if (!selectedProduct || !project) return null;
-
-    // Find the product configuration from products data using templateId (ID format kept for backward compatibility)
-    const productConfig = products[selectedProduct.templateId];
-    
-    if (!productConfig) {
-      console.error('Product config not found for templateId:', selectedProduct.templateId);
-      return null;
-    }
+    if (!selectedProduct || !project || !productConfig) return null;
     
     // Get saved material from product or project
     // Always look up the full material object from the materials array using the ID
@@ -179,6 +214,15 @@ const EditModeView = ({ onHandlersReady }) => {
     return (
       <div className="canvas-layout">
         <div className="error-message">Product not found</div>
+        <Button onClick={handleBack}>Back to Projects</Button>
+      </div>
+    );
+  }
+
+  if (!productConfig) {
+    return (
+      <div className="canvas-layout">
+        <div className="error-message">Loading product configuration...</div>
         <Button onClick={handleBack}>Back to Projects</Button>
       </div>
     );
