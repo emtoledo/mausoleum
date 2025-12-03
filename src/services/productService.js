@@ -4,7 +4,6 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { products as productData } from '../data/ProductData';
 
 class ProductService {
   /**
@@ -170,50 +169,6 @@ class ProductService {
     }
   }
 
-  /**
-   * Sync products from ProductData.js to database
-   * Useful for initial migration
-   * Will skip products that already exist (by ID)
-   * Note: Images from ProductData.js are webpack-bundled URLs and will be stored as-is.
-   * To upload images to Supabase Storage, use the admin panel's upload functionality.
-   */
-  async syncProductsFromData() {
-    try {
-      const productsArray = Object.values(productData);
-      const results = [];
-
-      for (const product of productsArray) {
-        // Check if product already exists
-        const existing = await this.getProductById(product.id);
-        
-        if (existing.success && existing.data) {
-          // Product exists, skip it
-          results.push({ 
-            id: product.id, 
-            success: true, 
-            skipped: true,
-            message: 'Product already exists, skipped' 
-          });
-        } else {
-          // Product doesn't exist, create it
-          // Note: imageUrl, previewImage, overlayUrl from ProductData.js are webpack URLs
-          // They'll be stored as-is. To use Supabase Storage URLs, upload images via admin panel.
-          const result = await this.createProduct(product);
-          results.push({ 
-            id: product.id, 
-            success: result.success, 
-            error: result.error,
-            skipped: false
-          });
-        }
-      }
-
-      return { success: true, results };
-    } catch (error) {
-      console.error('Error syncing products:', error);
-      return { success: false, error: error.message };
-    }
-  }
 
   /**
    * Get products by category

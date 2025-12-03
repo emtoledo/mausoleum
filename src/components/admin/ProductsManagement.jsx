@@ -23,7 +23,32 @@ const ProductsManagement = () => {
     try {
       const result = await productService.getAllProducts(true); // Include inactive
       if (result.success) {
-        setProducts(result.data || []);
+        // Sort products by extracting the number from the name (same as product selection)
+        // Handles patterns like "Estate 1", "Estate Collection 2", etc.
+        const sortedProducts = (result.data || []).sort((a, b) => {
+          // Extract number from product name (e.g., "Estate 1" -> 1, "Estate Collection 12" -> 12)
+          const extractNumber = (name) => {
+            const match = name.match(/(\d+)/);
+            return match ? parseInt(match[1], 10) : 0;
+          };
+
+          const numA = extractNumber(a.name);
+          const numB = extractNumber(b.name);
+
+          // If both have numbers, sort numerically
+          if (numA > 0 && numB > 0) {
+            return numA - numB;
+          }
+
+          // If only one has a number, put it first
+          if (numA > 0) return -1;
+          if (numB > 0) return 1;
+
+          // If neither has a number, sort alphabetically
+          return a.name.localeCompare(b.name);
+        });
+        
+        setProducts(sortedProducts);
       } else {
         setError(result.error || 'Failed to load products');
       }
@@ -105,35 +130,28 @@ const ProductsManagement = () => {
     setShowAddForm(false);
   };
 
-  const handleSyncProducts = async () => {
-    if (!window.confirm('This will sync all products from ProductData.js to the database. Existing products with the same ID will be skipped. Continue?')) {
-      return;
-    }
 
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await productService.syncProductsFromData();
-      if (result.success) {
-        const successCount = result.results.filter(r => r.success).length;
-        const failCount = result.results.filter(r => !r.success).length;
-        alert(`Sync completed!\nSuccess: ${successCount}\nFailed: ${failCount}`);
-        await loadProducts();
-        await loadCategories();
-      } else {
-        setError(result.error || 'Failed to sync products');
-      }
-    } catch (err) {
-      setError('Error syncing products');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Filter and sort products by category
   const filteredProducts = filterCategory
-    ? products.filter(p => p.product_category === filterCategory)
+    ? products.filter(p => p.product_category === filterCategory).sort((a, b) => {
+        // Extract number from product name for sorting
+        const extractNumber = (name) => {
+          const match = name.match(/(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        };
+
+        const numA = extractNumber(a.name);
+        const numB = extractNumber(b.name);
+
+        if (numA > 0 && numB > 0) {
+          return numA - numB;
+        }
+
+        if (numA > 0) return -1;
+        if (numB > 0) return 1;
+
+        return a.name.localeCompare(b.name);
+      })
     : products;
 
   if (loading) {
@@ -155,13 +173,6 @@ const ProductsManagement = () => {
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
-          <button 
-            className="sync-products-button" 
-            onClick={handleSyncProducts}
-            title="Sync products from ProductData.js"
-          >
-            Sync from ProductData.js
-          </button>
           <button className="add-product-button" onClick={handleAddProduct}>
             + Add Product
           </button>
