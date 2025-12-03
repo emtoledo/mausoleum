@@ -65,6 +65,78 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       setEditZonesJson(JSON.stringify(product.edit_zones || [], null, 2));
       setProductBaseJson(JSON.stringify(product.product_base || [], null, 2));
       setFloralJson(JSON.stringify(product.floral || [], null, 2));
+    } else {
+      // Default values for new product
+      const defaultEditZones = [
+        {
+          id: 'main-zone',
+          x: 10,
+          y: 2.5,
+          width: 46,
+          height: 21
+        }
+      ];
+
+      const defaultFloral = [
+        {
+          id: 'floral1',
+          imageUrl: '/images/floral/floral2.png', // Using public path since floral images are still in repo
+          x: 0,
+          y: 7,
+          width: 9,
+          height: 11
+        },
+        {
+          id: 'floral2',
+          imageUrl: '/images/floral/floral2.png',
+          x: 57,
+          y: 7,
+          width: 9,
+          height: 11
+        }
+      ];
+
+      const defaultVaseDimensions = {
+        width: 6,
+        height: 10
+      };
+
+      const defaultProductBase = [
+        {
+          id: 'default-base',
+          x: 0,
+          y: 30,
+          width: 66,
+          height: 4,
+          material: 'mat-006'
+        }
+      ];
+
+      // Reset form for new product with default values
+      setFormData({
+        id: '',
+        name: '',
+        productCategory: '',
+        previewImage: '',
+        imageUrl: '',
+        overlayUrl: '',
+        realWorldWidth: '',
+        realWorldHeight: '',
+        canvasWidth: '',
+        canvasHeight: '',
+        availableMaterials: ['mat-001', 'mat-002', 'mat-003', 'mat-004', 'mat-005'],
+        defaultMaterialId: 'mat-001',
+        isActive: true,
+        editZones: defaultEditZones,
+        productBase: defaultProductBase,
+        floral: defaultFloral,
+        vaseDimensions: defaultVaseDimensions
+      });
+      setMaterialsInput('mat-001, mat-002, mat-003, mat-004, mat-005');
+      setEditZonesJson(JSON.stringify(defaultEditZones, null, 2));
+      setProductBaseJson(JSON.stringify(defaultProductBase, null, 2));
+      setFloralJson(JSON.stringify(defaultFloral, null, 2));
+      setImageFiles({ preview: null, product: null, overlay: null });
     }
   }, [product]);
 
