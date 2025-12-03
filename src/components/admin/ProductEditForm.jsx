@@ -20,7 +20,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     editZones: [],
     productBase: [],
     floral: [],
-    vaseDimensions: { width: '', height: '' }
+    dimensionsForDisplay: ''
   });
 
   const [materialsInput, setMaterialsInput] = useState('');
@@ -58,7 +58,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         editZones: product.edit_zones || [],
         productBase: product.product_base || [],
         floral: product.floral || [],
-        vaseDimensions: product.vase_dimensions || { width: '', height: '' }
+        dimensionsForDisplay: product.dimensions_for_display || ''
       });
 
       setMaterialsInput((product.available_materials || []).join(', '));
@@ -130,7 +130,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         editZones: defaultEditZones,
         productBase: defaultProductBase,
         floral: defaultFloral,
-        vaseDimensions: defaultVaseDimensions
+        dimensionsForDisplay: defaultDimensionsForDisplay
       });
       setMaterialsInput('mat-001, mat-002, mat-003, mat-004, mat-005');
       setEditZonesJson(JSON.stringify(defaultEditZones, null, 2));
@@ -210,10 +210,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       editZones,
       productBase,
       floral,
-      vaseDimensions: {
-        width: formData.vaseDimensions.width ? parseFloat(formData.vaseDimensions.width) : null,
-        height: formData.vaseDimensions.height ? parseFloat(formData.vaseDimensions.height) : null
-      }
+      dimensionsForDisplay: formData.dimensionsForDisplay || null
     };
 
     onSave(productData);
@@ -285,13 +282,14 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             </div>
 
             <div className="form-group">
-              <label>
+              
                 <input
                   type="checkbox"
                   name="isActive"
                   checked={formData.isActive}
                   onChange={handleChange}
                 />
+                <label>
                 Active
               </label>
             </div>
@@ -461,11 +459,10 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
           </div>
 
           <div className="form-section">
-            <h4>Dimensions</h4>
-            
+            <h4>Studio Dimensions</h4>
             <div className="form-row">
               <div className="form-group">
-                <label>Real World Width (inches) *</label>
+                <label>Base Width (inches)</label>
                 <input
                   type="number"
                   name="realWorldWidth"
@@ -478,7 +475,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
               </div>
 
               <div className="form-group">
-                <label>Real World Height (inches) *</label>
+                <label>Die Height + 2 (inches)</label>
                 <input
                   type="number"
                   name="realWorldHeight"
@@ -544,34 +541,22 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
           </div>
 
           <div className="form-section full-width">
-            <h4>Vase Dimensions</h4>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Width</label>
-                <input
-                  type="number"
-                  value={formData.vaseDimensions.width}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    vaseDimensions: { ...prev.vaseDimensions, width: e.target.value }
-                  }))}
-                  step="0.01"
-                  placeholder="8"
-                />
-              </div>
-              <div className="form-group">
-                <label>Height</label>
-                <input
-                  type="number"
-                  value={formData.vaseDimensions.height}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    vaseDimensions: { ...prev.vaseDimensions, height: e.target.value }
-                  }))}
-                  step="0.01"
-                  placeholder="10"
-                />
-              </div>
+            <h4>Dimensions for Display</h4>
+            <div className="form-group">
+              <label>Real world dimensions for display in approval documents</label>
+              <textarea
+                value={formData.dimensionsForDisplay}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  dimensionsForDisplay: e.target.value
+                }))}
+                placeholder="e.g., &lt;div&gt;Base: 66&quot; x 4&quot;&lt;/div&gt;&lt;div&gt;Vase: 6&quot; x 10&quot;&lt;/div&gt;"
+                rows={4}
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: '14px' }}
+              />
+              <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                HTML is supported for formatting.
+              </small>
             </div>
           </div>
 

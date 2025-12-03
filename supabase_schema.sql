@@ -325,7 +325,7 @@ CREATE TABLE IF NOT EXISTS products (
   edit_zones JSONB DEFAULT '[]'::jsonb,
   product_base JSONB DEFAULT '[]'::jsonb,
   floral JSONB DEFAULT '[]'::jsonb,
-  vase_dimensions JSONB DEFAULT '{}'::jsonb,
+  dimensions_for_display TEXT,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

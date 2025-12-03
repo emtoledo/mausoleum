@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useProjectMutations } from '../hooks/useProjectMutations';
+import productService from '../services/productService';
 import SignaturePad from '../components/ui/SignaturePad';
 import Button from '../components/ui/Button';
 import { colorData } from '../data/ColorData';
@@ -22,6 +23,7 @@ const ApprovalProofView = () => {
   
   const [project, setProject] = useState(null);
   const [projectDetails, setProjectDetails] = useState(null);
+  const [productData, setProductData] = useState(null);
   const [customer, setCustomer] = useState({
     name: '',
     phone: '',
@@ -61,7 +63,17 @@ const ApprovalProofView = () => {
       const result = await getProject(projectId);
       if (result.success) {
         setProject(result.data);
-        setProjectDetails(result.data.template || result.data.templates?.[0]);
+        const details = result.data.template || result.data.templates?.[0];
+        setProjectDetails(details);
+        
+        // Load product data from database to get dimensions_for_display and other product info
+        if (details?.templateId || details?.id) {
+          const productId = details.templateId || details.id;
+          const productResult = await productService.getProductById(productId);
+          if (productResult.success && productResult.data) {
+            setProductData(productResult.data);
+          }
+        }
         
         // Load customer information if available
         // For now, we'll use a placeholder or load from project customizations
@@ -333,33 +345,27 @@ const ApprovalProofView = () => {
                     </span>
                   </div>
                   
-                  <div className="approval-detail-item">
-                    <span className="approval-detail-label">Dimensions:</span>
-                    <span className="approval-detail-value">{dimensions}</span>
-                  </div>
-                  
-                  <div className="approval-detail-item">
+                  {productData?.dimensions_for_display && (
+                    <div className="approval-detail-item">
+                      <span className="approval-detail-label">Product Dimensions:</span>
+                      <span 
+                        className="approval-detail-value"
+                        dangerouslySetInnerHTML={{ 
+                          __html: productData.dimensions_for_display 
+                        }}
+                      />
+                    </div>
+                  )}
+
+                </div>
+                
+                <div>                  
+
+                <div className="approval-detail-item">
                     <span className="approval-detail-label">Material:</span>
                     <span className="approval-detail-value">
                       {material?.name || 'Not specified'}
                     </span>
-                  </div>
-                </div>
-                
-                <div>
-                  {productBase.length > 0 && (
-                    <div className="approval-detail-item">
-                      <span className="approval-detail-label">Base:</span>
-                      <div className="approval-detail-value">
-                        <div>Size: {formatDimensions(productBase[0]?.width, productBase[0]?.height, productBase[0]?.depth)}</div>
-                        <div>{productBase[0]?.color || material?.name}</div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="approval-detail-item">
-                    <span className="approval-detail-label">Vase:</span>
-                    <span className="approval-detail-value">8" x 10" Turned</span>
                   </div>
                   
                   <div className="approval-detail-item">

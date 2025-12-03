@@ -92,7 +92,7 @@ class ProductService {
         edit_zones: product.editZones || [],
         product_base: product.productBase || [],
         floral: product.floral || [],
-        vase_dimensions: product.vaseDimensions || {},
+        dimensions_for_display: product.dimensionsForDisplay || null,
         is_active: product.isActive !== undefined ? product.isActive : true,
         updated_at: new Date().toISOString()
       };
@@ -131,7 +131,7 @@ class ProductService {
         edit_zones: updates.editZones || [],
         product_base: updates.productBase || [],
         floral: updates.floral || [],
-        vase_dimensions: updates.vaseDimensions || {},
+        dimensions_for_display: updates.dimensionsForDisplay || null,
         is_active: updates.isActive !== undefined ? updates.isActive : true,
         updated_at: new Date().toISOString()
       };
