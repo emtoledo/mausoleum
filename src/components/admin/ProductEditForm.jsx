@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { uploadProductImage } from '../../utils/storageService';
 import './ProductEditForm.css';
 
 const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
@@ -23,9 +24,19 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
   });
 
   const [materialsInput, setMaterialsInput] = useState('');
-  const [editZonesJson, setEditZonesJson] = useState('');
-  const [productBaseJson, setProductBaseJson] = useState('');
-  const [floralJson, setFloralJson] = useState('');
+  const [editZonesJson, setEditZonesJson] = useState('[]');
+  const [productBaseJson, setProductBaseJson] = useState('[]');
+  const [floralJson, setFloralJson] = useState('[]');
+  const [uploadingImages, setUploadingImages] = useState({
+    preview: false,
+    product: false,
+    overlay: false
+  });
+  const [imageFiles, setImageFiles] = useState({
+    preview: null,
+    product: null,
+    overlay: null
+  });
 
   useEffect(() => {
     if (product) {
@@ -107,7 +118,12 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     }
 
     const productData = {
-      ...formData,
+      id: formData.id,
+      name: formData.name,
+      productCategory: formData.productCategory,
+      previewImage: formData.previewImage || null,
+      imageUrl: formData.imageUrl || null,
+      overlayUrl: formData.overlayUrl || null,
       realWorldWidth: parseFloat(formData.realWorldWidth),
       realWorldHeight: parseFloat(formData.realWorldHeight),
       canvasWidth: formData.canvasWidth ? parseFloat(formData.canvasWidth) : null,
@@ -116,6 +132,9 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         width: formData.canvasWidth ? parseFloat(formData.canvasWidth) : null,
         height: formData.canvasHeight ? parseFloat(formData.canvasHeight) : null
       } : null,
+      availableMaterials: materialsInput.split(',').map(m => m.trim()).filter(m => m),
+      defaultMaterialId: formData.defaultMaterialId || null,
+      isActive: formData.isActive,
       editZones,
       productBase,
       floral,
@@ -210,13 +229,54 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             <h4>Images</h4>
             
             <div className="form-group">
-              <label>Preview Image URL</label>
+              <label>Preview Image</label>
+              <div className="image-upload-container">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFiles(prev => ({ ...prev, preview: file }));
+                    }
+                  }}
+                  className="file-input"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!formData.id) {
+                      alert('Please enter a Product ID first');
+                      return;
+                    }
+                    if (!imageFiles.preview) {
+                      alert('Please select an image file');
+                      return;
+                    }
+                    setUploadingImages(prev => ({ ...prev, preview: true }));
+                    try {
+                      const url = await uploadProductImage(imageFiles.preview, formData.id, 'preview');
+                      setFormData(prev => ({ ...prev, previewImage: url }));
+                      setImageFiles(prev => ({ ...prev, preview: null }));
+                    } catch (error) {
+                      alert('Error uploading image: ' + error.message);
+                    } finally {
+                      setUploadingImages(prev => ({ ...prev, preview: false }));
+                    }
+                  }}
+                  disabled={uploadingImages.preview || !imageFiles.preview || !formData.id}
+                  className="upload-button"
+                >
+                  {uploadingImages.preview ? 'Uploading...' : 'Upload Preview'}
+                </button>
+              </div>
               <input
                 type="text"
                 name="previewImage"
                 value={formData.previewImage}
                 onChange={handleChange}
-                placeholder="/images/previews/estate1.png"
+                placeholder="Or enter image URL directly"
+                style={{ marginTop: '8px' }}
               />
               {formData.previewImage && (
                 <img src={formData.previewImage} alt="Preview" className="preview-image" />
@@ -224,24 +284,106 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             </div>
 
             <div className="form-group">
-              <label>Product Image URL</label>
+              <label>Product Image</label>
+              <div className="image-upload-container">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFiles(prev => ({ ...prev, product: file }));
+                    }
+                  }}
+                  className="file-input"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!formData.id) {
+                      alert('Please enter a Product ID first');
+                      return;
+                    }
+                    if (!imageFiles.product) {
+                      alert('Please select an image file');
+                      return;
+                    }
+                    setUploadingImages(prev => ({ ...prev, product: true }));
+                    try {
+                      const url = await uploadProductImage(imageFiles.product, formData.id, 'product');
+                      setFormData(prev => ({ ...prev, imageUrl: url }));
+                      setImageFiles(prev => ({ ...prev, product: null }));
+                    } catch (error) {
+                      alert('Error uploading image: ' + error.message);
+                    } finally {
+                      setUploadingImages(prev => ({ ...prev, product: false }));
+                    }
+                  }}
+                  disabled={uploadingImages.product || !imageFiles.product || !formData.id}
+                  className="upload-button"
+                >
+                  {uploadingImages.product ? 'Uploading...' : 'Upload Product Image'}
+                </button>
+              </div>
               <input
                 type="text"
                 name="imageUrl"
                 value={formData.imageUrl}
                 onChange={handleChange}
-                placeholder="/images/products/estate1.svg"
+                placeholder="Or enter image URL directly"
+                style={{ marginTop: '8px' }}
               />
             </div>
 
             <div className="form-group">
-              <label>Overlay Image URL</label>
+              <label>Overlay Image</label>
+              <div className="image-upload-container">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFiles(prev => ({ ...prev, overlay: file }));
+                    }
+                  }}
+                  className="file-input"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!formData.id) {
+                      alert('Please enter a Product ID first');
+                      return;
+                    }
+                    if (!imageFiles.overlay) {
+                      alert('Please select an image file');
+                      return;
+                    }
+                    setUploadingImages(prev => ({ ...prev, overlay: true }));
+                    try {
+                      const url = await uploadProductImage(imageFiles.overlay, formData.id, 'overlay');
+                      setFormData(prev => ({ ...prev, overlayUrl: url }));
+                      setImageFiles(prev => ({ ...prev, overlay: null }));
+                    } catch (error) {
+                      alert('Error uploading image: ' + error.message);
+                    } finally {
+                      setUploadingImages(prev => ({ ...prev, overlay: false }));
+                    }
+                  }}
+                  disabled={uploadingImages.overlay || !imageFiles.overlay || !formData.id}
+                  className="upload-button"
+                >
+                  {uploadingImages.overlay ? 'Uploading...' : 'Upload Overlay'}
+                </button>
+              </div>
               <input
                 type="text"
                 name="overlayUrl"
                 value={formData.overlayUrl}
                 onChange={handleChange}
-                placeholder="/images/products/estate1_overlay.svg"
+                placeholder="Or enter image URL directly"
+                style={{ marginTop: '8px' }}
               />
             </div>
           </div>

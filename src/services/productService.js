@@ -174,6 +174,8 @@ class ProductService {
    * Sync products from ProductData.js to database
    * Useful for initial migration
    * Will skip products that already exist (by ID)
+   * Note: Images from ProductData.js are webpack-bundled URLs and will be stored as-is.
+   * To upload images to Supabase Storage, use the admin panel's upload functionality.
    */
   async syncProductsFromData() {
     try {
@@ -194,6 +196,8 @@ class ProductService {
           });
         } else {
           // Product doesn't exist, create it
+          // Note: imageUrl, previewImage, overlayUrl from ProductData.js are webpack URLs
+          // They'll be stored as-is. To use Supabase Storage URLs, upload images via admin panel.
           const result = await this.createProduct(product);
           results.push({ 
             id: product.id, 

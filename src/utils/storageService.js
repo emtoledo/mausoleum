@@ -7,6 +7,121 @@
 import { supabase } from '../lib/supabase';
 
 /**
+ * Upload product image to Supabase Storage
+ * @param {Blob|File} imageFile - Image file
+ * @param {string} productId - Product ID
+ * @param {string} imageType - Type of image: 'preview', 'product', or 'overlay'
+ * @param {string} filename - Optional custom filename
+ * @returns {Promise<string>} Public URL of the uploaded image
+ */
+export async function uploadProductImage(imageFile, productId, imageType = 'product', filename = null) {
+  try {
+    // Check if Supabase is configured
+    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+    if (!supabaseUrl) {
+      throw new Error('Supabase is not configured');
+    }
+
+    // Get current user
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      throw new Error('Not authenticated');
+    }
+
+    // Determine filename if not provided
+    if (!filename) {
+      const extension = imageFile.name?.split('.').pop() || 'png';
+      filename = `${imageType}-${productId}.${extension}`;
+    }
+
+    // Create file path: {productId}/{imageType}-{productId}.{ext}
+    const filePath = `products/${productId}/${filename}`;
+
+    // Determine content type
+    const contentType = imageFile.type || 
+      (filename.endsWith('.svg') ? 'image/svg+xml' :
+       filename.endsWith('.png') ? 'image/png' :
+       filename.endsWith('.jpg') || filename.endsWith('.jpeg') ? 'image/jpeg' :
+       'image/png');
+
+    // Upload file to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, imageFile, {
+        contentType: contentType,
+        upsert: true // Overwrite if exists
+      });
+
+    if (error) {
+      console.error('Error uploading product image:', error);
+      throw error;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error('Error in uploadProductImage:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete product image from Supabase Storage
+ * @param {string} productId - Product ID
+ * @param {string} imageType - Type of image: 'preview', 'product', or 'overlay'
+ * @returns {Promise<boolean>} True if deleted successfully
+ */
+export async function deleteProductImage(productId, imageType = 'product') {
+  try {
+    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+    if (!supabaseUrl) {
+      throw new Error('Supabase is not configured');
+    }
+
+    // List files in the product directory to find the image
+    const { data: files, error: listError } = await supabase.storage
+      .from('product-images')
+      .list(`products/${productId}`);
+
+    if (listError) {
+      console.error('Error listing product images:', listError);
+      return false;
+    }
+
+    // Find the file matching the image type
+    const fileToDelete = files?.find(file => 
+      file.name.startsWith(`${imageType}-`) || 
+      file.name.includes(imageType)
+    );
+
+    if (!fileToDelete) {
+      console.log(`No ${imageType} image found for product ${productId}`);
+      return true; // Not an error if file doesn't exist
+    }
+
+    const filePath = `products/${productId}/${fileToDelete.name}`;
+
+    const { error } = await supabase.storage
+      .from('product-images')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Error deleting product image:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in deleteProductImage:', error);
+    return false;
+  }
+}
+
+/**
  * Upload PDF to Supabase Storage
  * @param {Blob} pdfBlob - PDF file as blob
  * @param {string} projectId - Project ID
