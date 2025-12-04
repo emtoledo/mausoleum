@@ -262,7 +262,7 @@ const AppHeader = ({
                   <>
                     {availableViews.includes('front') && (
                       <div 
-                        className={`control-item ${currentView === 'front' ? 'active' : ''}`}
+                        className={`control-item view ${currentView === 'front' ? 'active' : ''}`}
                         onClick={() => {
                           console.log('AppHeader: Front clicked, currentView:', currentView, 'calling onViewChange');
                           onViewChange && onViewChange('front');
@@ -277,7 +277,7 @@ const AppHeader = ({
                     )}
                     {availableViews.includes('back') && (
                       <div 
-                        className={`control-item ${currentView === 'back' ? 'active' : ''}`}
+                        className={`control-item view ${currentView === 'back' ? 'active' : ''}`}
                         onClick={() => {
                           console.log('AppHeader: Back clicked, currentView:', currentView, 'calling onViewChange');
                           onViewChange && onViewChange('back');

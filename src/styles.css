@@ -1540,6 +1540,12 @@ body:has(.canvas-layout) .footer-branding {
     cursor: pointer;
     border-radius: 4px;
     transition: all 0.3s ease;
+    height: auto; 
+}
+
+.control-item.view {
+    padding: 4px 30px;
+    margin: 0 10px;   
 }
 
 .control-item:hover {
@@ -1549,9 +1555,6 @@ body:has(.canvas-layout) .footer-branding {
 .control-item.active {
     background: #e3f2fd;
     color: #1976d2;
-    padding: 4px 30px;
-    margin: 0 10px;
-    height: auto;
 }
 
 .control-icon {
