@@ -54,6 +54,15 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
   const [currentView, setCurrentView] = useState(initialData?.currentView || 'front');
   const [availableViews, setAvailableViews] = useState(initialData?.availableViews || ['front']);
+  
+  // Debug: Log availableViews when it changes
+  useEffect(() => {
+    console.log('DesignStudio: availableViews from initialData:', initialData?.availableViews);
+    console.log('DesignStudio: current availableViews state:', availableViews);
+    if (initialData?.availableViews) {
+      setAvailableViews(initialData.availableViews);
+    }
+  }, [initialData?.availableViews]);
   const [saveAlert, setSaveAlert] = useState(null);
   const [loadingState, setLoadingState] = useState({ isLoading: false, loaded: 0, total: 0, message: '' });
 
@@ -1512,13 +1521,23 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         }
       }
 
+      // Save design elements as an object with view keys
+      // Preserve elements from other views, only update current view
+      const updatedDesignElements = {
+        ...(initialData.designElements && typeof initialData.designElements === 'object' 
+          ? initialData.designElements 
+          : {}),
+        [currentView]: designElements
+      };
+
       // Create updated project data
       const updatedProjectData = {
         ...initialData,
-        designElements,
+        designElements: updatedDesignElements, // Save as object with view keys
         canvasDimensions, // Save canvas dimensions for accurate reloading
         material: currentMaterial, // Use ref value to ensure we have the latest
-        previewImageUrl // Include preview image URL if captured
+        previewImageUrl, // Include preview image URL if captured
+        currentView // Save the current view
       };
 
       // Call parent's onSave callback
@@ -1542,7 +1561,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     } finally {
       setIsSaving(false);
     }
-  }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave, currentProjectId]);
+  }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave, currentProjectId, currentView]);
 
   /**
    * Handler: Export to DXF
@@ -1654,7 +1673,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   /**
    * Handler: Change View (Front/Back/Top)
    */
+  // Use a ref to track if a view change is in progress to prevent recursive calls
+  const isViewChangingRef = useRef(false);
+  
   const handleViewChange = useCallback((newView) => {
+    // Prevent recursive calls
+    if (isViewChangingRef.current) {
+      console.warn('View change already in progress, ignoring duplicate call');
+      return;
+    }
+    
     if (!availableViews.includes(newView)) {
       console.warn(`View ${newView} is not available. Available views:`, availableViews);
       return;
@@ -1664,16 +1692,28 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       return; // Already on this view
     }
     
+    isViewChangingRef.current = true;
+    console.log('Switching view from', currentView, 'to', newView);
+    
     // Clear selection when switching views
     if (fabricInstance) {
+      // Clear all objects from canvas first
+      const objects = fabricInstance.getObjects();
+      fabricInstance.remove(...objects);
       fabricInstance.discardActiveObject();
       fabricInstance.renderAll();
+      console.log('Canvas cleared for view switch');
     }
     setSelectedElement(null);
     
     // Switch to new view - the useEffect will update viewSpecificInitialData
     // and useFabricCanvas will reload the canvas with the new view's elements
     setCurrentView(newView);
+    
+    // Reset the flag after a short delay to allow state updates to complete
+    setTimeout(() => {
+      isViewChangingRef.current = false;
+    }, 100);
   }, [availableViews, fabricInstance, currentView]);
 
   // Expose handlers to parent component (for AppHeader integration)
@@ -1687,7 +1727,14 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     currentView,
     availableViews
   });
-  const prevStateRef = useRef({ isSaving: false, isExporting: false, canvasReady: false, initialized: false });
+  const prevStateRef = useRef({ 
+    isSaving: false, 
+    isExporting: false, 
+    canvasReady: false, 
+    initialized: false,
+    currentView: currentView || 'front',
+    availableViews: availableViews || ['front']
+  });
   
   // Update handlers ref when they change (without triggering effects)
   useEffect(() => {
@@ -1711,34 +1758,47 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       prevStateRef.current.isSaving !== isSaving ||
       prevStateRef.current.isExporting !== isExporting;
     
+    // Check if view state changed
+    const viewStateChanged = 
+      prevStateRef.current.currentView !== currentView ||
+      JSON.stringify(prevStateRef.current.availableViews) !== JSON.stringify(availableViews);
+    
     // Check if canvas readiness changed
     const canvasReady = canvasSize.width > 0 && (!!fabricInstance || !!fabricFromHook);
     const prevCanvasReady = prevStateRef.current.canvasReady || false;
     const canvasReadinessChanged = canvasReady !== prevCanvasReady;
+    
+    // Update prevStateRef
+    prevStateRef.current = {
+      isSaving,
+      isExporting,
+      canvasReady,
+      currentView,
+      availableViews,
+      initialized: prevStateRef.current.initialized || true
+    };
     
     // Also call on initial mount
     const isInitial = !prevStateRef.current.initialized;
     
     console.log('DesignStudio: Checking if handlers should be exposed', {
       stateChanged,
+      viewStateChanged,
       canvasReadinessChanged,
       isInitial,
       isSaving,
       isExporting,
       canvasReady,
       prevCanvasReady,
+      currentView,
+      availableViews,
       canvasSizeWidth: canvasSize.width,
       hasFabricInstance: !!fabricInstance,
       hasFabricFromHook: !!fabricFromHook
     });
     
-    if (stateChanged || canvasReadinessChanged || isInitial) {
-      prevStateRef.current = { 
-        isSaving, 
-        isExporting,
-        canvasReady,
-        initialized: true 
-      };
+    if (stateChanged || viewStateChanged || canvasReadinessChanged || isInitial) {
+      // prevStateRef.current is already updated above, no need to update again
       
       // Use handlers from ref to avoid dependency issues
       console.log('DesignStudio: Exposing handlers via onHandlersReady', {
@@ -1750,6 +1810,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         isExporting,
         isCanvasReady: canvasReady,
         canvasSizeWidth: canvasSize.width,
+        availableViews: handlersRef.current.availableViews,
+        currentView: handlersRef.current.currentView,
+        hasOnViewChange: !!handlersRef.current.onViewChange,
         hasFabricInstance: !!fabricInstance,
         hasFabricFromHook: !!fabricFromHook,
         '*** isCanvasReady VALUE': canvasReady
@@ -1761,10 +1824,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         isSaving,
         isExporting,
         isCanvasReady: canvasReady,
-        projectTitle: handlersRef.current.projectTitle
+        projectTitle: handlersRef.current.projectTitle,
+        availableViews: handlersRef.current.availableViews,
+        currentView: handlersRef.current.currentView,
+        onViewChange: handlersRef.current.onViewChange
       });
     }
-  }, [onHandlersReady, isSaving, isExporting, canvasSize.width, fabricInstance, fabricFromHook]); // Re-expose when canvas becomes ready
+  }, [onHandlersReady, isSaving, isExporting, canvasSize.width, fabricInstance, fabricFromHook, currentView, availableViews]); // Re-expose when canvas becomes ready or view changes
 
   if (!initialData) {
     return (

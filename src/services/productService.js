@@ -133,6 +133,7 @@ class ProductService {
         product_base: updates.productBase || [],
         floral: updates.floral || [],
         dimensions_for_display: updates.dimensionsForDisplay || null,
+        available_views: updates.availableViews || ['front'],
         is_active: updates.isActive !== undefined ? updates.isActive : true,
         updated_at: new Date().toISOString()
       };

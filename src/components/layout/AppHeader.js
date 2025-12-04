@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import ProfileDropdown from '../ui/ProfileDropdown';
 import { useAuth } from '../../hooks/useAuth';
@@ -27,6 +27,10 @@ const AppHeader = ({
   currentView = 'front',
   onViewChange
 }) => {
+  // Debug: Log when currentView prop changes
+  useEffect(() => {
+    console.log('AppHeader: currentView prop changed to:', currentView, 'availableViews:', availableViews);
+  }, [currentView, availableViews]);
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -241,6 +245,10 @@ const AppHeader = ({
               </div>
             </div>
             
+            {(() => {
+              console.log('AppHeader: availableViews:', availableViews, 'currentView:', currentView, 'onViewChange:', typeof onViewChange);
+              return null;
+            })()}
             {availableViews && availableViews.length > 0 && (
               <div className="control-group">
                 <div className="control-separator">|</div>
@@ -255,7 +263,10 @@ const AppHeader = ({
                     {availableViews.includes('front') && (
                       <div 
                         className={`control-item ${currentView === 'front' ? 'active' : ''}`}
-                        onClick={() => onViewChange && onViewChange('front')}
+                        onClick={() => {
+                          console.log('AppHeader: Front clicked, currentView:', currentView, 'calling onViewChange');
+                          onViewChange && onViewChange('front');
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <span className="control-text">Front</span>
@@ -267,7 +278,10 @@ const AppHeader = ({
                     {availableViews.includes('back') && (
                       <div 
                         className={`control-item ${currentView === 'back' ? 'active' : ''}`}
-                        onClick={() => onViewChange && onViewChange('back')}
+                        onClick={() => {
+                          console.log('AppHeader: Back clicked, currentView:', currentView, 'calling onViewChange');
+                          onViewChange && onViewChange('back');
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <span className="control-text">Back</span>
@@ -280,9 +294,9 @@ const AppHeader = ({
             )}
             
             <div className="control-group">
-              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-in')}>
+              {/* <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-in')}>
                 <img src="/images/zoom_icon.png" alt="Zoom In" className="control-icon" />
-              </div>
+              </div> */}
               <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-out')}>
                 <img src="/images/background_icon.png" alt="Zoom Out" className="control-icon" />
               </div>

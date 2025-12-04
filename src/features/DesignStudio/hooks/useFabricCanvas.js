@@ -1313,6 +1313,44 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 group.setCoords();
                 group.elementId = element.id;
                 
+                // CRITICAL: Preserve artwork metadata on the group object for saving
+                // These properties are needed when saving to identify the artwork source
+                if (artworkId) {
+                  group.artworkId = artworkId;
+                }
+                if (imageUrl) {
+                  group.imageUrl = imageUrl;
+                }
+                if (textureUrl) {
+                  group.textureUrl = textureUrl;
+                }
+                if (element.category) {
+                  group.category = element.category;
+                }
+                
+                // Also ensure customData has the metadata
+                const existingCustomData = group.customData || group.get?.('customData') || {};
+                group.set('customData', {
+                  ...existingCustomData,
+                  type: 'artwork',
+                  artworkId: artworkId || existingCustomData.artworkId,
+                  artworkName: element.content || existingCustomData.artworkName,
+                  imageUrl: imageUrl || existingCustomData.imageUrl,
+                  originalSource: imageUrl || existingCustomData.originalSource,
+                  textureUrl: textureUrl || existingCustomData.textureUrl,
+                  category: element.category || existingCustomData.category,
+                  defaultWidthInches: element.defaultWidthInches || existingCustomData.defaultWidthInches,
+                  isDxf: true
+                });
+                
+                console.log('Group loaded with metadata:', {
+                  elementId: group.elementId,
+                  artworkId: group.artworkId,
+                  imageUrl: group.imageUrl,
+                  textureUrl: group.textureUrl,
+                  category: group.category
+                });
+                
                 console.log('Group loaded with rotation:', {
                   left: group.left,
                   top: group.top,
@@ -2159,19 +2197,10 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       drawProductCanvas();
     }
 
-    // Only populate and set up event listeners on first creation
+    // Set up event listeners on first creation only
     if (!canvas.listening) {
       // Mark that listeners are set up
       canvas.listening = true;
-      
-      // Populate canvas with design elements
-      if (initialData.designElements && initialData.designElements.length > 0) {
-        // Populate canvas with saved design elements (async)
-        // Pass saved canvas dimensions for accurate scaling
-        populateCanvasFromData(canvas, initialData.designElements, initialData.canvasDimensions).catch(err => {
-          console.error('Error populating canvas from saved data:', err);
-        });
-      }
 
       // Double-click handler for entering text editing mode
       canvas.on('mouse:dblclick', (e) => {
@@ -2345,6 +2374,45 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     };
     // eslint-disable-next-line
   }, [fabricCanvasRef, initialData, canvasSize]); // Re-run when canvasSize changes
+
+  /**
+   * Repopulate canvas when designElements change (e.g., view switching)
+   * This runs separately from the initialization effect to handle view changes
+   */
+  useEffect(() => {
+    const canvas = fabricCanvasInstance.current;
+    if (!canvas || !canvas.listening || !initialData) return; // Only run after canvas is initialized
+    
+    // Get design elements for current view
+    let designElements = [];
+    const currentView = initialData.currentView || 'front';
+    if (initialData.designElements) {
+      if (Array.isArray(initialData.designElements)) {
+        designElements = initialData.designElements;
+      } else if (typeof initialData.designElements === 'object') {
+        // New format: object with view keys
+        designElements = initialData.designElements[currentView] || [];
+      }
+    }
+    
+    // Repopulate canvas when designElements change (view switching)
+    console.log('View changed - repopulating canvas for view:', currentView, 'with', designElements.length, 'elements');
+    
+    // Always call populateCanvasFromData, even if elements array is empty
+    // This ensures the canvas is cleared for empty views
+    if (designElements.length === 0) {
+      // Clear canvas manually for empty views (populateCanvasFromData returns early for empty arrays)
+      const existingObjects = canvas.getObjects();
+      const constraintOverlayObj = existingObjects.find(obj => obj.excludeFromExport === true);
+      canvas.remove(...existingObjects.filter(obj => obj !== constraintOverlayObj));
+      canvas.renderAll();
+      console.log('Canvas cleared for empty view:', currentView);
+    } else {
+      populateCanvasFromData(canvas, designElements, initialData.canvasDimensions).catch(err => {
+        console.error('Error repopulating canvas from saved data:', err);
+      });
+    }
+  }, [initialData, populateCanvasFromData]); // Depend on entire initialData object so changes are detected
 
   /**
    * Redraw product canvas when activeMaterial changes

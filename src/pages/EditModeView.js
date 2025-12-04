@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import { useProjectMutations } from '../hooks/useProjectMutations';
@@ -118,8 +118,8 @@ const EditModeView = ({ onHandlersReady }) => {
     navigate('/projects');
   };
 
-  // Prepare initial data for Design Studio
-  const getInitialData = () => {
+  // Prepare initial data for Design Studio - memoized to prevent unnecessary recalculations
+  const initialData = useMemo(() => {
     if (!selectedProduct || !project || !productConfig) return null;
     
     // Get saved material from product or project
@@ -138,31 +138,39 @@ const EditModeView = ({ onHandlersReady }) => {
     // Get current view from project or default to 'front'
     const currentView = selectedProduct.currentView || 'front';
     
-    // Get view-specific design elements (new structure: { "front": [...], "back": [...] })
+    // Get design elements (new structure: { "front": [...], "back": [...] })
     // Support both new format (object with view keys) and old format (array)
-    let designElements = [];
+    let designElements = {};
     if (selectedProduct.customizations?.designElements) {
       if (Array.isArray(selectedProduct.customizations.designElements)) {
-        // Old format: array - use for current view only
-        designElements = selectedProduct.customizations.designElements;
+        // Old format: array - convert to new format with front view
+        designElements = { front: selectedProduct.customizations.designElements };
       } else if (typeof selectedProduct.customizations.designElements === 'object') {
-        // New format: object with view keys
-        designElements = selectedProduct.customizations.designElements[currentView] || [];
+        // New format: object with view keys - use as-is
+        designElements = selectedProduct.customizations.designElements;
       }
+    } else {
+      // No design elements - initialize with empty object
+      designElements = {};
     }
     
     // Merge product config with any saved customizations
-    return {
+    const data = {
       ...productConfig,
       realWorldWidth: productConfig.realWorldWidth || 24,
       realWorldHeight: productConfig.realWorldHeight || 18,
       editZones: productConfig.editZones || [],
-      designElements,
+      designElements, // Pass full object with view keys, not just current view
       currentView,
+      availableViews: productConfig.availableViews || ['front'], // Include available views from product
       canvasDimensions: selectedProduct.customizations?.canvasDimensions || null, // Include saved canvas dimensions
       material: savedMaterial // Include saved material in initial data
     };
-  };
+    
+    console.log('EditModeView: getInitialData - availableViews:', data.availableViews, 'from productConfig:', productConfig.availableViews);
+    
+    return data;
+  }, [selectedProduct, project, productConfig]); // Only recalculate when these dependencies change
 
   const handleSave = async (updatedProjectData) => {
     console.log('Saving project:', updatedProjectData);
@@ -188,16 +196,34 @@ const EditModeView = ({ onHandlersReady }) => {
       });
 
       if (result.success) {
-        // Update local project state
-        setProject(result.data);
-        // Update selectedProduct with the new material from the saved result
+        // Update local project state - batch updates to minimize re-renders
+        // Only update if the data actually changed
+        const updatedProject = result.data;
         const updatedProductFromResult = {
-          ...(result.data.template || updatedProduct),
+          ...(updatedProject.template || updatedProduct),
           selectedMaterialId: updatedProjectData.material?.id,
           selectedMaterialName: updatedProjectData.material?.name,
           selectedMaterial: updatedProjectData.material // Include full material object
         };
-        setSelectedProduct(updatedProductFromResult);
+        
+        // Use functional updates to batch state changes
+        setProject(prevProject => {
+          // Only update if data actually changed
+          if (prevProject?.id === updatedProject.id) {
+            return updatedProject;
+          }
+          return prevProject;
+        });
+        
+        setSelectedProduct(prevProduct => {
+          // Only update if data actually changed
+          if (prevProduct?.templateId === updatedProductFromResult.templateId ||
+              prevProduct?.id === updatedProductFromResult.id) {
+            return updatedProductFromResult;
+          }
+          return prevProduct;
+        });
+        
         // Success message is handled by AlertMessage component in DesignStudio
       } else {
         // Error message is handled by AlertMessage component in DesignStudio
@@ -246,8 +272,6 @@ const EditModeView = ({ onHandlersReady }) => {
       </div>
     );
   }
-
-  const initialData = getInitialData();
 
   if (!initialData) {
     return (

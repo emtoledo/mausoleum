@@ -30,18 +30,28 @@ const BaseScreenLayout = ({ children }) => {
       // Check if projectTitle changed
       const projectTitleChanged = prevHandlers?.projectTitle !== handlers?.projectTitle;
       
+      // Check if view-related props changed
+      const currentViewChanged = prevHandlers?.currentView !== handlers?.currentView;
+      const availableViewsChanged = JSON.stringify(prevHandlers?.availableViews) !== JSON.stringify(handlers?.availableViews);
+      
       // Only update if state values actually changed (not function references)
       if (prevHandlers?.isSaving !== handlers?.isSaving ||
           prevHandlers?.isExporting !== handlers?.isExporting ||
           canvasReadinessChanged ||
-          projectTitleChanged) {
+          projectTitleChanged ||
+          currentViewChanged ||
+          availableViewsChanged) {
         console.log('BaseScreenLayout: Updating handlers due to state/readiness change', {
           canvasReadinessChanged,
           projectTitleChanged,
+          currentViewChanged,
+          availableViewsChanged,
           prevCanvasReady: prevHandlers?.isCanvasReady,
           newCanvasReady: handlers?.isCanvasReady,
           prevProjectTitle: prevHandlers?.projectTitle,
-          newProjectTitle: handlers?.projectTitle
+          newProjectTitle: handlers?.projectTitle,
+          prevCurrentView: prevHandlers?.currentView,
+          newCurrentView: handlers?.currentView
         });
         return handlers;
       }
@@ -54,10 +64,13 @@ const BaseScreenLayout = ({ children }) => {
           isExporting: handlers.isExporting,
           isCanvasReady: handlers.isCanvasReady,
           projectTitle: handlers.projectTitle,
+          currentView: handlers.currentView,
+          availableViews: handlers.availableViews,
           // Update function references only if they're actually different (they usually aren't)
           onSave: handlers.onSave,
           onExport: handlers.onExport,
-          onApproval: handlers.onApproval
+          onApproval: handlers.onApproval,
+          onViewChange: handlers.onViewChange
         };
       }
       console.log('BaseScreenLayout: Setting initial handlers');

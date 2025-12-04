@@ -1231,6 +1231,37 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       // Generate new elementId for the clone
       clonedObj.elementId = `${selectedElement.elementId || 'element'}-clone-${Date.now()}`;
 
+      // Preserve artwork metadata for groups (needed for saving/reloading)
+      if (selectedElement.type === 'group') {
+        // Copy imageUrl and artworkId if they exist on the original
+        if (selectedElement.imageUrl) {
+          clonedObj.imageUrl = selectedElement.imageUrl;
+        }
+        if (selectedElement.artworkId) {
+          clonedObj.artworkId = selectedElement.artworkId;
+        }
+        if (selectedElement.textureUrl) {
+          clonedObj.textureUrl = selectedElement.textureUrl;
+        }
+        if (selectedElement.category) {
+          clonedObj.category = selectedElement.category;
+        }
+        
+        // Also preserve customData if it exists
+        const originalCustomData = selectedElement.customData || selectedElement.get?.('customData') || {};
+        if (Object.keys(originalCustomData).length > 0) {
+          clonedObj.set('customData', { ...originalCustomData });
+        }
+        
+        console.log('Cloned group with preserved metadata:', {
+          elementId: clonedObj.elementId,
+          imageUrl: clonedObj.imageUrl,
+          artworkId: clonedObj.artworkId,
+          textureUrl: clonedObj.textureUrl,
+          category: clonedObj.category
+        });
+      }
+
       // Add to canvas (this automatically places it at the end/top of the layer stack)
       canvas.add(clonedObj);
 
