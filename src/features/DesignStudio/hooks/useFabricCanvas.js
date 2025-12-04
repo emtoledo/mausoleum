@@ -464,7 +464,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     let loadedAssets = 0;
 
     // Start loading state
-    updateLoadingState({ isLoading: true, loaded: 0, total: totalAssets, message: 'Loading assets...' });
+    updateLoadingState({ isLoading: true, loaded: 0, total: totalAssets, message: 'Loading project...' });
 
     // IMPORTANT: Clear canvas before populating to prevent duplicates
     // Remove all objects except constraint overlay (if it exists)
@@ -978,7 +978,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                       loadedAssets++;
                       updateLoadingState({ 
                         loaded: loadedAssets, 
-                        message: `Loading assets... (${loadedAssets}/${totalAssets})` 
+                        message: `Loading project... (${loadedAssets}/${totalAssets})` 
                       });
                       
                       continue; // Skip to next element
@@ -1504,7 +1504,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                       loadedAssets++;
                       updateLoadingState({ 
                         loaded: loadedAssets, 
-                        message: `Loading assets... (${loadedAssets}/${totalAssets})` 
+                        message: `Loading project... (${loadedAssets}/${totalAssets})` 
                       });
                     } else {
                       console.warn('Group already on canvas, skipping add');
@@ -2376,9 +2376,12 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
   }, [fabricCanvasRef, initialData, canvasSize]); // Re-run when canvasSize changes
 
   /**
-   * Repopulate canvas when designElements change (e.g., view switching)
+   * Repopulate canvas when designElements change (e.g., view switching or initial load)
    * This runs separately from the initialization effect to handle view changes
    */
+  const prevDesignElementsRef = useRef(null);
+  const prevCurrentViewRef = useRef(null);
+  
   useEffect(() => {
     const canvas = fabricCanvasInstance.current;
     if (!canvas || !canvas.listening || !initialData) return; // Only run after canvas is initialized
@@ -2395,8 +2398,37 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       }
     }
     
-    // Repopulate canvas when designElements change (view switching)
-    console.log('View changed - repopulating canvas for view:', currentView, 'with', designElements.length, 'elements');
+    // Check if design elements or view actually changed
+    // Only compare if we have previous data (skip on first run - initial load)
+    const hasPreviousData = prevDesignElementsRef.current !== null && prevCurrentViewRef.current !== null;
+    const designElementsChanged = hasPreviousData && 
+      JSON.stringify(designElements) !== JSON.stringify(prevDesignElementsRef.current);
+    const viewChanged = hasPreviousData && currentView !== prevCurrentViewRef.current;
+    
+    // On initial load (no previous data), always populate
+    // On subsequent updates, only repopulate if design elements or view actually changed
+    if (hasPreviousData && !designElementsChanged && !viewChanged) {
+      console.log('Skipping canvas repopulation - design elements and view unchanged', {
+        designElementsLength: designElements.length,
+        prevDesignElementsLength: prevDesignElementsRef.current?.length,
+        currentView,
+        prevCurrentView: prevCurrentViewRef.current
+      });
+      // Still update refs to track current state
+      prevDesignElementsRef.current = designElements;
+      prevCurrentViewRef.current = currentView;
+      return;
+    }
+    
+    // Update refs before repopulating
+    prevDesignElementsRef.current = designElements;
+    prevCurrentViewRef.current = currentView;
+    
+    // Repopulate canvas when designElements change (view switching) or on initial load
+    console.log(hasPreviousData ? 'View changed - repopulating canvas' : 'Initial load - populating canvas', {
+      view: currentView,
+      elementCount: designElements.length
+    });
     
     // Always call populateCanvasFromData, even if elements array is empty
     // This ensures the canvas is cleared for empty views

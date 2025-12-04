@@ -340,8 +340,12 @@ class SupabaseService {
         }
       }
 
-      // Return updated project
-      return await this.getProjectById(projectId);
+      // Return minimal response without fetching the full project
+      // The UI already has the latest data, so no need to reload
+      return { 
+        previewImageUrl: updateData.previewImageUrl || null,
+        updatedAt: projectUpdates.updated_at || new Date().toISOString()
+      };
     } catch (error) {
       console.error('Error updating project in Supabase:', error);
       return dataService.updateProject(projectId, updateData);

@@ -196,33 +196,19 @@ const EditModeView = ({ onHandlersReady }) => {
       });
 
       if (result.success) {
-        // Update local project state - batch updates to minimize re-renders
-        // Only update if the data actually changed
-        const updatedProject = result.data;
-        const updatedProductFromResult = {
-          ...(updatedProject.template || updatedProduct),
-          selectedMaterialId: updatedProjectData.material?.id,
-          selectedMaterialName: updatedProjectData.material?.name,
-          selectedMaterial: updatedProjectData.material // Include full material object
-        };
+        // Optimized: Don't update selectedProduct after save to prevent unnecessary repopulation
+        // The canvas already has the latest data, and the database has been updated
+        // Only update if preview image changed (for thumbnail updates)
+        // The selectedProduct will be refreshed if the user reloads the page
         
-        // Use functional updates to batch state changes
-        setProject(prevProject => {
-          // Only update if data actually changed
-          if (prevProject?.id === updatedProject.id) {
-            return updatedProject;
-          }
-          return prevProject;
-        });
-        
-        setSelectedProduct(prevProduct => {
-          // Only update if data actually changed
-          if (prevProduct?.templateId === updatedProductFromResult.templateId ||
-              prevProduct?.id === updatedProductFromResult.id) {
-            return updatedProductFromResult;
-          }
-          return prevProduct;
-        });
+        // Only update project if preview image changed (for thumbnail updates in project list)
+        if (result.data?.previewImageUrl && project && result.data.previewImageUrl !== project.previewImageUrl) {
+          setProject(prevProject => ({
+            ...prevProject,
+            previewImageUrl: result.data.previewImageUrl,
+            updatedAt: result.data.updatedAt || prevProject.updatedAt
+          }));
+        }
         
         // Success message is handled by AlertMessage component in DesignStudio
       } else {

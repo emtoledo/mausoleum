@@ -170,10 +170,11 @@ class DataService {
       
       // Update other fields (excluding material which is handled separately)
       const { material, ...otherUpdates } = updates;
+      const updatedAt = new Date().toISOString();
       projects[projectIndex] = {
         ...projects[projectIndex],
         ...otherUpdates,
-        updatedAt: new Date().toISOString()
+        updatedAt
       };
       
       // Remove material from top level if we've moved it to template
@@ -182,7 +183,12 @@ class DataService {
       }
       
       localStorage.setItem(this.storageKey, JSON.stringify(projects));
-      return projects[projectIndex];
+      
+      // Return minimal response (consistent with Supabase version)
+      return {
+        previewImageUrl: updates.previewImageUrl || projects[projectIndex].previewImageUrl || null,
+        updatedAt
+      };
     } catch (error) {
       console.error('Error updating project:', error);
       throw error;
