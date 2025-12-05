@@ -1426,6 +1426,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
   /**
    * Handler: Approval - Capture canvas and navigate to approval view
+   * Captures snapshots for both front and back views if both have design elements
    */
   const handleApproval = useCallback(async () => {
     const fabric = fabricInstance || fabricFromHook;
@@ -1443,22 +1444,150 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     }
 
     try {
-      // Capture combined canvas as image
-      const snapshot = await captureCombinedCanvas(
-        fabric,
-        productCanvasRef.current,
-        { format: 'image/png', quality: 0.92 }
-      );
+      // Check which views have design elements
+      const designElements = localDesignElements || {};
+      const hasFrontElements = Array.isArray(designElements.front) && designElements.front.length > 0;
+      const hasBackElements = Array.isArray(designElements.back) && designElements.back.length > 0;
+      const hasBothViews = hasFrontElements && hasBackElements;
+      
+      // Get all objects on canvas
+      const allObjects = fabric.getObjects().filter(obj => !obj.excludeFromExport);
+      
+      // Helper function to set visibility for a specific view
+      const setViewVisibility = (viewId, visible) => {
+        allObjects.forEach(obj => {
+          const objViewId = obj.viewId || obj.get?.('viewId');
+          if (objViewId) {
+            const normalizedViewId = String(objViewId).toLowerCase().trim();
+            const normalizedTargetView = String(viewId).toLowerCase().trim();
+            const shouldBeVisible = normalizedViewId === normalizedTargetView;
+            
+            obj.set('visible', shouldBeVisible && visible);
+            obj.set('selectable', shouldBeVisible && visible);
+            obj.set('evented', shouldBeVisible && visible);
+            obj.set('opacity', (shouldBeVisible && visible) ? (obj.originalOpacity || 1) : 0);
+            obj.dirty = true;
+            
+            // Handle groups recursively
+            if (obj.type === 'group' && obj._objects) {
+              obj._objects.forEach(child => {
+                child.set('visible', shouldBeVisible && visible);
+                child.set('selectable', shouldBeVisible && visible);
+                child.set('evented', shouldBeVisible && visible);
+                child.set('opacity', (shouldBeVisible && visible) ? (child.originalOpacity || 1) : 0);
+                child.dirty = true;
+              });
+            }
+          } else {
+            // Objects without viewId should be hidden
+            obj.set('visible', false);
+            obj.set('opacity', 0);
+            obj.dirty = true;
+          }
+        });
+        fabric.renderAll();
+      };
+      
+      // Store original visibility state (recursively for groups)
+      const storeOriginalState = (obj) => {
+        const state = {
+          obj,
+          visible: obj.visible,
+          opacity: obj.originalOpacity !== undefined ? obj.originalOpacity : obj.opacity,
+          selectable: obj.selectable,
+          evented: obj.evented,
+          children: []
+        };
+        
+        // Store children state if it's a group
+        if (obj.type === 'group' && obj._objects) {
+          obj._objects.forEach(child => {
+            state.children.push(storeOriginalState(child));
+          });
+        }
+        
+        return state;
+      };
+      
+      const originalVisibility = allObjects.map(obj => storeOriginalState(obj));
+      
+      const snapshots = {};
+      
+      if (hasBothViews) {
+        // Capture front view
+        setViewVisibility('front', true);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+        snapshots.front = await captureCombinedCanvas(
+          fabric,
+          productCanvasRef.current,
+          { format: 'image/png', quality: 0.92 }
+        );
+        
+        // Capture back view
+        setViewVisibility('back', true);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+        snapshots.back = await captureCombinedCanvas(
+          fabric,
+          productCanvasRef.current,
+          { format: 'image/png', quality: 0.92 }
+        );
+      } else if (hasFrontElements) {
+        // Only front view - capture current state
+        setViewVisibility('front', true);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+        snapshots.front = await captureCombinedCanvas(
+          fabric,
+          productCanvasRef.current,
+          { format: 'image/png', quality: 0.92 }
+        );
+      } else if (hasBackElements) {
+        // Only back view - capture current state
+        setViewVisibility('back', true);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+        snapshots.back = await captureCombinedCanvas(
+          fabric,
+          productCanvasRef.current,
+          { format: 'image/png', quality: 0.92 }
+        );
+      } else {
+        // No elements - capture current state
+        snapshots[currentView] = await captureCombinedCanvas(
+          fabric,
+          productCanvasRef.current,
+          { format: 'image/png', quality: 0.92 }
+        );
+      }
+      
+      // Restore original visibility state (recursively for groups)
+      const restoreOriginalState = ({ obj, visible, opacity, selectable, evented, children }) => {
+        obj.set('visible', visible);
+        obj.set('opacity', opacity);
+        obj.set('selectable', selectable);
+        obj.set('evented', evented);
+        obj.dirty = true;
+        
+        // Restore group children recursively
+        if (children && children.length > 0 && obj.type === 'group' && obj._objects) {
+          children.forEach((childState, index) => {
+            if (obj._objects[index]) {
+              restoreOriginalState(childState);
+            }
+          });
+        }
+      };
+      
+      originalVisibility.forEach(state => restoreOriginalState(state));
+      fabric.renderAll();
 
-      // Navigate to approval view with snapshot in state
+      // Navigate to approval view with snapshots in state
       navigate(`/projects/${currentProjectId}/approval`, {
-        state: { designSnapshot: snapshot }
+        state: { designSnapshots: snapshots, hasMultipleViews: hasBothViews }
       });
     } catch (error) {
       console.error('DesignStudio: Error capturing canvas for approval:', error);
       alert('Failed to capture design snapshot. Please try again.');
     }
-  }, [fabricInstance, fabricFromHook, currentProjectId, navigate]);
+  }, [fabricInstance, fabricFromHook, currentProjectId, navigate, localDesignElements, currentView]);
 
   /**
    * Handler: Close Studio

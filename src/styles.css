@@ -3092,6 +3092,29 @@ body:has(.canvas-layout) .footer-branding {
     object-fit: contain;
 }
 
+.approval-design-images {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    width: 100%;
+}
+
+.approval-design-view {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.approval-view-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 8px;
+}
+
 .approval-design-placeholder {
     text-align: center;
     color: #999;

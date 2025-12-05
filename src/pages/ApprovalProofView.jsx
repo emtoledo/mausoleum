@@ -34,7 +34,19 @@ const ApprovalProofView = () => {
     state: '',
     zip_code: ''
   });
-  const [designSnapshot, setDesignSnapshot] = useState(location.state?.designSnapshot || null);
+  // Support both old format (single snapshot) and new format (multiple snapshots)
+  const [designSnapshots, setDesignSnapshots] = useState(() => {
+    // New format: object with view keys
+    if (location.state?.designSnapshots) {
+      return location.state.designSnapshots;
+    }
+    // Old format: single snapshot string (backward compatibility)
+    if (location.state?.designSnapshot) {
+      return { front: location.state.designSnapshot };
+    }
+    return null;
+  });
+  const [hasMultipleViews, setHasMultipleViews] = useState(location.state?.hasMultipleViews || false);
   const [signature, setSignature] = useState(null);
   const [signerName, setSignerName] = useState('');
   const [signDate, setSignDate] = useState(new Date().toISOString().split('T')[0]);
@@ -221,14 +233,27 @@ const ApprovalProofView = () => {
 
   // Extract unique font families from design elements
   const getFontFamilies = () => {
-    const designElements = projectDetails.customizations?.designElements || 
-                          projectDetails.designElements || 
-                          [];
+    const designElementsRaw = projectDetails.customizations?.designElements || 
+                             projectDetails.designElements || 
+                             [];
+    
+    // Handle new format (object with view keys) or old format (array)
+    let designElements = [];
+    if (Array.isArray(designElementsRaw)) {
+      // Old format: array
+      designElements = designElementsRaw;
+    } else if (typeof designElementsRaw === 'object' && designElementsRaw !== null) {
+      // New format: object with view keys (e.g., { "front": [...], "back": [...] })
+      // Flatten all views' elements into a single array
+      designElements = Object.values(designElementsRaw)
+        .filter(Array.isArray) // Only keep arrays (ignore any non-array values)
+        .flat(); // Flatten into a single array
+    }
     
     // Get all font families from text elements
     const fonts = new Set();
     designElements.forEach(element => {
-      if (element.type === 'text' || element.type === 'i-text' || element.type === 'textbox') {
+      if (element && (element.type === 'text' || element.type === 'i-text' || element.type === 'textbox')) {
         if (element.font) {
           fonts.add(element.font);
         }
@@ -241,13 +266,28 @@ const ApprovalProofView = () => {
 
   // Extract unique color names from design elements
   const getColorNames = () => {
-    const designElements = projectDetails.customizations?.designElements || 
-                          projectDetails.designElements || 
-                          [];
+    const designElementsRaw = projectDetails.customizations?.designElements || 
+                             projectDetails.designElements || 
+                             [];
+    
+    // Handle new format (object with view keys) or old format (array)
+    let designElements = [];
+    if (Array.isArray(designElementsRaw)) {
+      // Old format: array
+      designElements = designElementsRaw;
+    } else if (typeof designElementsRaw === 'object' && designElementsRaw !== null) {
+      // New format: object with view keys (e.g., { "front": [...], "back": [...] })
+      // Flatten all views' elements into a single array
+      designElements = Object.values(designElementsRaw)
+        .filter(Array.isArray) // Only keep arrays (ignore any non-array values)
+        .flat(); // Flatten into a single array
+    }
     
     const colorNames = new Set();
     
     designElements.forEach(element => {
+      if (!element) return;
+      
       // Try to get color by colorId first (most reliable)
       if (element.colorId) {
         const colorItem = colorData.find(c => c.id === element.colorId);
@@ -319,14 +359,31 @@ const ApprovalProofView = () => {
       </div>
 
       <div className="approval-proof-content">
-        {/* Left: Design Snapshot */}
+        {/* Left: Design Snapshot(s) */}
         <div className="approval-proof-design">
-          {designSnapshot ? (
-            <img
-              src={designSnapshot}
-              alt="Design Proof"
-              className="approval-design-image"
-            />
+          {designSnapshots ? (
+            <div className="approval-design-images">
+              {designSnapshots.front && (
+                <div className="approval-design-view">
+                  <div className="approval-view-label">Front View</div>
+                  <img
+                    src={designSnapshots.front}
+                    alt="Front Design Proof"
+                    className="approval-design-image"
+                  />
+                </div>
+              )}
+              {designSnapshots.back && (
+                <div className="approval-design-view">
+                  <div className="approval-view-label">Back View</div>
+                  <img
+                    src={designSnapshots.back}
+                    alt="Back Design Proof"
+                    className="approval-design-image"
+                  />
+                </div>
+              )}
+            </div>
           ) : (
             <div className="approval-design-placeholder">
               <p>Design snapshot will appear here</p>
