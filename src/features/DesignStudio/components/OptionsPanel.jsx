@@ -1230,6 +1230,15 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
 
       // Generate new elementId for the clone
       clonedObj.elementId = `${selectedElement.elementId || 'element'}-clone-${Date.now()}`;
+      
+      // Preserve viewId from original (clone should be in same view)
+      const originalViewId = selectedElement.viewId || selectedElement.get?.('viewId');
+      if (originalViewId) {
+        clonedObj.viewId = originalViewId;
+      }
+      
+      // Set z-index for layer ordering (place at top)
+      clonedObj.zIndex = canvas.getObjects().length;
 
       // Preserve artwork metadata for groups (needed for saving/reloading)
       if (selectedElement.type === 'group') {

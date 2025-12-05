@@ -25,7 +25,7 @@ import { artwork } from '../../../data/ArtworkData';
  * 
  * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial, materials = [], onLoadingStateChange = null) => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial, materials = [], onLoadingStateChange = null, currentView = 'front') => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const loadingStateRef = useRef({ isLoading: false, loaded: 0, total: 0, message: '' });
@@ -440,10 +440,10 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
   /**
    * Create Fabric.js objects from design elements
    */
-  const populateCanvasFromData = useCallback(async (canvas, elements, savedCanvasDimensions) => {
+  const populateCanvasFromData = useCallback(async (canvas, elements, savedCanvasDimensions, skipLoadingState = false, viewId = null, onProgressUpdate = null) => {
     if (!canvas || !elements || elements.length === 0) {
       // Update loading state: no elements to load
-      if (onLoadingStateChange) {
+      if (onLoadingStateChange && !skipLoadingState) {
         onLoadingStateChange({ isLoading: false, loaded: 0, total: 0, message: '' });
       }
       return;
@@ -463,15 +463,28 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     const totalAssets = assetsToLoad.length;
     let loadedAssets = 0;
 
-    // Start loading state
-    updateLoadingState({ isLoading: true, loaded: 0, total: totalAssets, message: 'Loading project...' });
+    // Start loading state (skip if loading from local state for view switching)
+    // If onProgressUpdate is provided, we're managing progress globally (multi-view load)
+    if (!skipLoadingState && !onProgressUpdate) {
+      updateLoadingState({ isLoading: true, loaded: 0, total: totalAssets, message: 'Loading project...' });
+    }
 
-    // IMPORTANT: Clear canvas before populating to prevent duplicates
-    // Remove all objects except constraint overlay (if it exists)
-    const existingObjects = canvas.getObjects();
-    const constraintOverlayObj = existingObjects.find(obj => obj.excludeFromExport === true);
-    canvas.remove(...existingObjects.filter(obj => obj !== constraintOverlayObj));
-    console.log('Canvas cleared. Remaining objects:', canvas.getObjects().length);
+    // IMPORTANT: Only clear canvas if we're loading a single view (not multi-view load)
+    // When loading multiple views, we add to the canvas, not replace it
+    // Check if viewsLoadedRef exists and is false (initial load) or if we're not in multi-view mode
+    const isMultiViewLoad = onProgressUpdate !== null;
+    if (!isMultiViewLoad) {
+      // Single view load - clear canvas
+      const existingObjects = canvas.getObjects();
+      const constraintOverlayObj = existingObjects.find(obj => obj.excludeFromExport === true);
+      const objectsToRemove = existingObjects.filter(obj => obj !== constraintOverlayObj);
+      if (objectsToRemove.length > 0) {
+        canvas.remove(...objectsToRemove);
+        console.log('Canvas cleared. Remaining objects:', canvas.getObjects().length);
+      }
+    } else {
+      console.log('Skipping canvas clear - loading additional view:', viewId);
+    }
 
     // FIXED CANVAS SIZE: Always use 1000px width
     const FIXED_CANVAS_WIDTH = 1000;
@@ -481,11 +494,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
     for (const element of sortedElements) {
       try {
-        // Check if object with this elementId already exists (prevent duplicates)
+        // Check if object with this elementId AND viewId already exists (prevent duplicates within same view)
+        // Allow same elementId in different views (e.g., same text element in front and back)
         const existingObjects = canvas.getObjects();
-        const existingObject = existingObjects.find(obj => obj.elementId === element.id);
+        const existingObject = existingObjects.find(obj => 
+          obj.elementId === element.id && 
+          (obj.viewId === viewId || (obj.viewId === null && viewId === null))
+        );
         if (existingObject) {
-          console.log(`⚠ Skipping duplicate element ${element.id} - already exists on canvas`);
+          console.log(`⚠ Skipping duplicate element ${element.id} with viewId ${viewId} - already exists on canvas`);
           continue;
         }
         
@@ -663,7 +680,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             originX: originX, // Use saved origin point
             originY: originY, // Use saved origin point
             editable: true, // Enable inline editing
-            selectable: true // Allow selection for moving/scaling
+            selectable: true, // Allow selection for moving/scaling
+            viewId: viewId // Tag with view ID for show/hide management
           });
         } else if (element.type === 'image' || element.type === 'imagebox') {
           // Create Fabric.js Image object
@@ -804,7 +822,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 originX: baseProps.originX || 'center',
                 originY: baseProps.originY || 'center',
                 flipX: shouldFlipX, // Try setting flipX/flipY too
-                flipY: shouldFlipY
+                flipY: shouldFlipY,
+                viewId: viewId || null // Tag with view ID for show/hide management
               });
               img.setCoords(); // Force recalculation of coordinates
               
@@ -845,7 +864,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 img.set({ flipY: true });
               }
               
-              img.elementId = element.id;
+                  img.elementId = element.id;
+                  img.viewId = viewId; // Tag with view ID for show/hide management
+                  img.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
+                  
+                  // Store original opacity for visibility toggling
+                  if (img.originalOpacity === undefined) {
+                    img.originalOpacity = img.opacity !== undefined ? img.opacity : 1;
+                  }
               
               // Store artwork metadata if available
               if (element.artworkId) {
@@ -976,10 +1002,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                       
                       // Update loading progress
                       loadedAssets++;
-                      updateLoadingState({ 
-                        loaded: loadedAssets, 
-                        message: `Loading project... (${loadedAssets}/${totalAssets})` 
-                      });
+                      if (onProgressUpdate) {
+                        // Multi-view load - use global progress callback
+                        onProgressUpdate(1);
+                      } else if (!skipLoadingState) {
+                        // Single view load - update local progress
+                        updateLoadingState({ 
+                          loaded: loadedAssets, 
+                          message: `Loading project... (${loadedAssets}/${totalAssets})` 
+                        });
+                      }
                       
                       continue; // Skip to next element
                     }
@@ -1312,6 +1344,24 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 // This is especially important for rotated groups
                 group.setCoords();
                 group.elementId = element.id;
+                group.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
+                group.viewId = viewId; // Tag with view ID for show/hide management
+                
+                // Store original opacity for visibility toggling (preserve existing opacity or default to 1)
+                if (group.originalOpacity === undefined) {
+                  group.originalOpacity = group.opacity !== undefined ? group.opacity : 1;
+                }
+                
+                // Also tag all children with the same viewId for proper visibility management
+                if (group._objects && Array.isArray(group._objects)) {
+                  group._objects.forEach(child => {
+                    child.viewId = viewId;
+                    // Store original opacity for children too
+                    if (child.originalOpacity === undefined) {
+                      child.originalOpacity = child.opacity !== undefined ? child.opacity : 1;
+                    }
+                  });
+                }
                 
                 // CRITICAL: Preserve artwork metadata on the group object for saving
                 // These properties are needed when saving to identify the artwork source
@@ -1391,22 +1441,44 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 }
                 
                 // Apply color to artwork group if it was saved
-                if (element.fill && artworkGroup) {
-                  // Recursively apply color to all path objects in the artwork group
-                  const applyColorToPaths = (obj) => {
-                    if (obj.type === 'group' && obj._objects) {
-                      obj._objects.forEach(child => applyColorToPaths(child));
-                    } else if (obj.type === 'path') {
-                      obj.set({
-                        fill: element.fill,
-                        stroke: element.stroke || element.fill,
-                        strokeWidth: baseProps.strokeWidth !== undefined ? baseProps.strokeWidth : 0,
-                        opacity: baseProps.opacity
-                      });
-                    }
-                  };
+                // Always apply fill if it exists (even if black), or look up by colorId
+                if ((element.fill || element.colorId) && artworkGroup) {
+                  let finalColor = element.fill;
                   
-                  applyColorToPaths(artworkGroup);
+                  // If we have a colorId but no fill (or fill is default black), look it up from colorData
+                  if ((!finalColor || finalColor === '#000000') && element.colorId) {
+                    try {
+                      const { colorData } = require('../../../data/ColorData');
+                      const colorObj = colorData.find(c => c.id === element.colorId);
+                      if (colorObj) {
+                        finalColor = colorObj.hex || colorObj.color || finalColor;
+                      }
+                    } catch (e) {
+                      console.warn('Could not load colorData for colorId lookup:', e);
+                    }
+                  }
+                  
+                  // Apply color if we have one (including black if it was explicitly set)
+                  if (finalColor) {
+                    // Recursively apply color to all path objects in the artwork group
+                    const applyColorToPaths = (obj) => {
+                      if (obj.type === 'group' && obj._objects) {
+                        obj._objects.forEach(child => applyColorToPaths(child));
+                      } else if (obj.type === 'path') {
+                        obj.set({
+                          fill: finalColor,
+                          stroke: element.stroke || finalColor,
+                          strokeWidth: baseProps.strokeWidth !== undefined ? baseProps.strokeWidth : 0,
+                          opacity: baseProps.opacity !== undefined ? baseProps.opacity : 1
+                        });
+                      }
+                    };
+                    
+                    applyColorToPaths(artworkGroup);
+                    console.log('Applied color to artwork group:', { colorId: element.colorId, fill: finalColor, elementId: element.id });
+                  } else {
+                    console.warn('No color to apply to artwork group:', { elementId: element.id, hasFill: !!element.fill, colorId: element.colorId });
+                  }
                 }
                 
                 // Ensure texture layer pattern is preserved and refreshed after transforms
@@ -1502,10 +1574,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                       
                       // Update loading progress
                       loadedAssets++;
-                      updateLoadingState({ 
-                        loaded: loadedAssets, 
-                        message: `Loading project... (${loadedAssets}/${totalAssets})` 
-                      });
+                      if (onProgressUpdate) {
+                        // Multi-view load - use global progress callback
+                        onProgressUpdate(1);
+                      } else if (!skipLoadingState) {
+                        // Single view load - update local progress
+                        updateLoadingState({ 
+                          loaded: loadedAssets, 
+                          message: `Loading project... (${loadedAssets}/${totalAssets})` 
+                        });
+                      }
                     } else {
                       console.warn('Group already on canvas, skipping add');
                       canvas.renderAll();
@@ -1700,6 +1778,13 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   }
                   
                   img.elementId = element.id;
+                  img.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
+                  img.viewId = viewId; // Tag with view ID for show/hide management
+                  
+                  // Store original opacity for visibility toggling
+                  if (img.originalOpacity === undefined) {
+                    img.originalOpacity = img.opacity !== undefined ? img.opacity : 1;
+                  }
                 
                 // Store artwork metadata
                 if (element.artworkId) {
@@ -1894,6 +1979,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         if (fabricObject) {
           // Store element metadata
           fabricObject.elementId = element.id;
+          fabricObject.viewId = viewId; // Tag with view ID for show/hide management
+          fabricObject.zIndex = element.zIndex !== undefined ? element.zIndex : 0; // Store z-index for layer ordering
+          
+          // Store original opacity for visibility toggling (preserve existing opacity or default to 1)
+          if (fabricObject.originalOpacity === undefined) {
+            fabricObject.originalOpacity = fabricObject.opacity !== undefined ? fabricObject.opacity : 1;
+          }
+          
           canvas.add(fabricObject);
           
           // Log final loaded object state
@@ -1919,8 +2012,11 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
     console.log('=== FINISHED LOADING ALL ELEMENTS ===');
     
-    // Complete loading state
-    updateLoadingState({ isLoading: false, loaded: totalAssets, total: totalAssets, message: '' });
+    // Complete loading state (skip if loading from local state for view switching or multi-view load)
+    // Multi-view loads are completed in the parent Promise.all handler
+    if (!skipLoadingState && !onProgressUpdate) {
+      updateLoadingState({ isLoading: false, loaded: totalAssets, total: totalAssets, message: '' });
+    }
     canvas.renderAll();
   }, [scale]);
 
@@ -2237,10 +2333,18 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       // Selection event listeners
       canvas.on('selection:created', (e) => {
         const activeObject = canvas.getActiveObject();
-        selectedObject.current = activeObject;
-        console.log('Object selected:', activeObject);
-        if (onElementSelect) {
-          onElementSelect(activeObject);
+        // Only allow selection of visible objects (current view)
+        if (activeObject && activeObject.visible !== false) {
+          selectedObject.current = activeObject;
+          console.log('Object selected:', activeObject);
+          if (onElementSelect) {
+            onElementSelect(activeObject);
+          }
+        } else if (activeObject && activeObject.visible === false) {
+          // Prevent selection of hidden objects
+          console.log('Prevented selection of hidden object:', activeObject);
+          canvas.discardActiveObject();
+          canvas.renderAll();
         }
       });
 
@@ -2254,10 +2358,26 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
       canvas.on('selection:updated', (e) => {
         const activeObject = canvas.getActiveObject();
-        selectedObject.current = activeObject;
-        console.log('Selection updated:', activeObject);
-        if (onElementSelect) {
-          onElementSelect(activeObject);
+        // Only allow selection of visible objects (current view)
+        if (activeObject && activeObject.visible !== false) {
+          selectedObject.current = activeObject;
+          console.log('Selection updated:', activeObject);
+          if (onElementSelect) {
+            onElementSelect(activeObject);
+          }
+        } else if (activeObject && activeObject.visible === false) {
+          // Prevent selection of hidden objects
+          console.log('Prevented selection of hidden object:', activeObject);
+          canvas.discardActiveObject();
+          canvas.renderAll();
+        }
+      });
+      
+      // Prevent mouse events on hidden objects
+      canvas.on('mouse:down', (e) => {
+        if (e.target && e.target.visible === false) {
+          e.e.preventDefault();
+          e.e.stopPropagation();
         }
       });
 
@@ -2376,75 +2496,564 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
   }, [fabricCanvasRef, initialData, canvasSize]); // Re-run when canvasSize changes
 
   /**
-   * Repopulate canvas when designElements change (e.g., view switching or initial load)
-   * This runs separately from the initialization effect to handle view changes
+   * Load all views onto canvas with viewId property, then toggle visibility for view switching
+   * This is more efficient than clearing/reloading on each view switch
    */
-  const prevDesignElementsRef = useRef(null);
+  const viewsLoadedRef = useRef(false);
   const prevCurrentViewRef = useRef(null);
   
   useEffect(() => {
     const canvas = fabricCanvasInstance.current;
     if (!canvas || !canvas.listening || !initialData) return; // Only run after canvas is initialized
     
-    // Get design elements for current view
-    let designElements = [];
-    const currentView = initialData.currentView || 'front';
+      // Use currentView from props, but always default to 'front' on initial load
+      // This ensures we always start with the front view, regardless of what was saved
+      const availableViews = initialData.availableViews || ['front'];
+      // On initial load (when viewsLoadedRef.current is false), always default to 'front'
+      // After initial load, use the currentView from props
+      const activeView = !viewsLoadedRef.current 
+        ? (availableViews.includes('front') ? 'front' : (availableViews[0] || 'front'))
+        : (currentView || (availableViews.includes('front') ? 'front' : (availableViews[0] || 'front')));
+    
+    // Get all design elements for all views
+    let allDesignElements = {};
     if (initialData.designElements) {
       if (Array.isArray(initialData.designElements)) {
-        designElements = initialData.designElements;
+        // Old format: array - convert to new format with front view
+        allDesignElements = { front: initialData.designElements };
       } else if (typeof initialData.designElements === 'object') {
-        // New format: object with view keys
-        designElements = initialData.designElements[currentView] || [];
+        // New format: object with view keys - use as-is
+        allDesignElements = { ...initialData.designElements };
       }
     }
     
-    // Check if design elements or view actually changed
-    // Only compare if we have previous data (skip on first run - initial load)
-    const hasPreviousData = prevDesignElementsRef.current !== null && prevCurrentViewRef.current !== null;
-    const designElementsChanged = hasPreviousData && 
-      JSON.stringify(designElements) !== JSON.stringify(prevDesignElementsRef.current);
-    const viewChanged = hasPreviousData && currentView !== prevCurrentViewRef.current;
-    
-    // On initial load (no previous data), always populate
-    // On subsequent updates, only repopulate if design elements or view actually changed
-    if (hasPreviousData && !designElementsChanged && !viewChanged) {
-      console.log('Skipping canvas repopulation - design elements and view unchanged', {
-        designElementsLength: designElements.length,
-        prevDesignElementsLength: prevDesignElementsRef.current?.length,
-        currentView,
-        prevCurrentView: prevCurrentViewRef.current
+    // On initial load, load ALL views onto canvas with viewId property
+    if (!viewsLoadedRef.current) {
+      console.log('Initial load - loading all views onto canvas:', Object.keys(allDesignElements));
+      console.log('Initial load - allDesignElements content:', JSON.stringify(allDesignElements, null, 2));
+      console.log('Initial load - activeView will be:', activeView, '(currentView prop:', currentView, ')');
+      
+      // Calculate total assets across ALL views for progress tracking
+      let totalAssetsAcrossAllViews = 0;
+      for (const [viewId, elements] of Object.entries(allDesignElements)) {
+        console.log(`Checking view "${viewId}":`, {
+          elements,
+          isArray: Array.isArray(elements),
+          length: elements?.length,
+          hasElements: elements && elements.length > 0
+        });
+        if (elements && Array.isArray(elements) && elements.length > 0) {
+          const assetsToLoad = elements.filter(el => 
+            el.type === 'image' || 
+            el.type === 'artwork' || 
+            (el.type === 'group' && (el.imageUrl || el.artworkId))
+          );
+          totalAssetsAcrossAllViews += assetsToLoad.length;
+        }
+      }
+      
+      // Initialize loading state with total across all views
+      if (totalAssetsAcrossAllViews > 0 && onLoadingStateChange) {
+        updateLoadingState({ 
+          isLoading: true, 
+          loaded: 0, 
+          total: totalAssetsAcrossAllViews, 
+          message: 'Loading project...' 
+        });
+      }
+      
+      // Load all views' elements onto canvas with unified progress tracking
+      const loadPromises = [];
+      let globalLoadedAssets = 0;
+      
+      // Create progress callback that updates global progress
+      const progressCallback = (increment) => {
+        globalLoadedAssets += increment;
+        if (onLoadingStateChange) {
+          updateLoadingState({ 
+            loaded: globalLoadedAssets, 
+            total: totalAssetsAcrossAllViews,
+            message: `Loading project... (${globalLoadedAssets}/${totalAssetsAcrossAllViews})`
+          });
+        }
+      };
+      
+      for (const [viewId, elements] of Object.entries(allDesignElements)) {
+        if (Array.isArray(elements) && elements.length > 0) {
+          console.log(`Loading view "${viewId}" with ${elements.length} elements`);
+          // Pass progress callback to track progress across all views
+          // skipLoadingState = true because we're managing it globally
+          loadPromises.push(
+            populateCanvasFromData(canvas, elements, initialData.canvasDimensions, true, viewId, progressCallback)
+              .then(() => {
+                console.log(`Successfully loaded view "${viewId}"`);
+              })
+              .catch(err => {
+                console.error(`Error loading view ${viewId}:`, err);
+              })
+          );
+        } else {
+          console.log(`Skipping view "${viewId}" - no elements or not an array`);
+        }
+      }
+      
+      // If no views have elements, still mark as loaded
+      if (loadPromises.length === 0) {
+        viewsLoadedRef.current = true;
+        prevCurrentViewRef.current = activeView;
+        if (onLoadingStateChange) {
+          updateLoadingState({ isLoading: false, loaded: 0, total: 0, message: '' });
+        }
+        return;
+      }
+      
+      // Wait for all views to load, then set visibility and reorder by z-index
+      Promise.all(loadPromises).then(() => {
+        // Get all objects and reorder them by z-index to maintain proper layer order
+        // This ensures objects are rendered in the correct order regardless of which view loaded first
+        const allObjects = canvas.getObjects();
+        
+        // Filter out constraint overlay (keep it at bottom)
+        const constraintOverlayObj = allObjects.find(obj => obj.excludeFromExport === true);
+        const designObjects = allObjects.filter(obj => obj.excludeFromExport !== true);
+        
+        // Sort design objects by zIndex (ascending: lower zIndex = bottom layer, higher zIndex = top layer)
+        // Objects with same zIndex maintain their relative order
+        designObjects.sort((a, b) => {
+          const zIndexA = a.zIndex !== undefined ? a.zIndex : (a.elementId ? parseInt(a.elementId.split('-').pop()) || 0 : 0);
+          const zIndexB = b.zIndex !== undefined ? b.zIndex : (b.elementId ? parseInt(b.elementId.split('-').pop()) || 0 : 0);
+          return zIndexA - zIndexB;
+        });
+        
+        // Remove all objects from canvas
+        canvas.remove(...allObjects);
+        
+        // Re-add objects in correct z-index order
+        // First add constraint overlay (if exists) at bottom
+        if (constraintOverlayObj) {
+          canvas.add(constraintOverlayObj);
+        }
+        
+        // Then add design objects in z-index order
+        designObjects.forEach(obj => {
+          canvas.add(obj);
+        });
+        
+        // Recursive function to set visibility on object and all its children
+        const setVisibilityRecursive = (targetObj, visible) => {
+          // Explicitly set visibility to boolean (not undefined)
+          const visibilityValue = visible === true;
+          
+          // Store original opacity if we haven't already (for restoring later)
+          // Store it regardless of visibility so we can restore it later
+          // Check both _originalOpacity (old format) and originalOpacity (new format) for backward compatibility
+          const existingOriginalOpacity = targetObj.originalOpacity !== undefined ? targetObj.originalOpacity : targetObj._originalOpacity;
+          
+          if (existingOriginalOpacity === undefined) {
+            // Store the current opacity as original (before any visibility changes)
+            // If opacity is 0, it might be from hiding, so default to 1
+            const currentOpacity = targetObj.opacity !== undefined && targetObj.opacity > 0 ? targetObj.opacity : 1;
+            targetObj.originalOpacity = currentOpacity;
+            // Also set _originalOpacity for backward compatibility
+            targetObj._originalOpacity = currentOpacity;
+          }
+          
+          // Determine opacity: if visible, restore originalOpacity, otherwise set to 0
+          let opacityToSet;
+          if (visibilityValue) {
+            // Restore original opacity if available (check both property names)
+            const originalOpacity = targetObj.originalOpacity !== undefined ? targetObj.originalOpacity : targetObj._originalOpacity;
+            if (originalOpacity !== undefined) {
+              opacityToSet = originalOpacity;
+            } else if (targetObj.opacity !== undefined && targetObj.opacity > 0) {
+              opacityToSet = targetObj.opacity;
+            } else {
+              opacityToSet = 1;
+            }
+          } else {
+            // Hide: set opacity to 0
+            opacityToSet = 0;
+          }
+          
+          // Set visibility on the object itself - use explicit boolean
+          // Also set opacity to 0 for hidden objects as a backup (Fabric.js sometimes ignores visible)
+          targetObj.set({
+            visible: visibilityValue,
+            selectable: visibilityValue,
+            evented: visibilityValue,
+            opacity: opacityToSet
+          });
+          
+          // Recursively set visibility on all children (for groups)
+          if (targetObj.type === 'group' && targetObj._objects && Array.isArray(targetObj._objects)) {
+            targetObj._objects.forEach(child => {
+              setVisibilityRecursive(child, visible);
+            });
+          }
+          
+          // Force update coordinates to ensure visibility takes effect
+          if (targetObj.setCoords) {
+            targetObj.setCoords();
+          }
+        };
+        
+        // Set visibility based on current view
+        const finalObjects = canvas.getObjects();
+        let visibleCount = 0;
+        let hiddenCount = 0;
+        const viewCounts = {}; // Track counts by view
+        
+        finalObjects.forEach(obj => {
+          // Skip constraint overlay - it's always visible
+          if (obj.excludeFromExport) {
+            return;
+          }
+          
+          // Get viewId from object (check both direct property and get method)
+          const objViewId = obj.viewId || obj.get?.('viewId');
+          
+          if (objViewId) {
+            // Ensure viewId is a string for comparison
+            const normalizedViewId = String(objViewId).toLowerCase().trim();
+            const normalizedActiveView = String(activeView).toLowerCase().trim();
+            const shouldBeVisible = normalizedViewId === normalizedActiveView;
+            
+            // Use recursive function to set visibility on object and all children
+            setVisibilityRecursive(obj, shouldBeVisible);
+            
+            // Track counts by view
+            if (!viewCounts[objViewId]) {
+              viewCounts[objViewId] = { total: 0, visible: 0, hidden: 0 };
+            }
+            viewCounts[objViewId].total++;
+            
+            if (shouldBeVisible) {
+              visibleCount++;
+              viewCounts[objViewId].visible++;
+            } else {
+              hiddenCount++;
+              viewCounts[objViewId].hidden++;
+            }
+          } else {
+            // Objects without viewId should be hidden (they shouldn't exist in multi-view mode)
+            // But log a warning so we can identify any missing viewIds
+            console.warn('Object without viewId found during initial load - hiding it:', {
+              elementId: obj.elementId,
+              type: obj.type,
+              currentView: activeView
+            });
+            // Use recursive function to hide object and all children
+            setVisibilityRecursive(obj, false);
+            hiddenCount++;
+          }
+        });
+        
+        console.log(`Initial load visibility set: ${visibleCount} visible, ${hiddenCount} hidden for view: ${activeView}`);
+        console.log('View breakdown:', viewCounts);
+        
+        // Force update all groups to ensure visibility changes propagate
+        finalObjects.forEach(obj => {
+          if (obj.type === 'group' && obj.setCoords) {
+            obj.setCoords();
+          }
+        });
+        
+        canvas.renderAll();
+        
+        // Double render to ensure Fabric.js processes all visibility changes
+        requestAnimationFrame(() => {
+          canvas.renderAll();
+        });
+        
+        viewsLoadedRef.current = true;
+        prevCurrentViewRef.current = activeView;
+        console.log('All views loaded, objects reordered by z-index, visibility set for view:', activeView);
+        
+        // Ensure loading state is cleared after all views are loaded
+        if (onLoadingStateChange) {
+          updateLoadingState({ isLoading: false, loaded: totalAssetsAcrossAllViews, total: totalAssetsAcrossAllViews, message: '' });
+        }
       });
-      // Still update refs to track current state
-      prevDesignElementsRef.current = designElements;
-      prevCurrentViewRef.current = currentView;
+      
       return;
     }
     
-    // Update refs before repopulating
-    prevDesignElementsRef.current = designElements;
-    prevCurrentViewRef.current = currentView;
-    
-    // Repopulate canvas when designElements change (view switching) or on initial load
-    console.log(hasPreviousData ? 'View changed - repopulating canvas' : 'Initial load - populating canvas', {
-      view: currentView,
-      elementCount: designElements.length
-    });
-    
-    // Always call populateCanvasFromData, even if elements array is empty
-    // This ensures the canvas is cleared for empty views
-    if (designElements.length === 0) {
-      // Clear canvas manually for empty views (populateCanvasFromData returns early for empty arrays)
-      const existingObjects = canvas.getObjects();
-      const constraintOverlayObj = existingObjects.find(obj => obj.excludeFromExport === true);
-      canvas.remove(...existingObjects.filter(obj => obj !== constraintOverlayObj));
-      canvas.renderAll();
-      console.log('Canvas cleared for empty view:', currentView);
-    } else {
-      populateCanvasFromData(canvas, designElements, initialData.canvasDimensions).catch(err => {
-        console.error('Error repopulating canvas from saved data:', err);
+    // On view switch, just toggle visibility (no reloading)
+    if (prevCurrentViewRef.current !== activeView) {
+      console.log('View switch - toggling visibility from', prevCurrentViewRef.current, 'to', activeView);
+      
+      // Recursive function to set visibility on object and all its children
+      const setVisibilityRecursive = (targetObj, visible) => {
+        // Explicitly set visibility to boolean (not undefined)
+        const visibilityValue = visible === true;
+        
+        // Determine opacity: if visible, restore originalOpacity, otherwise set to 0
+        let opacityToSet;
+        if (visibilityValue) {
+          // Restore original opacity if available, otherwise use current opacity (if > 0) or default to 1
+          if (targetObj.originalOpacity !== undefined) {
+            opacityToSet = targetObj.originalOpacity;
+          } else if (targetObj.opacity !== undefined && targetObj.opacity > 0) {
+            opacityToSet = targetObj.opacity;
+          } else {
+            opacityToSet = 1;
+          }
+        } else {
+          // Hide: set opacity to 0
+          opacityToSet = 0;
+        }
+        
+        // Set visibility on the object itself - use explicit boolean
+        // Use individual set() calls to ensure each property is applied
+        targetObj.set('visible', visibilityValue);
+        targetObj.set('selectable', visibilityValue);
+        targetObj.set('evented', visibilityValue);
+        targetObj.set('opacity', opacityToSet);
+        
+        // Mark object as dirty to force Fabric.js to re-render it
+        targetObj.dirty = true;
+        
+        // Recursively set visibility on all children (for groups) BEFORE setting coords
+        if (targetObj.type === 'group' && targetObj._objects && Array.isArray(targetObj._objects)) {
+          targetObj._objects.forEach(child => {
+            setVisibilityRecursive(child, visible);
+          });
+        }
+        
+        // Force update coordinates to ensure visibility takes effect
+        if (targetObj.setCoords) {
+          targetObj.setCoords();
+        }
+        
+        // For groups, also mark the group as needing a render update
+        if (targetObj.type === 'group') {
+          targetObj.dirty = true;
+          if (targetObj._setObjectCoords) {
+            targetObj._setObjectCoords();
+          }
+        }
+      };
+      
+      const allObjects = canvas.getObjects();
+      let visibleCount = 0;
+      let hiddenCount = 0;
+      const viewCounts = {}; // Track counts by view
+      
+      allObjects.forEach(obj => {
+        // Skip constraint overlay - it's always visible
+        if (obj.excludeFromExport) {
+          return;
+        }
+        
+        // Get viewId from object (check both direct property and get method)
+        const objViewId = obj.viewId || obj.get?.('viewId');
+        
+        if (objViewId) {
+          // Ensure viewId is a string for comparison
+          const normalizedViewId = String(objViewId).toLowerCase().trim();
+          const normalizedActiveView = String(activeView).toLowerCase().trim();
+          const shouldBeVisible = normalizedViewId === normalizedActiveView;
+          
+          // Debug log for first few objects to see what's happening
+          if (visibleCount + hiddenCount < 3) {
+            console.log(`Setting visibility for object:`, {
+              elementId: obj.elementId,
+              type: obj.type,
+              objViewId: objViewId,
+              normalizedViewId: normalizedViewId,
+              normalizedActiveView: normalizedActiveView,
+              shouldBeVisible: shouldBeVisible,
+              currentVisible: obj.visible,
+              currentOpacity: obj.opacity
+            });
+          }
+          
+          // Use recursive function to set visibility on object and all children
+          setVisibilityRecursive(obj, shouldBeVisible);
+          
+          // Track counts by view
+          if (!viewCounts[objViewId]) {
+            viewCounts[objViewId] = { total: 0, visible: 0, hidden: 0 };
+          }
+          viewCounts[objViewId].total++;
+          
+          if (shouldBeVisible) {
+            visibleCount++;
+            viewCounts[objViewId].visible++;
+          } else {
+            hiddenCount++;
+            viewCounts[objViewId].hidden++;
+          }
+        } else {
+          // Objects without viewId should be hidden (they shouldn't exist in multi-view mode)
+          // But log a warning so we can identify any missing viewIds
+          console.warn('Object without viewId found during view switch - hiding it:', {
+            elementId: obj.elementId,
+            type: obj.type,
+            currentView: activeView
+          });
+          // Use recursive function to hide object and all children
+          setVisibilityRecursive(obj, false);
+          hiddenCount++;
+        }
       });
+      
+      // Clear selection when switching views (hidden elements can't be selected)
+      canvas.discardActiveObject();
+      
+      // Force update all groups to ensure visibility changes propagate
+      allObjects.forEach(obj => {
+        if (obj.type === 'group' && obj.setCoords) {
+          obj.setCoords();
+        }
+      });
+      
+      // Force a full render to ensure visibility changes take effect
+      canvas.renderAll();
+      
+      // Double-check and fix any objects that didn't get their visibility set correctly
+      const objectsToFixAfterSet = [];
+      allObjects.forEach(obj => {
+        if (obj.excludeFromExport) return;
+        
+        const objViewId = obj.viewId || obj.get?.('viewId');
+        if (objViewId) {
+          const normalizedViewId = String(objViewId).toLowerCase().trim();
+          const normalizedActiveView = String(activeView).toLowerCase().trim();
+          const shouldBeVisible = normalizedViewId === normalizedActiveView;
+          
+          // Check if visibility is incorrect
+          if (shouldBeVisible && obj.visible !== true) {
+            objectsToFixAfterSet.push({ obj, shouldBeVisible: true });
+          } else if (!shouldBeVisible && obj.visible !== false) {
+            objectsToFixAfterSet.push({ obj, shouldBeVisible: false });
+          }
+          
+          // Also check group children
+          if (obj.type === 'group' && obj._objects) {
+            obj._objects.forEach(child => {
+              if (shouldBeVisible && child.visible !== true) {
+                objectsToFixAfterSet.push({ obj: child, shouldBeVisible: true });
+              } else if (!shouldBeVisible && child.visible !== false) {
+                objectsToFixAfterSet.push({ obj: child, shouldBeVisible: false });
+              }
+            });
+          }
+        }
+      });
+      
+      // Fix any objects with incorrect visibility
+      if (objectsToFixAfterSet.length > 0) {
+        console.log(`Fixing ${objectsToFixAfterSet.length} objects with incorrect visibility after initial set...`);
+        objectsToFixAfterSet.forEach(({ obj, shouldBeVisible }) => {
+          obj.set('visible', shouldBeVisible);
+          obj.set('selectable', shouldBeVisible);
+          obj.set('evented', shouldBeVisible);
+          obj.set('opacity', shouldBeVisible ? (obj.originalOpacity || obj._originalOpacity || 1) : 0);
+          obj.dirty = true;
+          if (obj.setCoords) obj.setCoords();
+        });
+        canvas.renderAll();
+      }
+      
+      // Double render to ensure Fabric.js processes all visibility changes
+      requestAnimationFrame(() => {
+        canvas.renderAll();
+        
+        // Triple render with a small delay to ensure all updates are processed
+        setTimeout(() => {
+          canvas.renderAll();
+        }, 50);
+      });
+      
+      // Double-check visibility by querying all objects
+      const verifyObjects = canvas.getObjects().filter(obj => !obj.excludeFromExport);
+      const actuallyVisible = verifyObjects.filter(obj => obj.visible === true).length;
+      const actuallyHidden = verifyObjects.filter(obj => obj.visible === false).length;
+      const actuallyUndefined = verifyObjects.filter(obj => obj.visible === undefined).length;
+      console.log(`View switched: ${visibleCount} visible, ${hiddenCount} hidden (verified: ${actuallyVisible} visible, ${actuallyHidden} hidden, ${actuallyUndefined} undefined)`);
+      console.log('View breakdown:', viewCounts);
+      
+      // Log detailed visibility state for each object and fix any that are wrong
+      const visibilityDetails = {};
+      const objectsToFixAfterVerification = [];
+      
+      verifyObjects.forEach(obj => {
+        const objViewId = obj.viewId || obj.get?.('viewId');
+        const key = `${obj.type}-${obj.elementId || 'no-id'}`;
+        const normalizedViewId = objViewId ? String(objViewId).toLowerCase().trim() : null;
+        const normalizedActiveView = String(activeView).toLowerCase().trim();
+        const shouldBeVisible = normalizedViewId === normalizedActiveView;
+        
+        visibilityDetails[key] = {
+          viewId: objViewId,
+          visible: obj.visible,
+          opacity: obj.opacity,
+          selectable: obj.selectable,
+          evented: obj.evented,
+          shouldBeVisible: shouldBeVisible
+        };
+        
+        // Check if visibility is incorrect and fix it
+        if (objViewId) {
+          if (shouldBeVisible && obj.visible !== true) {
+            console.warn('⚠️ Object should be visible but visibility is not true - fixing:', {
+              elementId: obj.elementId,
+              viewId: objViewId,
+              activeView: activeView,
+              currentVisible: obj.visible,
+              currentOpacity: obj.opacity
+            });
+            objectsToFixAfterVerification.push({ obj, shouldBeVisible: true });
+          } else if (!shouldBeVisible && obj.visible !== false) {
+            console.warn('⚠️ Object should be hidden but visibility is not false - fixing:', {
+              elementId: obj.elementId,
+              viewId: objViewId,
+              activeView: activeView,
+              currentVisible: obj.visible,
+              currentOpacity: obj.opacity
+            });
+            objectsToFixAfterVerification.push({ obj, shouldBeVisible: false });
+          }
+          
+          // Also check groups recursively
+          if (obj.type === 'group' && obj._objects) {
+            obj._objects.forEach((child, idx) => {
+              if (shouldBeVisible && child.visible !== true) {
+                console.warn(`⚠️ Group child ${idx} should be visible but visibility is not true - fixing:`, {
+                  parentElementId: obj.elementId,
+                  childType: child.type,
+                  childVisible: child.visible
+                });
+                objectsToFixAfterVerification.push({ obj: child, shouldBeVisible: true });
+              } else if (!shouldBeVisible && child.visible !== false) {
+                console.warn(`⚠️ Group child ${idx} should be hidden but visibility is not false - fixing:`, {
+                  parentElementId: obj.elementId,
+                  childType: child.type,
+                  childVisible: child.visible
+                });
+                objectsToFixAfterVerification.push({ obj: child, shouldBeVisible: false });
+              }
+            });
+          }
+        }
+      });
+      
+      // Fix any objects with incorrect visibility
+      if (objectsToFixAfterVerification.length > 0) {
+        console.log(`Fixing ${objectsToFixAfterVerification.length} objects with incorrect visibility...`);
+        objectsToFixAfterVerification.forEach(({ obj, shouldBeVisible }) => {
+          setVisibilityRecursive(obj, shouldBeVisible);
+        });
+        // Re-render after fixes
+        canvas.renderAll();
+      }
+      
+      console.log('Detailed visibility state:', visibilityDetails);
+      
+      prevCurrentViewRef.current = activeView;
     }
-  }, [initialData, populateCanvasFromData]); // Depend on entire initialData object so changes are detected
+  }, [initialData, populateCanvasFromData, currentView]); // Depend on currentView for view switching
 
   /**
    * Redraw product canvas when activeMaterial changes
@@ -2455,6 +3064,11 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     }
   }, [activeMaterial, drawProductCanvas]);
 
+  // Expose canvas instance for E2E testing
+  if (typeof window !== 'undefined') {
+    window.__fabricCanvasInstance = fabricCanvasInstance.current;
+  }
+  
   return fabricCanvasInstance.current;
 };
 

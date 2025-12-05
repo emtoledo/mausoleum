@@ -609,8 +609,10 @@ export async function exportToDxf({ fabricCanvas, productData, unitConverter }) 
     
     // 3b. Fabric Canvas Objects (from fabricCanvas)
     // These are Fabric.js objects with complex transforms
-    const fabricObjects = fabricCanvas.getObjects();
-    console.log(`Found ${fabricObjects.length} Fabric.js objects`);
+    // Filter to only visible objects (current view)
+    const allFabricObjects = fabricCanvas.getObjects();
+    const fabricObjects = allFabricObjects.filter(obj => obj.visible !== false);
+    console.log(`Found ${allFabricObjects.length} Fabric.js objects (${fabricObjects.length} visible)`);
     
     fabricObjects.forEach((obj, index) => {
       // Get the final, calculated transformation matrix
@@ -1193,9 +1195,10 @@ async function convertTextToSvgPath(textObj, font) {
 async function captureFabricCanvasAsSvg(fabricCanvas) {
   console.log('Capturing Fabric Canvas as SVG...');
   
-  // Get all objects
-  const objects = fabricCanvas.getObjects();
-  console.log(`Found ${objects.length} objects on Fabric Canvas`);
+  // Get all objects, filter to only visible (current view)
+  const allObjects = fabricCanvas.getObjects();
+  const objects = allObjects.filter(obj => obj.visible !== false);
+  console.log(`Found ${allObjects.length} objects on Fabric Canvas (${objects.length} visible)`);
   
   // Separate text objects from others
   const textObjects = objects.filter(obj => obj.type === 'text' || obj.type === 'i-text');

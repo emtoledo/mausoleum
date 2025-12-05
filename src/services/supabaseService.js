@@ -475,7 +475,7 @@ class SupabaseService {
       productBase: details.product_base || [],
       currentView: details.current_view || 'front', // Include current view
       customizations: {
-        designElements: details.design_elements || [], // Now an object with view keys: { "front": [...], "back": [...] }
+        designElements: details.design_elements || {}, // Now an object with view keys: { "front": [...], "back": [...] }
         colors: details.customizations?.colors || {},
         fonts: details.customizations?.fonts || {},
         layout: details.customizations?.layout || {}

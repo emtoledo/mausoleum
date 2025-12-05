@@ -518,7 +518,7 @@ export const products = {
     realWorldWidth: 66, // inches
     realWorldHeight: 30, // inches
     availableMaterials: ['mat-001','mat-002', 'mat-003', 'mat-004', 'mat-005'],
-    defaultMaterialId: 'mat-002', 
+    defaultMaterialId: 'mat-001', 
     canvas: {
       width: 66, // inches - overall canvas width
       height: 34 // inches - overall canvas height

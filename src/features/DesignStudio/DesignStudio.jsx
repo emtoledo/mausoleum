@@ -52,8 +52,30 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [isExporting, setIsExporting] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
-  const [currentView, setCurrentView] = useState(initialData?.currentView || 'front');
+  // Always default to 'front' on initial load, regardless of saved currentView
+  // This ensures the front view is always loaded first
+  const [currentView, setCurrentView] = useState(() => {
+    // On initial mount, always default to 'front' if available
+    const availableViewsList = initialData?.availableViews || ['front'];
+    return availableViewsList.includes('front') ? 'front' : (availableViewsList[0] || 'front');
+  });
   const [availableViews, setAvailableViews] = useState(initialData?.availableViews || ['front']);
+  
+  // Local state to store design elements for all views (front, back, top)
+  // This allows seamless view switching without database calls
+  const [localDesignElements, setLocalDesignElements] = useState(() => {
+    // Initialize from initialData on mount
+    if (initialData?.designElements) {
+      if (Array.isArray(initialData.designElements)) {
+        // Old format: array - convert to new format with front view
+        return { front: initialData.designElements };
+      } else if (typeof initialData.designElements === 'object') {
+        // New format: object with view keys - use as-is
+        return { ...initialData.designElements };
+      }
+    }
+    return {};
+  });
   
   // Debug: Log availableViews when it changes
   useEffect(() => {
@@ -63,6 +85,18 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       setAvailableViews(initialData.availableViews);
     }
   }, [initialData?.availableViews]);
+  
+  // Initialize local design elements from initialData when it first loads
+  useEffect(() => {
+    if (initialData?.designElements && Object.keys(localDesignElements).length === 0) {
+      if (Array.isArray(initialData.designElements)) {
+        setLocalDesignElements({ front: initialData.designElements });
+      } else if (typeof initialData.designElements === 'object') {
+        setLocalDesignElements({ ...initialData.designElements });
+      }
+    }
+  }, [initialData?.designElements]); // Only run when initialData.designElements changes
+  
   const [saveAlert, setSaveAlert] = useState(null);
   const [loadingState, setLoadingState] = useState({ isLoading: false, loaded: 0, total: 0, message: '' });
 
@@ -162,59 +196,44 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     setLoadingState(state);
   }, []);
 
-  // Create view-specific initialData that updates when view changes
-  // Use state instead of ref so useFabricCanvas hook detects changes
-  const [viewSpecificInitialData, setViewSpecificInitialData] = useState(() => {
-    // Get design elements for current view
-    let designElements = [];
-    if (initialData?.designElements) {
-      if (Array.isArray(initialData.designElements)) {
-        designElements = initialData.designElements;
-      } else if (typeof initialData.designElements === 'object') {
-        designElements = initialData.designElements[currentView] || [];
-      }
-    }
-    
+  // Create initialData for useFabricCanvas hook
+  // IMPORTANT: Pass ALL views' design elements, not just current view
+  // The hook needs all views to load them all at once with viewId tags
+  const [hookInitialData, setHookInitialData] = useState(() => {
     return {
       ...initialData,
-      designElements,
+      designElements: initialData?.designElements || {}, // Pass all views' design elements
       currentView
     };
   });
 
-  // Update view-specific data when view or initialData changes
+  // Update hook initialData when initialData, currentView, or localDesignElements changes
   useEffect(() => {
     if (!initialData) return;
     
-    // Get design elements for current view
-    let designElements = [];
-    if (initialData.designElements) {
-      if (Array.isArray(initialData.designElements)) {
-        // Old format: array - use for current view only
-        designElements = initialData.designElements;
-      } else if (typeof initialData.designElements === 'object') {
-        // New format: object with view keys
-        designElements = initialData.designElements[currentView] || [];
-      }
-    }
+    // Use localDesignElements if available (has user changes), otherwise use initialData.designElements
+    const allDesignElements = Object.keys(localDesignElements).length > 0 
+      ? localDesignElements 
+      : (initialData.designElements || {});
     
-    setViewSpecificInitialData({
+    setHookInitialData({
       ...initialData,
-      designElements,
+      designElements: allDesignElements, // Pass all views' design elements
       currentView
     });
-  }, [initialData, currentView]);
+  }, [initialData, currentView, localDesignElements]);
 
   const fabricFromHook = useFabricCanvas(
     fabricCanvasRef,
     productCanvasRef,
-    viewSpecificInitialData, // Use view-specific data (state, not ref)
+    hookInitialData, // Pass all views' design elements so hook can load them all
     setSelectedElement,
     canvasSize,
     setFabricInstance, // Callback when canvas is ready
     activeMaterial, // Pass active material for product canvas fill
     materials, // Pass materials array for productBase rendering
-    handleLoadingStateChange // Pass loading state callback
+    handleLoadingStateChange, // Pass loading state callback
+    currentView // Pass current view for visibility management
   );
 
   // Use the fabric instance from state (set via callback) or hook return value as fallback
@@ -259,6 +278,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
     // Add metadata for tracking
     textObject.elementId = `text-${Date.now()}`;
+    textObject.viewId = currentView; // Tag with current view for multi-view support
+    textObject.zIndex = fabricInstance.getObjects().length; // Set z-index for layer ordering
 
     // Add to canvas and render
     fabricInstance.add(textObject);
@@ -266,7 +287,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     fabricInstance.renderAll();
     
     console.log('Text object added:', textObject);
-  }, [fabricInstance, initialData]);
+  }, [fabricInstance, initialData, currentView]);
 
   /**
    * Handler: Toggle Artwork Library Visibility
@@ -369,6 +390,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         // Also store directly on group for easier access during save/load
         group.imageUrl = art.imageUrl;
         group.artworkId = art.id;
+        group.viewId = currentView; // Tag with current view for multi-view support
+        group.zIndex = fabricInstance.getObjects().length; // Set z-index for layer ordering
 
         // Re-render canvas
         fabricInstance.setActiveObject(group);
@@ -443,6 +466,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           }
         });
 
+        // Add metadata for tracking
+        img.elementId = `image-${Date.now()}`;
+        img.viewId = currentView; // Tag with current view for multi-view support
+        img.zIndex = fabricInstance.getObjects().length; // Set z-index for layer ordering
+
         // Add to canvas and render
         fabricInstance.add(img);
         fabricInstance.setActiveObject(img);
@@ -457,7 +485,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         console.error('Error loading artwork:', error);
       }
     }
-  }, [fabricInstance, initialData]);
+  }, [fabricInstance, initialData, currentView]);
 
   /**
    * Handler: Delete Selected Element
@@ -919,6 +947,285 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   }, [selectedElement, handleDeleteElement, fabricInstance, canvasSize, initialData]);
 
   /**
+   * Helper: Serialize current canvas state to design elements
+   * Extracted from handleSave to be reusable for view switching
+   */
+  const serializeCanvasState = useCallback((canvas, scale, canvasWidthInches, viewId = null) => {
+    if (!canvas) return [];
+    
+    let objects = canvas.getObjects();
+    
+    // Filter by viewId if provided (for multi-view support)
+    if (viewId) {
+      objects = objects.filter(obj => {
+        // Skip constraint overlay
+        if (obj.excludeFromExport) return false;
+        // Only include objects that match the specified viewId
+        const objViewId = obj.viewId || obj.get?.('viewId');
+        return objViewId === viewId;
+      });
+    } else {
+      // If no viewId specified, only serialize visible objects (for backward compatibility)
+      objects = objects.filter(obj => {
+        if (obj.excludeFromExport) return false;
+        const isVisible = obj.visible !== false && (obj.get ? obj.get('visible') !== false : true);
+        return isVisible;
+      });
+    }
+    
+    // Convert each object to design element format
+    return objects.map((obj, index) => {
+      // Get actual transformed values - use get() to ensure we get current state
+      const actualLeft = obj.get ? obj.get('left') : (obj.left ?? 0);
+      const actualTop = obj.get ? obj.get('top') : (obj.top ?? 0);
+      
+      // Get scaleX/scaleY (handling flip state)
+      let actualScaleX, actualScaleY;
+      if (obj.type === 'group') {
+        const directScaleX = obj.scaleX;
+        const directScaleY = obj.scaleY;
+        const getScaleX = obj.get ? obj.get('scaleX') : undefined;
+        const getScaleY = obj.get ? obj.get('scaleY') : undefined;
+        
+        actualScaleX = directScaleX !== undefined && directScaleX !== null ? directScaleX : (getScaleX !== undefined ? getScaleX : 1);
+        actualScaleY = directScaleY !== undefined && directScaleY !== null ? directScaleY : (getScaleY !== undefined ? getScaleY : (directScaleX !== undefined && directScaleX !== null ? directScaleX : 1));
+        
+        const flipX = obj.flipX || (obj.get ? obj.get('flipX') : false) || false;
+        const flipY = obj.flipY || (obj.get ? obj.get('flipY') : false) || false;
+        
+        if (flipX) actualScaleX = -Math.abs(actualScaleX);
+        if (flipY) actualScaleY = -Math.abs(actualScaleY);
+      } else if (obj.type === 'image' || obj.type === 'imagebox') {
+        const directScaleX = obj.scaleX;
+        const directScaleY = obj.scaleY;
+        const getScaleX = obj.get ? obj.get('scaleX') : undefined;
+        const getScaleY = obj.get ? obj.get('scaleY') : undefined;
+        
+        actualScaleX = directScaleX !== undefined && directScaleX !== null ? directScaleX : (getScaleX !== undefined ? getScaleX : 1);
+        actualScaleY = directScaleY !== undefined && directScaleY !== null ? directScaleY : (getScaleY !== undefined ? getScaleY : (directScaleX !== undefined && directScaleX !== null ? directScaleX : 1));
+        
+        const flipX = obj.flipX || (obj.get ? obj.get('flipX') : false) || false;
+        const flipY = obj.flipY || (obj.get ? obj.get('flipY') : false) || false;
+        
+        if (flipX || actualScaleX < 0) actualScaleX = -Math.abs(actualScaleX);
+        if (flipY || actualScaleY < 0) actualScaleY = -Math.abs(actualScaleY);
+      } else {
+        actualScaleX = obj.get ? obj.get('scaleX') : (obj.scaleX ?? 1);
+        actualScaleY = obj.get ? obj.get('scaleY') : (obj.scaleY ?? obj.scaleX ?? 1);
+      }
+      
+      const actualAngle = obj.get ? obj.get('angle') : (obj.angle ?? obj.rotation ?? 0);
+      const actualOpacity = obj.get ? obj.get('opacity') : (obj.opacity ?? 1);
+      const actualFill = obj.get ? obj.get('fill') : (obj.fill ?? '#000000');
+      const actualStroke = obj.get ? obj.get('stroke') : obj.stroke;
+      const actualStrokeWidth = obj.get ? obj.get('strokeWidth') : obj.strokeWidth;
+      
+      // Base properties for all objects
+      const element = {
+        id: obj.elementId || obj.id || `element-${Date.now()}-${index}`,
+        type: obj.type,
+        xPx: actualLeft,
+        yPx: actualTop,
+        x: pixelsToInches(actualLeft, scale),
+        y: pixelsToInches(actualTop, scale),
+        scaleX: actualScaleX,
+        scaleY: actualScaleY,
+        rotation: actualAngle,
+        opacity: actualOpacity,
+        fill: actualFill,
+        zIndex: index
+      };
+      
+      // Add stroke properties if they exist
+      if (actualStroke !== undefined && actualStroke !== null) {
+        element.stroke = actualStroke;
+      }
+      if (actualStrokeWidth !== undefined && actualStrokeWidth !== null) {
+        element.strokeWidthPx = actualStrokeWidth;
+        element.strokeWidth = pixelsToInches(actualStrokeWidth, scale);
+      }
+      
+      // Capture customData properties
+      const customData = (obj.get ? obj.get('customData') : obj.customData) || {};
+      
+      // Use customData.currentColor if it exists and is not default black
+      // Otherwise, we'll check paths for groups below
+      if (customData.currentColor && customData.currentColor !== '#000000') {
+        element.fill = customData.currentColor;
+      }
+      if (customData.currentColorId) element.colorId = customData.currentColorId;
+      if (customData.currentOpacity !== undefined) element.opacity = customData.currentOpacity;
+      if (customData.currentStrokeColor) element.stroke = customData.currentStrokeColor;
+      if (customData.currentStrokeWidth !== undefined) {
+        element.strokeWidthPx = customData.currentStrokeWidth;
+        element.strokeWidth = pixelsToInches(customData.currentStrokeWidth, scale);
+      }
+      if (customData.artworkId) element.artworkId = customData.artworkId;
+      if (customData.artworkName) element.artworkName = customData.artworkName;
+      if (customData.category) element.category = customData.category;
+      
+      // Type-specific properties
+      if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'itext' || obj.type === 'textbox') {
+        const actualText = obj.get ? obj.get('text') : (obj.text ?? '');
+        const actualFontSize = obj.get ? obj.get('fontSize') : (obj.fontSize ?? 12);
+        const actualFontFamily = obj.get ? obj.get('fontFamily') : (obj.fontFamily ?? 'Arial');
+        const actualFontWeight = obj.get ? obj.get('fontWeight') : (obj.fontWeight ?? 'normal');
+        const actualFontStyle = obj.get ? obj.get('fontStyle') : (obj.fontStyle ?? 'normal');
+        const actualTextAlign = obj.get ? obj.get('textAlign') : (obj.textAlign ?? 'left');
+        const actualLineHeight = obj.get ? obj.get('lineHeight') : (obj.lineHeight ?? 1.2);
+        const actualCharSpacing = obj.get ? obj.get('charSpacing') : (obj.charSpacing ?? 0);
+        const actualOriginX = obj.get ? obj.get('originX') : (obj.originX || 'left');
+        const actualOriginY = obj.get ? obj.get('originY') : (obj.originY || 'top');
+        
+        element.content = actualText;
+        const finalFontSizePx = actualFontSize * actualScaleX;
+        element.fontSizePx = finalFontSizePx;
+        element.fontSize = pixelsToInches(finalFontSizePx, scale);
+        element.scaleX = 1;
+        element.scaleY = 1;
+        element.originX = actualOriginX;
+        element.originY = actualOriginY;
+        element.font = actualFontFamily;
+        element.fontWeight = actualFontWeight;
+        element.fontStyle = actualFontStyle;
+        element.textAlign = actualTextAlign;
+        element.lineHeight = actualLineHeight;
+        element.charSpacing = actualCharSpacing;
+      } else if (obj.type === 'image' || obj.type === 'imagebox') {
+        const imgCustomData = obj.customData || {};
+        if (imgCustomData.originalSource) {
+          element.content = imgCustomData.originalSource;
+          element.imageUrl = imgCustomData.originalSource;
+        } else if (typeof obj.getSrc === 'function') {
+          element.content = obj.getSrc();
+        } else if (obj.src) {
+          element.content = obj.src;
+        } else if (obj._element && obj._element.src) {
+          element.content = obj._element.src;
+        } else {
+          element.content = '';
+        }
+        
+        const objWidth = obj.get ? obj.get('width') : (obj.width ?? 0);
+        const objHeight = obj.get ? obj.get('height') : (obj.height ?? 0);
+        const actualWidth = objWidth * actualScaleX;
+        const actualHeight = objHeight * actualScaleY;
+        element.widthPx = actualWidth;
+        element.heightPx = actualHeight;
+        element.width = pixelsToInches(actualWidth, scale);
+        element.height = pixelsToInches(actualHeight, scale);
+        
+        if (imgCustomData.currentColor) {
+          element.fill = imgCustomData.currentColor;
+          element.colorId = imgCustomData.currentColorId;
+        }
+        if (imgCustomData.currentOpacity !== undefined) element.opacity = imgCustomData.currentOpacity;
+        if (imgCustomData.currentStrokeColor) element.stroke = imgCustomData.currentStrokeColor;
+        if (imgCustomData.currentStrokeWidth !== undefined) {
+          element.strokeWidthPx = imgCustomData.currentStrokeWidth;
+          element.strokeWidth = pixelsToInches(imgCustomData.currentStrokeWidth, scale);
+        }
+      } else if (obj.type === 'group') {
+        const groupCustomData = (obj.get ? obj.get('customData') : obj.customData) || {};
+        element.content = obj.name || groupCustomData.artworkName || groupCustomData.artworkId || obj.artworkId || '';
+        element.category = obj.category || groupCustomData.category || '';
+        element.type = 'artwork';
+        
+        const groupWidth = obj.get ? obj.get('width') : (obj.width || 0);
+        const groupHeight = obj.get ? obj.get('height') : (obj.height || 0);
+        const actualGroupWidth = Math.abs(groupWidth * actualScaleX);
+        const actualGroupHeight = Math.abs(groupHeight * actualScaleY);
+        element.widthPx = actualGroupWidth;
+        element.heightPx = actualGroupHeight;
+        element.width = pixelsToInches(actualGroupWidth, scale);
+        element.height = pixelsToInches(actualGroupHeight, scale);
+        
+        const groupOriginX = obj.get ? obj.get('originX') : (obj.originX || 'center');
+        const groupOriginY = obj.get ? obj.get('originY') : (obj.originY || 'center');
+        element.originX = groupOriginX;
+        element.originY = groupOriginY;
+        
+        const savedArtworkId = obj.artworkId || groupCustomData.artworkId;
+        if (savedArtworkId) element.artworkId = savedArtworkId;
+        if (obj.textureUrl || groupCustomData.textureUrl) element.textureUrl = obj.textureUrl || groupCustomData.textureUrl;
+        
+        const objImageUrl = obj.imageUrl && obj.imageUrl.trim() ? obj.imageUrl : null;
+        const customDataImageUrl = groupCustomData.imageUrl && groupCustomData.imageUrl.trim() ? groupCustomData.imageUrl : null;
+        const customDataOriginalSource = groupCustomData.originalSource && groupCustomData.originalSource.trim() ? groupCustomData.originalSource : null;
+        const availableImageUrl = objImageUrl || customDataImageUrl || customDataOriginalSource;
+        
+        if (availableImageUrl && availableImageUrl.trim()) {
+          element.imageUrl = availableImageUrl.trim();
+        }
+        
+        if (groupCustomData.category || obj.category) {
+          element.category = groupCustomData.category || obj.category;
+        }
+        if (groupCustomData.defaultWidthInches) element.defaultWidthInches = groupCustomData.defaultWidthInches;
+        
+        // Capture color from group's paths if customData doesn't have it
+        // This ensures we save the actual color applied to the artwork
+        if ((!element.fill || element.fill === '#000000') && obj._objects && obj._objects.length > 0) {
+          // Check if this is a texture layer group (2 children: texture + artwork)
+          let targetGroup = obj;
+          if (obj._objects.length === 2) {
+            const firstChild = obj._objects[0];
+            const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
+            if (hasPatternFill) {
+              targetGroup = obj._objects[1]; // Get the artwork group (second child)
+            }
+          }
+          
+          // Find first path in the group to get its color
+          const findFirstPath = (groupObj) => {
+            if (groupObj.type === 'path') {
+              return groupObj;
+            }
+            if (groupObj._objects) {
+              for (const child of groupObj._objects) {
+                const path = findFirstPath(child);
+                if (path) return path;
+              }
+            }
+            return null;
+          };
+          
+          const firstPath = findFirstPath(targetGroup);
+          if (firstPath) {
+            const pathFill = firstPath.get ? firstPath.get('fill') : firstPath.fill;
+            const pathStroke = firstPath.get ? firstPath.get('stroke') : firstPath.stroke;
+            const pathOpacity = firstPath.get ? firstPath.get('opacity') : firstPath.opacity;
+            
+            if (pathFill && pathFill !== '#000000') element.fill = pathFill;
+            if (pathStroke) element.stroke = pathStroke;
+            if (pathOpacity !== undefined) element.opacity = pathOpacity;
+          }
+        }
+      } else if (obj.type === 'path' || obj.type === 'path-group') {
+        element.content = obj.name || obj.artworkId || '';
+        element.category = obj.category || '';
+        const pathBounds = obj.getBoundingRect();
+        element.widthPx = pathBounds.width;
+        element.heightPx = pathBounds.height;
+        element.width = pixelsToInches(pathBounds.width, scale);
+        element.height = pixelsToInches(pathBounds.height, scale);
+        if (obj.artworkId) element.artworkId = obj.artworkId;
+        if (obj.textureUrl) element.textureUrl = obj.textureUrl;
+        if (obj.imageUrl) element.imageUrl = obj.imageUrl;
+      } else {
+        element.content = obj.name || '';
+        const bounds = obj.getBoundingRect ? obj.getBoundingRect() : { width: obj.width || 0, height: obj.height || 0 };
+        element.widthPx = bounds.width;
+        element.heightPx = bounds.height;
+        element.width = pixelsToInches(bounds.width, scale);
+        element.height = pixelsToInches(bounds.height, scale);
+      }
+      
+      return element;
+    });
+  }, []);
+  
+  /**
    * Handler: Save Project (CRITICAL)
    * 
    * Gets all objects from Fabric, converts pixels to inches, and calls onSave
@@ -944,529 +1251,26 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       // Use canvas width for scale calculation to match the actual canvas dimensions
       const scale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
 
-      // Get all objects from Fabric instance
-      const objects = fabricInstance.getObjects();
+      // Serialize only visible elements (current view) to local state
+      const currentDesignElements = serializeCanvasState(fabricInstance, scale, canvasWidthInches, currentView);
+      
+      // Update local state with current view's elements
+      const updatedLocalDesignElements = {
+        ...localDesignElements,
+        [currentView]: currentDesignElements
+      };
+      setLocalDesignElements(updatedLocalDesignElements);
       
       console.log('=== SAVE DEBUG ===');
-      console.log('Total objects on canvas:', objects.length);
-      console.log('Objects:', objects.map(obj => {
-        const objFill = obj.get ? obj.get('fill') : obj.fill;
-        const objCustomData = obj.get ? obj.get('customData') : obj.customData;
-        const objScaleX = obj.scaleX;
-        const objScaleY = obj.scaleY;
-        const getScaleX = obj.get ? obj.get('scaleX') : 'no get method';
-        const getScaleY = obj.get ? obj.get('scaleY') : 'no get method';
-        return {
-          type: obj.type,
-          elementId: obj.elementId,
-          left: obj.left,
-          top: obj.top,
-          scaleX: objScaleX,
-          scaleY: objScaleY,
-          getScaleX: getScaleX,
-          getScaleY: getScaleY,
-          isFlippedHorizontally: objScaleX < 0,
-          isFlippedVertically: objScaleY < 0,
-          angle: obj.angle,
-          fill: objFill,
-          fillFromGet: obj.get ? obj.get('fill') : 'N/A',
-          stroke: obj.stroke,
-          strokeWidth: obj.strokeWidth,
-          opacity: obj.opacity,
-          customData: objCustomData,
-          customDataCurrentColor: objCustomData?.currentColor,
-          width: obj.width,
-          height: obj.height
-        };
-      }));
+      console.log('Total visible objects on canvas:', currentDesignElements.length);
+      console.log('Saving all views to Supabase:', Object.keys(updatedLocalDesignElements));
 
-      // Convert each object to design element format
-      const designElements = objects.map((obj, index) => {
-        // Get actual transformed values - use get() to ensure we get current state
-        const actualLeft = obj.get ? obj.get('left') : (obj.left ?? 0);
-        const actualTop = obj.get ? obj.get('top') : (obj.top ?? 0);
-        // IMPORTANT: Get actual scaleX/scaleY values including negative values (flip state)
-        // For groups, Fabric.js stores scaleX/scaleY directly on the object
-        // We MUST read them directly to preserve negative values (flip state)
-        let actualScaleX, actualScaleY;
-        if (obj.type === 'group') {
-          // For groups, read scaleX/scaleY directly from the object properties
-          // This preserves negative values which indicate flip state
-          // Check both obj.scaleX and obj.get('scaleX') to ensure we get the correct value
-          const directScaleX = obj.scaleX;
-          const directScaleY = obj.scaleY;
-          const getScaleX = obj.get ? obj.get('scaleX') : undefined;
-          const getScaleY = obj.get ? obj.get('scaleY') : undefined;
-          
-          // Prefer direct property access for groups (more reliable for flip state)
-          actualScaleX = directScaleX !== undefined && directScaleX !== null ? directScaleX : (getScaleX !== undefined ? getScaleX : 1);
-          actualScaleY = directScaleY !== undefined && directScaleY !== null ? directScaleY : (getScaleY !== undefined ? getScaleY : (directScaleX !== undefined && directScaleX !== null ? directScaleX : 1));
-          
-          // Get flip state from Fabric.js flipX/flipY properties (proper way to handle flips)
-          // Check both direct property and get() method
-          const flipX = obj.flipX || (obj.get ? obj.get('flipX') : false) || false;
-          const flipY = obj.flipY || (obj.get ? obj.get('flipY') : false) || false;
-          
-          // If flip state is stored in customData, apply it to scaleX/scaleY for saving
-          // This ensures we save negative values even though Fabric.js normalizes them
-          if (flipX) {
-            actualScaleX = -Math.abs(actualScaleX);
-          }
-          if (flipY) {
-            actualScaleY = -Math.abs(actualScaleY);
-          }
-          
-          // Debug logging to verify we're capturing flip state
-          console.log(`=== SAVE Group ${index} ===`, {
-            elementId: obj.elementId || obj.id,
-            directScaleX: directScaleX,
-            directScaleY: directScaleY,
-            getScaleX: getScaleX,
-            getScaleY: getScaleY,
-            flipX: flipX,
-            flipY: flipY,
-            actualScaleX: actualScaleX,
-            actualScaleY: actualScaleY,
-            isFlippedHorizontally: flipX || actualScaleX < 0,
-            isFlippedVertically: flipY || actualScaleY < 0,
-            angle: obj.angle,
-            getAngle: obj.get ? obj.get('angle') : 'no get method'
-          });
-        } else if (obj.type === 'image' || obj.type === 'imagebox') {
-          // For images, read scaleX/scaleY directly to preserve negative values (flip state)
-          // Fabric.js may normalize negative scales, so we need to check both scaleX sign and flipX/flipY
-          const directScaleX = obj.scaleX;
-          const directScaleY = obj.scaleY;
-          const getScaleX = obj.get ? obj.get('scaleX') : undefined;
-          const getScaleY = obj.get ? obj.get('scaleY') : undefined;
-          
-          // Prefer direct property access for images (more reliable for flip state)
-          actualScaleX = directScaleX !== undefined && directScaleX !== null ? directScaleX : (getScaleX !== undefined ? getScaleX : 1);
-          actualScaleY = directScaleY !== undefined && directScaleY !== null ? directScaleY : (getScaleY !== undefined ? getScaleY : (directScaleX !== undefined && directScaleX !== null ? directScaleX : 1));
-          
-          // Get flip state from Fabric.js flipX/flipY properties (if supported)
-          // Also check if scaleX/scaleY are negative (flip state)
-          const flipX = obj.flipX || (obj.get ? obj.get('flipX') : false) || false;
-          const flipY = obj.flipY || (obj.get ? obj.get('flipY') : false) || false;
-          
-          // If flip state is detected, ensure scaleX/scaleY are negative for saving
-          // This ensures we save negative values even if Fabric.js normalized them
-          if (flipX || actualScaleX < 0) {
-            actualScaleX = -Math.abs(actualScaleX);
-          }
-          if (flipY || actualScaleY < 0) {
-            actualScaleY = -Math.abs(actualScaleY);
-          }
-          
-          // Debug logging to verify we're capturing flip state for images
-          console.log(`=== SAVE Image ${index} ===`, {
-            elementId: obj.elementId || obj.id,
-            directScaleX: directScaleX,
-            directScaleY: directScaleY,
-            getScaleX: getScaleX,
-            getScaleY: getScaleY,
-            flipX: flipX,
-            flipY: flipY,
-            actualScaleX: actualScaleX,
-            actualScaleY: actualScaleY,
-            isFlippedHorizontally: flipX || actualScaleX < 0,
-            isFlippedVertically: flipY || actualScaleY < 0
-          });
-        } else {
-          // For other objects, use get() method which is more reliable
-          actualScaleX = obj.get ? obj.get('scaleX') : (obj.scaleX ?? 1);
-          actualScaleY = obj.get ? obj.get('scaleY') : (obj.scaleY ?? obj.scaleX ?? 1);
-        }
-        const actualAngle = obj.get ? obj.get('angle') : (obj.angle ?? obj.rotation ?? 0);
-        const actualOpacity = obj.get ? obj.get('opacity') : (obj.opacity ?? 1);
-        const actualFill = obj.get ? obj.get('fill') : (obj.fill ?? '#000000');
-        const actualStroke = obj.get ? obj.get('stroke') : obj.stroke;
-        const actualStrokeWidth = obj.get ? obj.get('strokeWidth') : obj.strokeWidth;
-        
-        // Base properties for all objects - SAVE PIXEL VALUES DIRECTLY
-        const element = {
-          id: obj.elementId || obj.id || `element-${Date.now()}-${index}`,
-          type: obj.type,
-          // Save pixel values directly (no conversion)
-          xPx: actualLeft,
-          yPx: actualTop,
-          // Also save inches for display purposes (calculated from pixels)
-          x: pixelsToInches(actualLeft, scale),
-          y: pixelsToInches(actualTop, scale),
-          // Transform properties
-          scaleX: actualScaleX,
-          scaleY: actualScaleY,
-          rotation: actualAngle,
-          // Visual properties
-          opacity: actualOpacity,
-          fill: actualFill,
-          // Layer order (z-index)
-          zIndex: index
-        };
-
-        // Add stroke properties if they exist
-        if (actualStroke !== undefined && actualStroke !== null) {
-          element.stroke = actualStroke;
-        }
-        if (actualStrokeWidth !== undefined && actualStrokeWidth !== null) {
-          // Save pixel value directly
-          element.strokeWidthPx = actualStrokeWidth;
-          // Also save inches for display
-          element.strokeWidth = pixelsToInches(actualStrokeWidth, scale);
-        }
-        
-        // Capture customData properties (colors, artwork metadata, etc.)
-        // Use get() to ensure we get the latest customData
-        const customData = (obj.get ? obj.get('customData') : obj.customData) || {};
-        console.log(`Element ${index} customData:`, customData);
-        
-        // Priority: Use customData.currentColor if available (most accurate for user selections)
-        if (customData.currentColor) {
-          element.fill = customData.currentColor;
-          console.log(`Element ${index} using customData.currentColor:`, customData.currentColor);
-        }
-        if (customData.currentColorId) element.colorId = customData.currentColorId;
-        if (customData.currentOpacity !== undefined) {
-          element.opacity = customData.currentOpacity;
-        }
-        if (customData.currentStrokeColor) {
-          element.stroke = customData.currentStrokeColor;
-        }
-        if (customData.currentStrokeWidth !== undefined) {
-          // Save pixel value directly
-          element.strokeWidthPx = customData.currentStrokeWidth;
-          // Also save inches for display
-          element.strokeWidth = pixelsToInches(customData.currentStrokeWidth, scale);
-        }
-        if (customData.artworkId) element.artworkId = customData.artworkId;
-        if (customData.artworkName) element.artworkName = customData.artworkName;
-        if (customData.category) element.category = customData.category;
-
-        // Type-specific properties
-        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'itext' || obj.type === 'textbox') {
-          // Get actual text properties using get() method
-          const actualText = obj.get ? obj.get('text') : (obj.text ?? '');
-          const actualFontSize = obj.get ? obj.get('fontSize') : (obj.fontSize ?? 12);
-          const actualFontFamily = obj.get ? obj.get('fontFamily') : (obj.fontFamily ?? 'Arial');
-          const actualFontWeight = obj.get ? obj.get('fontWeight') : (obj.fontWeight ?? 'normal');
-          const actualFontStyle = obj.get ? obj.get('fontStyle') : (obj.fontStyle ?? 'normal');
-          const actualTextAlign = obj.get ? obj.get('textAlign') : (obj.textAlign ?? 'left');
-          const actualLineHeight = obj.get ? obj.get('lineHeight') : (obj.lineHeight ?? 1.2);
-          const actualCharSpacing = obj.get ? obj.get('charSpacing') : (obj.charSpacing ?? 0);
-          const actualOriginX = obj.get ? obj.get('originX') : (obj.originX || 'left');
-          const actualOriginY = obj.get ? obj.get('originY') : (obj.originY || 'top');
-          
-          element.content = actualText;
-          // Save FINAL rendered fontSize (fontSize * scaleX) - no scaling needed on load
-          // This matches the philosophy: save pixel values directly, load them directly
-          const finalFontSizePx = actualFontSize * actualScaleX;
-          element.fontSizePx = finalFontSizePx; // Final rendered fontSize in pixels
-          // Also save inches for display (calculated from final fontSize)
-          element.fontSize = pixelsToInches(finalFontSizePx, scale);
-          // Set scaleX/scaleY to 1 since fontSize already includes the scale
-          element.scaleX = 1;
-          element.scaleY = 1;
-          // Save origin point - critical for correct positioning!
-          element.originX = actualOriginX;
-          element.originY = actualOriginY;
-          element.font = actualFontFamily;
-          element.fontWeight = actualFontWeight;
-          element.fontStyle = actualFontStyle;
-          element.textAlign = actualTextAlign;
-          element.lineHeight = actualLineHeight;
-          // Save charSpacing (letter spacing) - Fabric.js stores it in pixels
-          element.charSpacing = actualCharSpacing; // Save in pixels
-          // Text-specific fill (already in base fill)
-        } else if (obj.type === 'image' || obj.type === 'imagebox') {
-          // Get image source - prefer customData.originalSource to avoid blob URLs
-          const imgCustomData = obj.customData || {};
-          if (imgCustomData.originalSource) {
-            element.content = imgCustomData.originalSource;
-            element.imageUrl = imgCustomData.originalSource;
-          } else if (typeof obj.getSrc === 'function') {
-            element.content = obj.getSrc();
-          } else if (obj.src) {
-            element.content = obj.src;
-          } else if (obj._element && obj._element.src) {
-            element.content = obj._element.src;
-          } else {
-            element.content = '';
-          }
-          
-          // Get actual dimensions using get() method
-          const objWidth = obj.get ? obj.get('width') : (obj.width ?? 0);
-          const objHeight = obj.get ? obj.get('height') : (obj.height ?? 0);
-          
-          // Calculate actual dimensions accounting for scale
-          const actualWidth = objWidth * actualScaleX;
-          const actualHeight = objHeight * actualScaleY;
-          // Save pixel values directly
-          element.widthPx = actualWidth;
-          element.heightPx = actualHeight;
-          // Also save inches for display
-          element.width = pixelsToInches(actualWidth, scale);
-          element.height = pixelsToInches(actualHeight, scale);
-          
-          // Save color modifications from customData for images (especially SVG)
-          if (imgCustomData.currentColor) {
-            element.fill = imgCustomData.currentColor;
-            element.colorId = imgCustomData.currentColorId;
-          }
-          if (imgCustomData.currentOpacity !== undefined) {
-            element.opacity = imgCustomData.currentOpacity;
-          }
-          if (imgCustomData.currentStrokeColor) {
-            element.stroke = imgCustomData.currentStrokeColor;
-          }
-          if (imgCustomData.currentStrokeWidth !== undefined) {
-            element.strokeWidthPx = imgCustomData.currentStrokeWidth;
-            element.strokeWidth = pixelsToInches(imgCustomData.currentStrokeWidth, scale);
-          }
-        } else if (obj.type === 'group') {
-          // Handle groups (like artwork with textures)
-          // Get metadata from customData or direct properties
-          // Use get() method if available to ensure we get the latest customData
-          const groupCustomData = (obj.get ? obj.get('customData') : obj.customData) || {};
-          element.content = obj.name || groupCustomData.artworkName || groupCustomData.artworkId || obj.artworkId || '';
-          element.category = obj.category || groupCustomData.category || '';
-          element.type = 'artwork'; // Normalize type for groups that are artwork
-          
-          // Get group dimensions BEFORE rotation (actual object size, not bounding box)
-          // For rotated objects, getBoundingRect() gives inflated dimensions
-          // We want the actual group dimensions: width * scaleX, height * scaleY
-          const groupWidth = obj.get ? obj.get('width') : (obj.width || 0);
-          const groupHeight = obj.get ? obj.get('height') : (obj.height || 0);
-          
-          // Calculate actual dimensions accounting for scale but NOT rotation
-          // This gives us the true object size before rotation is applied
-          const actualGroupWidth = Math.abs(groupWidth * actualScaleX);
-          const actualGroupHeight = Math.abs(groupHeight * actualScaleY);
-          
-          // Save pixel values directly (these are the actual object dimensions, not bounding box)
-          element.widthPx = actualGroupWidth;
-          element.heightPx = actualGroupHeight;
-          // Also save inches for display
-          element.width = pixelsToInches(actualGroupWidth, scale);
-          element.height = pixelsToInches(actualGroupHeight, scale);
-          
-          console.log('Saving group dimensions (before rotation):', {
-            groupWidth,
-            groupHeight,
-            actualScaleX,
-            actualScaleY,
-            actualGroupWidth,
-            actualGroupHeight,
-            angle: actualAngle,
-            boundingRectWidth: obj.getBoundingRect().width,
-            boundingRectHeight: obj.getBoundingRect().height
-          });
-          
-          // For groups, save the actual left/top position directly from the object
-          // This is more reliable than calculating from center point, especially for rotated groups
-          // The actualLeft and actualTop already account for rotation and origin point
-          // (They were calculated earlier using obj.get('left') and obj.get('top'))
-          // So we can use them directly - they're already in element.xPx and element.yPx
-          
-          // Also save origin point for groups (important for correct positioning on load)
-          const groupOriginX = obj.get ? obj.get('originX') : (obj.originX || 'center');
-          const groupOriginY = obj.get ? obj.get('originY') : (obj.originY || 'center');
-          element.originX = groupOriginX;
-          element.originY = groupOriginY;
-          
-          // Store group-specific data - CRITICAL: Always save artworkId if it exists
-          const savedArtworkId = obj.artworkId || groupCustomData.artworkId;
-          if (savedArtworkId) {
-            element.artworkId = savedArtworkId;
-            console.log('Saving artworkId for group:', {
-              elementId: element.id,
-              artworkId: savedArtworkId,
-              source: obj.artworkId ? 'obj' : 'customData'
-            });
-          } else {
-            console.warn('WARNING: No artworkId found for group:', {
-              elementId: element.id,
-              objHasArtworkId: !!obj.artworkId,
-              customDataHasArtworkId: !!groupCustomData.artworkId,
-              objKeys: Object.keys(obj),
-              customDataKeys: Object.keys(groupCustomData)
-            });
-          }
-          
-          if (obj.textureUrl || groupCustomData.textureUrl) element.textureUrl = obj.textureUrl || groupCustomData.textureUrl;
-          
-          // Debug: Check what imageUrl sources are available
-          // Check all possible sources, ensuring we don't use empty strings
-          const objImageUrl = obj.imageUrl && obj.imageUrl.trim() ? obj.imageUrl : null;
-          const customDataImageUrl = groupCustomData.imageUrl && groupCustomData.imageUrl.trim() ? groupCustomData.imageUrl : null;
-          const customDataOriginalSource = groupCustomData.originalSource && groupCustomData.originalSource.trim() ? groupCustomData.originalSource : null;
-          
-          const availableImageUrl = objImageUrl || customDataImageUrl || customDataOriginalSource;
-          
-          console.log('Saving group imageUrl:', {
-            elementId: element.id,
-            objImageUrl: objImageUrl,
-            objImageUrlRaw: obj.imageUrl,
-            customDataImageUrl: customDataImageUrl,
-            customDataOriginalSource: customDataOriginalSource,
-            availableImageUrl: availableImageUrl,
-            willSave: !!availableImageUrl,
-            artworkId: savedArtworkId,
-            objHasImageUrl: 'imageUrl' in obj,
-            customDataHasImageUrl: 'imageUrl' in groupCustomData,
-            customDataHasOriginalSource: 'originalSource' in groupCustomData
-          });
-          
-          if (availableImageUrl && availableImageUrl.trim()) {
-            element.imageUrl = availableImageUrl.trim();
-          } else {
-            // If we have artworkId, we can still reload from ArtworkData, so this is not critical
-            if (savedArtworkId) {
-              console.warn('No imageUrl found for group, but artworkId exists - will use fallback lookup on load:', {
-                elementId: element.id,
-                artworkId: savedArtworkId
-              });
-              // Don't set imageUrl to empty string - leave it undefined/null
-            } else {
-              console.error('CRITICAL: No imageUrl AND no artworkId found for group, cannot reload:', {
-                elementId: element.id,
-                objKeys: Object.keys(obj),
-                customDataKeys: Object.keys(groupCustomData),
-                customData: groupCustomData,
-                objImageUrl: obj.imageUrl,
-                objImageUrlType: typeof obj.imageUrl
-              });
-              // Don't set imageUrl to empty string - leave it undefined so we can detect the issue
-            }
-          }
-          
-          // Also save category if available (helps with fallback lookup)
-          if (groupCustomData.category || obj.category) {
-            element.category = groupCustomData.category || obj.category;
-          }
-          if (groupCustomData.defaultWidthInches) element.defaultWidthInches = groupCustomData.defaultWidthInches;
-          
-          // For groups, try to get color from the first path child if customData doesn't have it
-          // This ensures we capture the actual color applied to the artwork
-          if ((!element.fill || element.fill === '#000000') && obj._objects && obj._objects.length > 0) {
-            // Check if this is a texture layer group (2 children: texture + artwork)
-            let targetGroup = obj;
-            if (obj._objects.length === 2) {
-              const firstChild = obj._objects[0];
-              const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
-              if (hasPatternFill) {
-                targetGroup = obj._objects[1]; // Get the artwork group (second child)
-              }
-            }
-            
-            // Find first path in the group to get its color
-            const findFirstPath = (groupObj) => {
-              if (groupObj.type === 'path') {
-                return groupObj;
-              }
-              if (groupObj._objects) {
-                for (const child of groupObj._objects) {
-                  const path = findFirstPath(child);
-                  if (path) return path;
-                }
-              }
-              return null;
-            };
-            
-            const firstPath = findFirstPath(targetGroup);
-            if (firstPath) {
-              const pathFill = firstPath.get ? firstPath.get('fill') : firstPath.fill;
-              const pathStroke = firstPath.get ? firstPath.get('stroke') : firstPath.stroke;
-              const pathStrokeWidth = firstPath.get ? firstPath.get('strokeWidth') : firstPath.strokeWidth;
-              const pathOpacity = firstPath.get ? firstPath.get('opacity') : firstPath.opacity;
-              
-              if (pathFill) element.fill = pathFill;
-              if (pathStroke) element.stroke = pathStroke;
-              if (pathStrokeWidth !== undefined) {
-                // Save pixel value directly
-                element.strokeWidthPx = pathStrokeWidth;
-                // Also save inches for display
-                element.strokeWidth = pixelsToInches(pathStrokeWidth, scale);
-              }
-              if (pathOpacity !== undefined) element.opacity = pathOpacity;
-            }
-          }
-        } else if (obj.type === 'path' || obj.type === 'path-group') {
-          // Handle paths (DXF artwork)
-          element.content = obj.name || obj.artworkId || '';
-          element.category = obj.category || '';
-          
-          // Get path dimensions
-          const pathBounds = obj.getBoundingRect();
-          // Save pixel values directly
-          element.widthPx = pathBounds.width;
-          element.heightPx = pathBounds.height;
-          // Also save inches for display
-          element.width = pixelsToInches(pathBounds.width, scale);
-          element.height = pixelsToInches(pathBounds.height, scale);
-          
-          // Store path-specific data
-          if (obj.artworkId) element.artworkId = obj.artworkId;
-          if (obj.textureUrl) element.textureUrl = obj.textureUrl;
-          if (obj.imageUrl) element.imageUrl = obj.imageUrl;
-        } else {
-          // Generic object (rect, circle, etc.)
-          element.content = obj.name || '';
-          const bounds = obj.getBoundingRect ? obj.getBoundingRect() : { width: obj.width || 0, height: obj.height || 0 };
-          // Save pixel values directly
-          element.widthPx = bounds.width;
-          element.heightPx = bounds.height;
-          // Also save inches for display
-          element.width = pixelsToInches(bounds.width, scale);
-          element.height = pixelsToInches(bounds.height, scale);
-        }
-
-        // Detailed save logging for debugging
-        console.log(`=== SAVE Element ${index} (${obj.type}) ===`);
-        
-        // Get fontSize only for text objects
-        let fontSizeForLog = 'N/A';
-        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
-          const fontSize = obj.get ? obj.get('fontSize') : (obj.fontSize ?? 12);
-          fontSizeForLog = fontSize;
-        }
-        
-        console.log('Object pixel values:', {
-          left: actualLeft,
-          top: actualTop,
-          fontSize: fontSizeForLog,
-          width: obj.type === 'image' || obj.type === 'group' ? (obj.get ? obj.get('width') : obj.width) : 'N/A',
-          height: obj.type === 'image' || obj.type === 'group' ? (obj.get ? obj.get('height') : obj.height) : 'N/A',
-          scaleX: actualScaleX,
-          scaleY: actualScaleY
-        });
-        console.log('Saved element data:', {
-          type: element.type,
-          xPx: element.xPx,
-          yPx: element.yPx,
-          x: element.x,
-          y: element.y,
-          fontSizePx: element.fontSizePx,
-          fontSize: element.fontSize,
-          widthPx: element.widthPx,
-          heightPx: element.heightPx,
-          width: element.width,
-          height: element.height,
-          scaleX: element.scaleX,
-          scaleY: element.scaleY,
-          rotation: element.rotation,
-          // Verify flip state: negative scaleX = horizontal flip, negative scaleY = vertical flip
-          isFlippedHorizontally: element.scaleX < 0,
-          isFlippedVertically: element.scaleY < 0,
-          hasRotation: element.rotation !== 0 && element.rotation !== undefined
-        });
-        console.log(`=== END SAVE Element ${index} ===`);
-        
-        return element;
-      });
-
+      // Use local design elements (all views) for saving
+      const designElements = updatedLocalDesignElements;
+      
       console.log('=== SAVED DESIGN ELEMENTS ===');
-      console.log('Total elements:', designElements.length);
-      console.log('Elements:', JSON.stringify(designElements, null, 2));
+      console.log('Total elements for current view:', currentDesignElements.length);
+      console.log('All views being saved:', Object.keys(updatedLocalDesignElements));
       // Use ref to get the most current material value (state might be stale)
       const currentMaterial = activeMaterialRef.current || activeMaterial;
       
@@ -1522,13 +1326,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       }
 
       // Save design elements as an object with view keys
-      // Preserve elements from other views, only update current view
-      const updatedDesignElements = {
-        ...(initialData.designElements && typeof initialData.designElements === 'object' 
-          ? initialData.designElements 
-          : {}),
-        [currentView]: designElements
-      };
+      // Use updatedLocalDesignElements which contains all views' elements
+      const updatedDesignElements = updatedLocalDesignElements;
 
       // Create updated project data
       const updatedProjectData = {
@@ -1561,7 +1360,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     } finally {
       setIsSaving(false);
     }
-  }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave, currentProjectId, currentView]);
+  }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave, currentProjectId, currentView, localDesignElements, serializeCanvasState]);
 
   /**
    * Handler: Export to DXF
@@ -1672,6 +1471,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
   /**
    * Handler: Change View (Front/Back/Top)
+   * Saves current canvas state to local storage before switching
    */
   // Use a ref to track if a view change is in progress to prevent recursive calls
   const isViewChangingRef = useRef(false);
@@ -1695,26 +1495,42 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     isViewChangingRef.current = true;
     console.log('Switching view from', currentView, 'to', newView);
     
-    // Clear selection when switching views
+    // Save current canvas state to local storage before switching
+    // Only serialize visible elements (current view)
+    if (fabricInstance && canvasSize.width > 0) {
+      const FIXED_CANVAS_WIDTH = 1000;
+      const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
+        ? initialData.canvas.width 
+        : (initialData.realWorldWidth || 24);
+      const scale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
+      
+      // Serialize only visible elements (current view)
+      const currentDesignElements = serializeCanvasState(fabricInstance, scale, canvasWidthInches, currentView);
+      
+      // Save to local state for current view
+      setLocalDesignElements(prev => ({
+        ...prev,
+        [currentView]: currentDesignElements
+      }));
+      
+      console.log(`Saved ${currentDesignElements.length} visible elements to local state for view: ${currentView}`);
+    }
+    
+    // Clear selection when switching views (visibility toggle happens in useFabricCanvas)
     if (fabricInstance) {
-      // Clear all objects from canvas first
-      const objects = fabricInstance.getObjects();
-      fabricInstance.remove(...objects);
       fabricInstance.discardActiveObject();
       fabricInstance.renderAll();
-      console.log('Canvas cleared for view switch');
     }
     setSelectedElement(null);
     
-    // Switch to new view - the useEffect will update viewSpecificInitialData
-    // and useFabricCanvas will reload the canvas with the new view's elements
+    // Switch to new view - useFabricCanvas will toggle visibility
     setCurrentView(newView);
     
     // Reset the flag after a short delay to allow state updates to complete
     setTimeout(() => {
       isViewChangingRef.current = false;
     }, 100);
-  }, [availableViews, fabricInstance, currentView]);
+  }, [availableViews, fabricInstance, currentView, initialData, canvasSize, serializeCanvasState]);
 
   // Expose handlers to parent component (for AppHeader integration)
   // Store handlers in ref to always have latest version without causing re-renders

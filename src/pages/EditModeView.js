@@ -135,23 +135,61 @@ const EditModeView = ({ onHandlersReady }) => {
       savedMaterial
     });
     
-    // Get current view from project or default to 'front'
-    const currentView = selectedProduct.currentView || 'front';
+    // Get current view from project, but always default to 'front' on initial load
+    // This ensures we always start with the front view, regardless of what was saved
+    const availableViewsList = productConfig?.availableViews || ['front'];
+    // Always default to 'front' if it's available, otherwise use the first available view
+    const currentView = availableViewsList.includes('front') ? 'front' : (availableViewsList[0] || 'front');
     
     // Get design elements (new structure: { "front": [...], "back": [...] })
     // Support both new format (object with view keys) and old format (array)
     let designElements = {};
     if (selectedProduct.customizations?.designElements) {
+      console.log('EditModeView: Raw designElements from DB:', selectedProduct.customizations.designElements);
+      console.log('EditModeView: designElements type:', typeof selectedProduct.customizations.designElements);
+      console.log('EditModeView: designElements isArray:', Array.isArray(selectedProduct.customizations.designElements));
+      
       if (Array.isArray(selectedProduct.customizations.designElements)) {
         // Old format: array - convert to new format with front view
         designElements = { front: selectedProduct.customizations.designElements };
-      } else if (typeof selectedProduct.customizations.designElements === 'object') {
-        // New format: object with view keys - use as-is
-        designElements = selectedProduct.customizations.designElements;
+        console.log('EditModeView: Converted array to object format:', designElements);
+      } else if (typeof selectedProduct.customizations.designElements === 'object' && selectedProduct.customizations.designElements !== null) {
+        // New format: object with view keys - use as-is, but fix nested structure if needed
+        designElements = { ...selectedProduct.customizations.designElements };
+        
+        // Fix nested structure: if back.front exists, it means back was saved incorrectly
+        // Check if any view key contains an object instead of an array
+        Object.keys(designElements).forEach(viewKey => {
+          const viewElements = designElements[viewKey];
+          if (viewElements && typeof viewElements === 'object' && !Array.isArray(viewElements)) {
+            // This is a nested object - check if it has view keys
+            if (viewElements.back || viewElements.front) {
+              console.warn(`EditModeView: Found nested structure for view "${viewKey}", fixing...`);
+              // Use the matching key if it exists, otherwise use the first array found
+              if (viewElements[viewKey] && Array.isArray(viewElements[viewKey])) {
+                designElements[viewKey] = viewElements[viewKey];
+              } else {
+                // Try to find any array in the nested object
+                const arrayValue = Object.values(viewElements).find(v => Array.isArray(v));
+                if (arrayValue) {
+                  designElements[viewKey] = arrayValue;
+                } else {
+                  designElements[viewKey] = [];
+                }
+              }
+            }
+          }
+        });
+        
+        console.log('EditModeView: Using object format (after fix):', designElements);
+        console.log('EditModeView: Back elements:', designElements.back);
+        console.log('EditModeView: Back elements length:', designElements.back?.length);
+        console.log('EditModeView: Back elements isArray:', Array.isArray(designElements.back));
       }
     } else {
       // No design elements - initialize with empty object
       designElements = {};
+      console.log('EditModeView: No design elements found, initializing empty object');
     }
     
     // Merge product config with any saved customizations
