@@ -373,3 +373,117 @@ export async function pdfBlobToBase64(pdfBlob) {
   });
 }
 
+/**
+ * Upload artwork file to Supabase Storage
+ * @param {Blob|File} artworkFile - Artwork file (DXF, SVG, PNG, etc.)
+ * @param {string} artworkId - Artwork ID
+ * @param {string} fileType - Type: 'image' or 'texture'
+ * @param {string} filename - Optional custom filename
+ * @returns {Promise<string>} Public URL of the uploaded file
+ */
+export async function uploadArtworkFile(artworkFile, artworkId, fileType = 'image', filename = null) {
+  try {
+    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+    if (!supabaseUrl) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      throw new Error('Not authenticated');
+    }
+
+    // Determine filename if not provided
+    if (!filename) {
+      const extension = artworkFile.name?.split('.').pop() || 'dxf';
+      filename = `${fileType}-${artworkId}.${extension}`;
+    }
+
+    // Create file path: {artworkId}/{fileType}-{artworkId}.{ext}
+    const filePath = `${artworkId}/${filename}`;
+
+    // Determine content type based on file extension
+    const contentType = artworkFile.type || 
+      (filename.endsWith('.dxf') ? 'application/dxf' :
+       filename.endsWith('.svg') ? 'image/svg+xml' :
+       filename.endsWith('.png') ? 'image/png' :
+       filename.endsWith('.jpg') || filename.endsWith('.jpeg') ? 'image/jpeg' :
+       'application/octet-stream');
+
+    // Upload file to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('artwork')
+      .upload(filePath, artworkFile, {
+        contentType: contentType,
+        upsert: true
+      });
+
+    if (error) {
+      console.error('Error uploading artwork file:', error);
+      throw error;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('artwork')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error('Error in uploadArtworkFile:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete artwork file from Supabase Storage
+ * @param {string} artworkId - Artwork ID
+ * @param {string} fileType - Type: 'image' or 'texture'
+ * @returns {Promise<boolean>} True if deleted successfully
+ */
+export async function deleteArtworkFile(artworkId, fileType = 'image') {
+  try {
+    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+    if (!supabaseUrl) {
+      throw new Error('Supabase is not configured');
+    }
+
+    // List files in the artwork directory
+    const { data: files, error: listError } = await supabase.storage
+      .from('artwork')
+      .list(artworkId);
+
+    if (listError) {
+      console.error('Error listing artwork files:', listError);
+      return false;
+    }
+
+    // Find the file matching the file type
+    const fileToDelete = files?.find(file => 
+      file.name.startsWith(`${fileType}-`) || 
+      file.name.includes(fileType)
+    );
+
+    if (!fileToDelete) {
+      console.log(`No ${fileType} file found for artwork ${artworkId}`);
+      return true; // Not an error if file doesn't exist
+    }
+
+    const filePath = `${artworkId}/${fileToDelete.name}`;
+
+    const { error } = await supabase.storage
+      .from('artwork')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Error deleting artwork file:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in deleteArtworkFile:', error);
+    return false;
+  }
+}
+

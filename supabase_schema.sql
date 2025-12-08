@@ -339,23 +339,37 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(product_category);
 CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
 
+-- Artwork Catalog (for master admin management)
+CREATE TABLE IF NOT EXISTS artwork (
+  id VARCHAR(100) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  image_url TEXT NOT NULL,
+  texture_url TEXT,
+  default_width DECIMAL(10, 2) DEFAULT 5.0,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for artwork
+CREATE INDEX IF NOT EXISTS idx_artwork_category ON artwork(category);
+CREATE INDEX IF NOT EXISTS idx_artwork_active ON artwork(is_active);
+
 -- RLS for master_admins
 ALTER TABLE master_admins ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can check own master admin status" ON master_admins;
+DROP POLICY IF EXISTS "Master admins can view all master admins" ON master_admins;
+DROP POLICY IF EXISTS "Master admins can update own record" ON master_admins;
+
 -- Allow users to check if they are a master admin (for access control)
+-- NOTE: We removed "Master admins can view all master admins" policy because
+-- it creates infinite recursion (checking master_admins requires checking master_admins)
 CREATE POLICY "Users can check own master admin status"
   ON master_admins FOR SELECT
   USING (id = auth.uid());
-
--- Allow master admins to view all master admins
-CREATE POLICY "Master admins can view all master admins"
-  ON master_admins FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM master_admins
-      WHERE master_admins.id = auth.uid()
-    )
-  );
 
 CREATE POLICY "Master admins can update own record"
   ON master_admins FOR UPDATE
@@ -363,6 +377,10 @@ CREATE POLICY "Master admins can update own record"
 
 -- RLS for products (master admins can manage, all authenticated users can view active products)
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Anyone can view active products" ON products;
+DROP POLICY IF EXISTS "Master admins can manage products" ON products;
 
 CREATE POLICY "Anyone can view active products"
   ON products FOR SELECT
@@ -376,6 +394,9 @@ CREATE POLICY "Master admins can manage products"
 -- RLS for parent_companies
 ALTER TABLE parent_companies ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Master admins can manage parent companies" ON parent_companies;
+
 CREATE POLICY "Master admins can manage parent companies"
   ON parent_companies FOR ALL
   USING (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()))
@@ -383,6 +404,9 @@ CREATE POLICY "Master admins can manage parent companies"
 
 -- RLS for locations
 ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Master admins can manage locations" ON locations;
 
 CREATE POLICY "Master admins can manage locations"
   ON locations FOR ALL
@@ -392,8 +416,27 @@ CREATE POLICY "Master admins can manage locations"
 -- RLS for user_accounts
 ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Master admins can manage user accounts" ON user_accounts;
+
 CREATE POLICY "Master admins can manage user accounts"
   ON user_accounts FOR ALL
+  USING (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
+
+-- RLS for artwork (master admins can manage, all authenticated users can view active artwork)
+ALTER TABLE artwork ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Anyone can view active artwork" ON artwork;
+DROP POLICY IF EXISTS "Master admins can manage artwork" ON artwork;
+
+CREATE POLICY "Anyone can view active artwork"
+  ON artwork FOR SELECT
+  USING (is_active = true OR EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
+
+CREATE POLICY "Master admins can manage artwork"
+  ON artwork FOR ALL
   USING (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()))
   WITH CHECK (EXISTS (SELECT 1 FROM master_admins WHERE master_admins.id = auth.uid()));
 

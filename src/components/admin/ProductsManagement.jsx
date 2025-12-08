@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import productService from '../../services/productService';
 import ProductEditForm from './ProductEditForm';
-import './ProductsManagement.css';
+import './Admin.css';
 
 const ProductsManagement = () => {
   const [products, setProducts] = useState([]);
@@ -173,8 +173,8 @@ const ProductsManagement = () => {
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
-          <button className="add-product-button" onClick={handleAddProduct}>
-            + Add Product
+          <button className="add-button" onClick={handleAddProduct}>
+            Add New Product
           </button>
         </div>
       </div>

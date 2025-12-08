@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import productService from '../services/productService';
 import ProductsManagement from '../components/admin/ProductsManagement';
+import ArtworkManagement from '../components/admin/ArtworkManagement';
 import './MasterAdminPanel.css';
 
 // Expose productService to window for console access (development only)
@@ -21,7 +22,40 @@ const MasterAdminPanel = () => {
 
   const checkMasterAdminStatus = async () => {
     try {
+      // Get current user for debugging
+      const { supabase } = await import('../lib/supabase');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('No authenticated user found');
+        setIsMasterAdmin(false);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Checking master admin status for user:', {
+        id: user.id,
+        email: user.email
+      });
+      
       const isAdmin = await productService.isMasterAdmin();
+      
+      if (!isAdmin) {
+        // Try to get more details about why access was denied
+        const { data, error } = await supabase
+          .from('master_admins')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        console.log('Master admin check result:', {
+          isAdmin,
+          userInTable: !!data,
+          error: error?.message,
+          userData: data
+        });
+      }
+      
       setIsMasterAdmin(isAdmin);
       // Don't redirect - show error message instead
     } catch (error) {
@@ -49,12 +83,22 @@ const MasterAdminPanel = () => {
           <p style={{ fontSize: '14px', color: '#666', marginTop: '10px' }}>
             Please ensure you have been added to the master_admins table in the database.
           </p>
+          <p style={{ fontSize: '12px', color: '#999', marginTop: '10px', fontFamily: 'monospace' }}>
+            Check the browser console for detailed debugging information.
+          </p>
           <button 
             className="admin-back-button"
             onClick={() => navigate('/')}
             style={{ marginTop: '20px' }}
           >
             ← Back to Home
+          </button>
+          <button 
+            className="admin-back-button"
+            onClick={() => window.location.reload()}
+            style={{ marginTop: '10px', marginLeft: '10px' }}
+          >
+            Refresh Page
           </button>
         </div>
       </div>
@@ -75,6 +119,13 @@ const MasterAdminPanel = () => {
         >
           Products
         </button>
+        <button
+          className={`admin-tab ${activeTab === 'artwork' ? 'active' : ''}`}
+          onClick={() => setActiveTab('artwork')}
+        >
+          Artwork
+        </button>
+
         <button
           className={`admin-tab ${activeTab === 'hierarchy' ? 'active' : ''}`}
           onClick={() => setActiveTab('hierarchy')}
@@ -101,6 +152,7 @@ const MasterAdminPanel = () => {
 
       <div className="admin-content">
         {activeTab === 'products' && <ProductsManagement />}
+        {activeTab === 'artwork' && <ArtworkManagement />}
         {activeTab === 'hierarchy' && (
           <div className="coming-soon">Hierarchy management coming soon...</div>
         )}

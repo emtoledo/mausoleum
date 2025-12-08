@@ -4,7 +4,7 @@ import Button from '../components/ui/Button';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import DesignStudio from '../features/DesignStudio/DesignStudio';
 import { materials } from '../data/MaterialsData.js';
-import { artwork } from '../data/ArtworkData.js';
+import artworkService from '../services/artworkService';
 import productService from '../services/productService';
 
 const EditModeView = ({ onHandlersReady }) => {
@@ -15,6 +15,7 @@ const EditModeView = ({ onHandlersReady }) => {
   const [project, setProject] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productConfig, setProductConfig] = useState(null);
+  const [artwork, setArtwork] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [designStudioHandlers, setDesignStudioHandlers] = useState(null);
@@ -28,7 +29,34 @@ const EditModeView = ({ onHandlersReady }) => {
 
   useEffect(() => {
     loadProject();
+    loadArtwork();
   }, [projectId]);
+
+  const loadArtwork = async () => {
+    try {
+      const result = await artworkService.getAllArtwork(false); // Only active artwork
+      if (result.success) {
+        // Transform database format to match ArtworkData.js format
+        const transformedArtwork = (result.data || []).map(item => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          imageUrl: item.image_url,
+          textureUrl: item.texture_url || null,
+          defaultWidth: item.default_width || 5.0
+        }));
+        setArtwork(transformedArtwork);
+      } else {
+        console.warn('Failed to load artwork:', result.error);
+        // Fallback to empty array if loading fails
+        setArtwork([]);
+      }
+    } catch (err) {
+      console.error('Error loading artwork:', err);
+      // Fallback to empty array if loading fails
+      setArtwork([]);
+    }
+  };
 
   const loadProject = async () => {
     try {

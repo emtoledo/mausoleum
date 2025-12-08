@@ -11,16 +11,41 @@ class ProductService {
    */
   async isMasterAdmin() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('No authenticated user:', authError);
+        return false;
+      }
 
+      console.log('Checking master admin status for user:', {
+        id: user.id,
+        email: user.email
+      });
+
+      // Try using .maybeSingle() instead of .single() to avoid errors when no row found
       const { data, error } = await supabase
         .from('master_admins')
-        .select('id')
+        .select('id, email, name')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      return !error && !!data;
+      if (error) {
+        console.error('Error querying master_admins:', error);
+        // If it's a permission error, try a different approach
+        if (error.code === 'PGRST301' || error.message?.includes('permission')) {
+          console.error('RLS policy may be blocking access. User ID:', user.id);
+        }
+        return false;
+      }
+
+      const isAdmin = !!data;
+      console.log('Master admin check result:', {
+        isAdmin,
+        userInTable: !!data,
+        userData: data
+      });
+
+      return isAdmin;
     } catch (error) {
       console.error('Error checking master admin status:', error);
       return false;
