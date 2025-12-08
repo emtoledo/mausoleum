@@ -13,6 +13,13 @@ import { calculateScale, inchesToPixels } from '../utils/unitConverter';
 import { importDxfToFabric } from '../../../utils/dxfImporter';
 import { artwork } from '../../../data/ArtworkData';
 
+// Set global selection color for all Fabric.js objects
+// This must be set at module level before any objects are created
+fabric.Object.prototype.borderColor = '#008FF0';
+fabric.Object.prototype.cornerColor = '#008FF0';
+fabric.Object.prototype.cornerStrokeColor = '#008FF0';
+fabric.Object.prototype.selectionBackgroundColor = 'rgba(0, 143, 240, 0.1)';
+
 /**
  * @param {React.RefObject} fabricCanvasRef - Ref to the main Fabric.js canvas container
  * @param {React.RefObject} productCanvasRef - Ref to the product canvas (HTML5 Canvas)
@@ -2066,6 +2073,33 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       });
       fabricCanvasInstance.current = canvas;
       
+      // Ensure all objects use the custom selection color
+      // Update any existing objects and set defaults for new ones
+      const updateObjectSelectionColor = (obj) => {
+        if (obj && typeof obj.set === 'function') {
+          obj.set({
+            borderColor: '#008FF0',
+            cornerColor: '#008FF0',
+            cornerStrokeColor: '#008FF0',
+            selectionBackgroundColor: 'rgba(0, 143, 240, 0.1)'
+          });
+          // Update group children recursively
+          if (obj.type === 'group' && obj._objects) {
+            obj._objects.forEach(child => updateObjectSelectionColor(child));
+          }
+        }
+      };
+      
+      // Update all existing objects
+      canvas.getObjects().forEach(updateObjectSelectionColor);
+      
+      // Listen for new objects being added and update them
+      canvas.on('object:added', (e) => {
+        if (e.target) {
+          updateObjectSelectionColor(e.target);
+        }
+      });
+      
       // Notify parent that canvas is ready
       if (onCanvasReady) {
         onCanvasReady(canvas);
@@ -2335,6 +2369,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         const activeObject = canvas.getActiveObject();
         // Only allow selection of visible objects (current view)
         if (activeObject && activeObject.visible !== false) {
+          // Ensure selection color is applied
+          activeObject.set({
+            borderColor: '#008FF0',
+            cornerColor: '#008FF0',
+            cornerStrokeColor: '#008FF0',
+            selectionBackgroundColor: 'rgba(0, 143, 240, 0.1)'
+          });
+          canvas.renderAll();
+          
           selectedObject.current = activeObject;
           console.log('Object selected:', activeObject);
           if (onElementSelect) {
@@ -2360,6 +2403,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         const activeObject = canvas.getActiveObject();
         // Only allow selection of visible objects (current view)
         if (activeObject && activeObject.visible !== false) {
+          // Ensure selection color is applied
+          activeObject.set({
+            borderColor: '#008FF0',
+            cornerColor: '#008FF0',
+            cornerStrokeColor: '#008FF0',
+            selectionBackgroundColor: 'rgba(0, 143, 240, 0.1)'
+          });
+          canvas.renderAll();
+          
           selectedObject.current = activeObject;
           console.log('Selection updated:', activeObject);
           if (onElementSelect) {
