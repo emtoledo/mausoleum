@@ -395,7 +395,8 @@ export async function uploadArtworkFile(artworkFile, artworkId, fileType = 'imag
 
     // Determine filename if not provided
     if (!filename) {
-      const extension = artworkFile.name?.split('.').pop() || 'dxf';
+      // Use the file's actual extension (will be .svg if converted from DXF)
+      const extension = artworkFile.name?.split('.').pop() || 'svg';
       filename = `${fileType}-${artworkId}.${extension}`;
     }
 

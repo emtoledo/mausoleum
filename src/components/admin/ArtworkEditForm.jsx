@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { uploadArtworkFile } from '../../utils/storageService';
+import { convertDxfFileToSvg, isDxfFile, createSvgFileFromBlob } from '../../utils/dxfToSvgConverter';
 import './ProductEditForm.css'; // Reuse styles
 
 const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
@@ -21,6 +22,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
     image: null,
     texture: null
   });
+  const [convertingDxf, setConvertingDxf] = useState(false);
 
   useEffect(() => {
     if (artwork) {
@@ -58,9 +60,53 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
     }));
   };
 
-  const handleFileChange = (fileType, e) => {
+  const handleFileChange = async (fileType, e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    // Check if this is a DXF file (only for image type, not texture)
+    if (fileType === 'image' && isDxfFile(file)) {
+      setConvertingDxf(true);
+      try {
+        console.log('Detected DXF file, converting to SVG...', file.name);
+        
+        // Convert DXF to SVG
+        const svgBlob = await convertDxfFileToSvg(file);
+        
+        // Create a File object from the SVG Blob with .svg extension
+        const svgFile = createSvgFileFromBlob(svgBlob, file.name);
+        
+        console.log('DXF converted to SVG successfully:', {
+          original: file.name,
+          converted: svgFile.name,
+          size: svgBlob.size
+        });
+        
+        // Store the SVG file instead of the DXF file
+        setImageFiles(prev => ({ ...prev, [fileType]: svgFile }));
+        
+        // Reset the file input so it shows the new file name if user re-opens
+        const fileInput = document.getElementById('image-file-input');
+        if (fileInput) {
+          // Create a new FileList with the SVG file (workaround for readonly FileList)
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(svgFile);
+          fileInput.files = dataTransfer.files;
+        }
+      } catch (error) {
+        console.error('Error converting DXF to SVG:', error);
+        alert(`Failed to convert DXF file: ${error.message}\n\nPlease ensure the DXF file is valid.`);
+        setImageFiles(prev => ({ ...prev, [fileType]: null }));
+        // Reset file input on error
+        const fileInput = document.getElementById('image-file-input');
+        if (fileInput) {
+          fileInput.value = '';
+        }
+      } finally {
+        setConvertingDxf(false);
+      }
+    } else {
+      // Regular file (not DXF) - store as-is
       setImageFiles(prev => ({ ...prev, [fileType]: file }));
     }
   };
@@ -74,13 +120,20 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
 
     setUploadingFiles(prev => ({ ...prev, [fileType]: true }));
     try {
+      // For image files, ensure we're uploading SVG (DXF files are converted before upload)
+      // The filename will be automatically set to .svg if it was converted from DXF
       const url = await uploadArtworkFile(file, formData.id, fileType);
       setFormData(prev => ({
         ...prev,
         [fileType === 'image' ? 'imageUrl' : 'textureUrl']: url
       }));
       setImageFiles(prev => ({ ...prev, [fileType]: null }));
-      alert(`${fileType === 'image' ? 'Image' : 'Texture'} uploaded successfully!`);
+      
+      const fileTypeName = fileType === 'image' ? 'Image' : 'Texture';
+      const conversionNote = fileType === 'image' && file.name.endsWith('.svg') 
+        ? ' (converted from DXF)' 
+        : '';
+      alert(`${fileTypeName} uploaded successfully!${conversionNote}`);
     } catch (error) {
       console.error(`Error uploading ${fileType}:`, error);
       alert(`Failed to upload ${fileType}. Please try again.`);
@@ -217,7 +270,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
                   <img
                     src={formData.imageUrl}
                     alt="Preview"
-                    style={{ maxWidth: '200px', maxHeight: '200px', border: '1px solid #ddd' }}
+                    style={{ width: '100%', maxWidth: '200px', maxHeight: '200px', border: '1px solid #ddd' }}
                     onError={(e) => {
                       e.target.style.display = 'none';
                     }}
@@ -232,21 +285,40 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
                 placeholder="https://..."
                 readOnly
               />
-              <div style={{ marginTop: '10px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <input
-                  type="file"
-                  accept=".dxf,.svg,.png,.jpg,.jpeg"
-                  onChange={(e) => handleFileChange('image', e)}
-                  disabled={uploadingFiles.image || !formData.id}
-                />
-                <button
-                  type="button"
-                  className="admin-button"
-                  onClick={() => handleUploadFile('image')}
-                  disabled={!imageFiles.image || uploadingFiles.image || !formData.id}
-                >
-                  {uploadingFiles.image ? 'Uploading...' : 'Upload'}
-                </button>
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  <input
+                    type="file"
+                    accept=".dxf,.svg,.png,.jpg,.jpeg"
+                    onChange={(e) => handleFileChange('image', e)}
+                    disabled={uploadingFiles.image || convertingDxf || !formData.id}
+                    id="image-file-input"
+                  />
+                  <button
+                    type="button"
+                    className="admin-button"
+                    onClick={() => handleUploadFile('image')}
+                    disabled={!imageFiles.image || uploadingFiles.image || convertingDxf || !formData.id}
+                  >
+                    {uploadingFiles.image ? 'Uploading...' : convertingDxf ? 'Converting...' : 'Upload'}
+                  </button>
+                </div>
+                {convertingDxf && (
+                  <div style={{ color: '#17a2b8', fontSize: '14px', marginTop: '8px' }}>
+                    ⏳ Converting DXF to SVG...
+                  </div>
+                )}
+                {imageFiles.image && !convertingDxf && (
+                  <div style={{ fontSize: '14px', marginTop: '8px', color: '#666' }}>
+                    {imageFiles.image.name.endsWith('.svg') && imageFiles.image.name.includes('.dxf') === false ? (
+                      <span style={{ color: '#28a745' }}>
+                        ✓ Ready to upload: {imageFiles.image.name} {imageFiles.image.name.includes('dxf') ? '(converted from DXF)' : ''}
+                      </span>
+                    ) : (
+                      <span>Selected: {imageFiles.image.name}</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

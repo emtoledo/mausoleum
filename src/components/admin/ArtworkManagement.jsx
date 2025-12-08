@@ -197,7 +197,7 @@ const ArtworkManagement = () => {
                           <img
                             src={item.image_url}
                             alt={item.name}
-                            className="product-preview-image"
+                            className="artwork-preview-thumb"
                             onError={(e) => {
                               e.target.src = '/images/empty.png';
                             }}
