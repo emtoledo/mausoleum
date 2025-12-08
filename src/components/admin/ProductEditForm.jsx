@@ -277,7 +277,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             </div>
 
             <div className="form-group">
-            <label>
+            <label className="form-group-label">
                 <input
                   type="checkbox"
                   name="isActive"
@@ -291,7 +291,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             <div className="form-group">
               <label>Select available views for this product:</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                <label>
+                <label className="form-group-label">
                   <input
                     type="checkbox"
                     checked={formData.availableViews.includes('front')}
@@ -305,7 +305,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                   />
                   <span>Front</span>
                 </label>
-                <label>
+                <label className="form-group-label">
                   <input
                     type="checkbox"
                     checked={formData.availableViews.includes('back')}
@@ -319,7 +319,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                   />
                   <span>Back</span>
                 </label>
-                <label>
+                <label className="form-group-label">
                   <input
                     type="checkbox"
                     checked={formData.availableViews.includes('top')}
@@ -658,7 +658,10 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         </div>
       </form>
 
-      <div className="form-actions-footer">            
+      <div className="form-actions-footer">   
+      <button type="submit" form="product-form" className="save-button">
+            Save
+          </button>         
       {product && onDelete && (
             <button
               type="button"

@@ -107,6 +107,10 @@
   display: flex;
 }
 
+.form-group label.form-group-label {
+  display: flex;
+}
+
 .form-group input {
   margin-bottom: 0;
 }
@@ -159,6 +163,10 @@
   gap: 10px;
   align-items: normal;
   margin-bottom: 8px;
+}
+
+.image-upload-container .file-input {
+  margin-bottom: 0;
 }
 
 .file-input {
