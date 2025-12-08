@@ -8,6 +8,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FabricImage, FabricText, IText } from 'fabric';
+import * as fabric from 'fabric';
 import * as makerjs from 'makerjs';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { pixelsToInches, calculateScale, inchesToPixels } from './utils/unitConverter';
@@ -21,6 +22,7 @@ import { captureCombinedCanvas } from '../../utils/canvasCapture';
 import { uploadPreviewImage } from '../../utils/storageService';
 import AlertMessage from '../../components/ui/AlertMessage';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import colorData from '../../data/ColorData';
 
 /**
  * @param {Object} initialData - Template/product data with dimensions, editZones, and designElements
@@ -406,17 +408,103 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         console.error('Error importing DXF artwork:', error);
       }
     } else {
-      // Handle regular image artwork
+      // Handle regular image artwork (including SVG files)
       try {
-        // Fabric v6 uses fromURL as a Promise-based static method
-        const img = await FabricImage.fromURL(art.imageUrl);
+        // Check if this is an SVG file - if so, load it as SVG objects instead of image
+        const isSvgFile = art.imageUrl && art.imageUrl.toLowerCase().endsWith('.svg');
+        
+        let img;
+        if (isSvgFile) {
+          // Load SVG as SVG objects (not rasterized image) for better scaling and stroke control
+          console.log('Loading SVG artwork as SVG objects:', art.imageUrl);
+          
+          // Fetch the SVG content
+          const response = await fetch(art.imageUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch SVG file: ${response.statusText}`);
+          }
+          const svgString = await response.text();
+          
+          // Load SVG into Fabric.js as objects
+          const loadResult = await fabric.loadSVGFromString(svgString);
+          const svgObjects = loadResult.objects || loadResult;
+          const svgOptions = loadResult.options || {};
+          
+          const objectsArray = Array.isArray(svgObjects) ? svgObjects : [svgObjects].filter(Boolean);
+          
+          if (objectsArray.length === 0) {
+            throw new Error('No objects loaded from SVG');
+          }
+          
+          // Create a group from SVG objects
+          const svgGroup = objectsArray.length === 1 
+            ? objectsArray[0] 
+            : new fabric.Group(objectsArray, svgOptions || {});
+          
+          // Normalize stroke widths on all paths (remove strokes, set strokeWidth to 0)
+          // This matches how DXF files are processed and prevents thick strokes
+          const normalizeStrokes = (obj) => {
+            if (obj.type === 'group' && obj._objects) {
+              obj._objects.forEach(child => normalizeStrokes(child));
+            } else if (obj.type === 'path' || obj.type === 'polyline' || obj.type === 'polygon') {
+              obj.set({
+                stroke: null,
+                strokeWidth: 0
+              });
+            }
+          };
+          normalizeStrokes(svgGroup);
+          
+          // Apply default black color to non-panel SVG artwork
+          // Check if this is panel artwork - panels should not get default fill
+          const isPanelArtwork = art.category && art.category.toLowerCase() === 'panels';
+          
+          if (!isPanelArtwork) {
+            // Get default black color from ColorData
+            const defaultBlackColor = colorData.find(c => c.id === 'black') || {
+              fillColor: '#000000',
+              opacity: 1.0,
+              strokeColor: '#000000',
+              strokeWidth: 0
+            };
+            
+            // Apply default black fill to all paths in the SVG group
+            const applyDefaultColor = (obj) => {
+              if (obj.type === 'group' && obj._objects) {
+                obj._objects.forEach(child => applyDefaultColor(child));
+              } else if (obj.type === 'path' || obj.type === 'polyline' || obj.type === 'polygon') {
+                obj.set({
+                  fill: defaultBlackColor.fillColor,
+                  opacity: defaultBlackColor.opacity,
+                  stroke: null,
+                  strokeWidth: 0
+                });
+              }
+            };
+            
+            applyDefaultColor(svgGroup);
+            console.log('Applied default black color to SVG artwork:', art.name);
+          }
+          
+          img = svgGroup; // Use the group as the image object
+        } else {
+          // Load regular image files (PNG, JPG, etc.)
+          // Fabric v6 uses fromURL as a Promise-based static method
+          img = await FabricImage.fromURL(art.imageUrl);
+        }
         
         if (!img) {
-          console.error('Failed to load artwork image:', art.imageUrl);
+          console.error('Failed to load artwork:', art.imageUrl);
           return;
         }
 
-        console.log('Image loaded successfully:', img);
+        console.log('Artwork loaded successfully:', {
+          type: img.type,
+          width: img.width,
+          height: img.height,
+          imageUrl: art.imageUrl,
+          isSvg: isSvgFile
+        });
 
         // Calculate scale factor based on template dimensions
         const realWorldWidth = initialData.realWorldWidth || 24; // inches
@@ -441,6 +529,32 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         const centerY = canvasHeight / 2;
 
         // Set position and scale
+        // Prepare customData with default color for non-panel SVG artwork
+        const isPanelArtwork = art.category && art.category.toLowerCase() === 'panels';
+        const defaultBlackColor = colorData.find(c => c.id === 'black') || {
+          fillColor: '#000000',
+          opacity: 1.0,
+          strokeColor: '#000000',
+          strokeWidth: 0
+        };
+        
+        const customDataObj = {
+          type: 'artwork',
+          artworkId: art.id,
+          artworkName: art.name,
+          defaultWidthInches: artworkWidthInches,
+          originalSource: art.imageUrl // Store original source URL for color changes
+        };
+        
+        // Add default color info for non-panel SVG artwork
+        if (isSvgFile && !isPanelArtwork) {
+          customDataObj.currentColor = defaultBlackColor.fillColor;
+          customDataObj.currentColorId = 'black';
+          customDataObj.currentOpacity = defaultBlackColor.opacity;
+          customDataObj.currentStrokeColor = null;
+          customDataObj.currentStrokeWidth = 0;
+        }
+        
         img.set({
           left: centerX,
           top: centerY,
@@ -457,13 +571,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           lockScalingX: false,
           lockScalingY: false,
           // Store artwork metadata for potential export
-          customData: {
-            type: 'artwork',
-            artworkId: art.id,
-            artworkName: art.name,
-            defaultWidthInches: artworkWidthInches,
-            originalSource: art.imageUrl // Store original source URL for color changes
-          }
+          customData: customDataObj
         });
 
         // Add metadata for tracking
