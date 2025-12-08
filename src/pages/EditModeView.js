@@ -98,10 +98,11 @@ const EditModeView = ({ onHandlersReady }) => {
               
               // Convert webpack-processed paths to static paths
               // Pattern: /static/media/floral1.xxx.png or /static/media/floral2.xxx.png
-              if (urlString.includes('/static/media/floral') || urlString.includes('floral1')) {
-                return '/images/floral/floral1.png';
-              } else if (urlString.includes('floral2')) {
+              // Check floral2 first because "floral1" is a substring of "floral2"
+              if (urlString.includes('floral2')) {
                 return '/images/floral/floral2.png';
+              } else if (urlString.includes('/static/media/floral') || urlString.includes('floral1')) {
+                return '/images/floral/floral1.png';
               }
               
               // Return original if no match

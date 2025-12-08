@@ -32,7 +32,7 @@ export const products = {
       },
       {
         id: 'floral2',
-        imageUrl: floral1,
+        imageUrl: floral2,
         x: 72.5, y: 8.5, width: 10, height: 15
       }
     ],
