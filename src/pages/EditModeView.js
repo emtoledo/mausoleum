@@ -70,6 +70,49 @@ const EditModeView = ({ onHandlersReady }) => {
           if (productResult.success && productResult.data) {
             // Transform database format to match expected format
             const dbProduct = productResult.data;
+            
+            // Helper function to normalize floral image URLs
+            // Converts webpack-processed paths to static paths for production compatibility
+            const normalizeFloralImageUrl = (imageUrl) => {
+              // Handle null/undefined
+              if (!imageUrl) return imageUrl;
+              
+              // If it's not a string, try to convert it
+              let urlString = imageUrl;
+              if (typeof imageUrl !== 'string') {
+                // If it's a webpack module object, try to get the default export
+                if (imageUrl.default) {
+                  urlString = imageUrl.default;
+                } else if (typeof imageUrl === 'object' && imageUrl.toString) {
+                  urlString = imageUrl.toString();
+                } else {
+                  // Can't normalize, return as-is
+                  return imageUrl;
+                }
+              }
+              
+              // If it's already a static path, return as-is
+              if (urlString.startsWith('/images/floral/')) {
+                return urlString;
+              }
+              
+              // Convert webpack-processed paths to static paths
+              // Pattern: /static/media/floral1.xxx.png or /static/media/floral2.xxx.png
+              if (urlString.includes('/static/media/floral') || urlString.includes('floral1')) {
+                return '/images/floral/floral1.png';
+              } else if (urlString.includes('floral2')) {
+                return '/images/floral/floral2.png';
+              }
+              
+              // Return original if no match
+              return urlString;
+            };
+            
+            // Normalize floral array imageUrls
+            const normalizedFloral = (dbProduct.floral || []).map(floralItem => ({
+              ...floralItem,
+              imageUrl: normalizeFloralImageUrl(floralItem.imageUrl)
+            }));
             const config = {
               id: dbProduct.id,
               name: dbProduct.name,
@@ -87,7 +130,7 @@ const EditModeView = ({ onHandlersReady }) => {
               defaultMaterialId: dbProduct.default_material_id,
               editZones: dbProduct.edit_zones || [],
               productBase: dbProduct.product_base || [],
-              floral: dbProduct.floral || [],
+              floral: normalizedFloral,
               vaseDimensions: dbProduct.vase_dimensions || {},
               availableViews: dbProduct.available_views || ['front']
             };

@@ -1,9 +1,8 @@
 // Estate Collection Product Data for Studio 
 
-
-// Floral Collection
-import floral1 from '../assets/images/floral/floral1.png'
-import floral2 from '../assets/images/floral/floral2.png'
+// Floral Collection - Using static paths for production compatibility
+const floral1 = '/images/floral/floral1.png';
+const floral2 = '/images/floral/floral2.png';
 
 
 export const products = {
