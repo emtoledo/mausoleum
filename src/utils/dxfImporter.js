@@ -219,7 +219,7 @@ function findOutermostPaths(paths) {
  * @param {string} svgString - SVG string to load
  * @returns {Promise<fabric.Group>} Promise that resolves with a fabric.Group
  */
-async function loadSvgToFabricGroup(svgString) {
+export async function loadSvgToFabricGroup(svgString) {
   // Try Promise-based API first
   try {
     const loadResult = fabric.loadSVGFromString(svgString);

@@ -153,9 +153,17 @@ class ArtworkService {
 
   /**
    * Delete an artwork
+   * Also deletes associated files from Supabase Storage
    */
   async deleteArtwork(artworkId) {
     try {
+      // First, delete all artwork files from storage
+      const { deleteAllArtworkFiles } = await import('../utils/storageService');
+      const fileResults = await deleteAllArtworkFiles(artworkId);
+      
+      console.log('Artwork files deletion status:', fileResults);
+      
+      // Then delete the database record
       const { error } = await supabase
         .from('artwork')
         .delete()

@@ -12,7 +12,8 @@ export const colorData = [
     fillColor: '#000000',
     opacity: 1.0,
     strokeColor: '#000000',
-    strokeWidth: 0
+    strokeWidth: 0,
+    panelStrokeWidth: 0
   },
   {
     id: 'gold',
@@ -20,7 +21,8 @@ export const colorData = [
     fillColor: '#D2A81B',
     opacity: 1.0,
     strokeColor: '#000000',
-    strokeWidth: .25
+    strokeWidth: .25,
+    panelStrokeWidth: 0
   },
   {
     id: 'silver',
@@ -28,8 +30,8 @@ export const colorData = [
     fillColor: '#C0C0C0',
     opacity: 1.0,
     strokeColor: '#000000',
-    strokeWidth: .25
-
+    strokeWidth: .25,
+    panelStrokeWidth: 0
   },
   {
     id: 'white',
@@ -37,7 +39,8 @@ export const colorData = [
     fillColor: '#FFFFFF',
     opacity: 1.0,
     strokeColor: '#000000',
-    strokeWidth: .25
+    strokeWidth: .25,
+    panelStrokeWidth: 0
   },
   {
     id: 'grey',
@@ -45,7 +48,8 @@ export const colorData = [
     fillColor: '#808080',
     opacity: 1.0,
     strokeColor: '#000000',
-    strokeWidth: .25
+    strokeWidth: .25,
+    panelStrokeWidth: 0
   },
   {
     id: 'highlight',
@@ -53,7 +57,8 @@ export const colorData = [
     fillColor: '#FFFFFF',
     opacity: 0.5,
     strokeColor: '#000000',
-    strokeWidth: .25
+    strokeWidth: .25,
+    panelStrokeWidth: 0
   },
   {
     id: 'no-lith',
@@ -61,7 +66,8 @@ export const colorData = [
     fillColor: '#FFFFFF',
     opacity: 0.4,
     strokeColor: '#000000',
-    strokeWidth: .25
+    strokeWidth: .25,
+    panelStrokeWidth: 0
   },
   {
     id: 'laser-etched',
@@ -69,7 +75,8 @@ export const colorData = [
     fillColor: '#FFFFFF',
     opacity: 0.6,
     strokeColor: '#000000',
-    strokeWidth: .25
+    strokeWidth: .25,
+    panelStrokeWidth: 0
   }
 ];
 

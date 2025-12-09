@@ -37,14 +37,23 @@ const EditModeView = ({ onHandlersReady }) => {
       const result = await artworkService.getAllArtwork(false); // Only active artwork
       if (result.success) {
         // Transform database format to match ArtworkData.js format
-        const transformedArtwork = (result.data || []).map(item => ({
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          imageUrl: item.image_url,
-          textureUrl: item.texture_url || null,
-          defaultWidth: item.default_width || 5.0
-        }));
+        const transformedArtwork = (result.data || []).map(item => {
+          // Default texture for panel artwork if not specified
+          let textureUrl = item.texture_url || null;
+          if (!textureUrl && item.category && item.category.toLowerCase() === 'panels') {
+            // Use default panel texture
+            textureUrl = '/images/materials/panelbg.png';
+          }
+          
+          return {
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            imageUrl: item.image_url,
+            textureUrl: textureUrl,
+            defaultWidth: item.default_width || 5.0
+          };
+        });
         setArtwork(transformedArtwork);
       } else {
         console.warn('Failed to load artwork:', result.error);

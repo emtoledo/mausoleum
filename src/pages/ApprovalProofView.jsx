@@ -234,8 +234,8 @@ const ApprovalProofView = () => {
   // Extract unique font families from design elements
   const getFontFamilies = () => {
     const designElementsRaw = projectDetails.customizations?.designElements || 
-                             projectDetails.designElements || 
-                             [];
+                          projectDetails.designElements || 
+                          [];
     
     // Handle new format (object with view keys) or old format (array)
     let designElements = [];
@@ -267,8 +267,8 @@ const ApprovalProofView = () => {
   // Extract unique color names from design elements
   const getColorNames = () => {
     const designElementsRaw = projectDetails.customizations?.designElements || 
-                             projectDetails.designElements || 
-                             [];
+                          projectDetails.designElements || 
+                          [];
     
     // Handle new format (object with view keys) or old format (array)
     let designElements = [];
@@ -379,8 +379,8 @@ const ApprovalProofView = () => {
                   <img
                     src={designSnapshots.back}
                     alt="Back Design Proof"
-                    className="approval-design-image"
-                  />
+              className="approval-design-image"
+            />
                 </div>
               )}
             </div>
@@ -403,7 +403,7 @@ const ApprovalProofView = () => {
                   </div>
                   
                   {productData?.dimensions_for_display && (
-                    <div className="approval-detail-item">
+                  <div className="approval-detail-item">
                       <span className="approval-detail-label">Product Dimensions:</span>
                       <span 
                         className="approval-detail-value"
@@ -414,11 +414,11 @@ const ApprovalProofView = () => {
                     </div>
                   )}
 
-                </div>
+                  </div>
                 
                 <div>                  
-
-                <div className="approval-detail-item">
+                  
+                  <div className="approval-detail-item">
                     <span className="approval-detail-label">Material:</span>
                     <span className="approval-detail-value">
                       {material?.name || 'Not specified'}

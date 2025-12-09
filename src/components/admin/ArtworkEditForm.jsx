@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { uploadArtworkFile } from '../../utils/storageService';
+import { uploadArtworkFile, deleteArtworkFile } from '../../utils/storageService';
 import { convertDxfFileToSvg, isDxfFile, createSvgFileFromBlob } from '../../utils/dxfToSvgConverter';
 import './ProductEditForm.css'; // Reuse styles
 
@@ -18,6 +18,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
     image: false,
     texture: false
   });
+  const [deletingTexture, setDeletingTexture] = useState(false);
   const [imageFiles, setImageFiles] = useState({
     image: null,
     texture: null
@@ -139,6 +140,53 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
       alert(`Failed to upload ${fileType}. Please try again.`);
     } finally {
       setUploadingFiles(prev => ({ ...prev, [fileType]: false }));
+    }
+  };
+
+  const handleDeleteTexture = async () => {
+    if (!formData.textureUrl || !formData.id) {
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete the texture image? This will remove the file from storage and clear the texture URL from the artwork entry.')) {
+      return;
+    }
+
+    setDeletingTexture(true);
+    try {
+      // Delete the texture file from Supabase storage
+      const deleted = await deleteArtworkFile(formData.id, 'texture');
+      
+      // Clear the texture URL from form data
+      const updatedFormData = {
+        ...formData,
+        textureUrl: ''
+      };
+      setFormData(updatedFormData);
+      
+      // Immediately save the artwork with cleared texture URL
+      const artworkData = {
+        id: updatedFormData.id,
+        name: updatedFormData.name,
+        category: updatedFormData.category,
+        imageUrl: updatedFormData.imageUrl || null,
+        textureUrl: null, // Explicitly set to null
+        defaultWidth: parseFloat(updatedFormData.defaultWidth) || 5.0,
+        isActive: updatedFormData.isActive
+      };
+      
+      await onSave(artworkData);
+      
+      if (deleted) {
+        alert('Texture image deleted successfully and artwork updated!');
+      } else {
+        alert('Texture URL cleared from artwork. Note: File may not have existed in storage.');
+      }
+    } catch (error) {
+      console.error('Error deleting texture:', error);
+      alert('Failed to delete texture image. Please try again.');
+    } finally {
+      setDeletingTexture(false);
     }
   };
 
@@ -326,7 +374,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
             <div className="form-group">
               <label>Texture URL (Optional)</label>
               {formData.textureUrl && (
-                <div style={{ marginBottom: '10px' }}>
+                <div style={{ marginBottom: '10px', position: 'relative' }}>
                   <img
                     src={formData.textureUrl}
                     alt="Texture Preview"
@@ -335,6 +383,27 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
                       e.target.style.display = 'none';
                     }}
                   />
+                  <button
+                    type="button"
+                    className="delete-button"
+                    onClick={handleDeleteTexture}
+                    disabled={deletingTexture || !formData.id}
+                    style={{
+                      position: 'absolute',
+                      top: '5px',
+                      right: '5px',
+                      padding: '5px 10px',
+                      fontSize: '12px',
+                      backgroundColor: '#dc3545',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: deletingTexture ? 'not-allowed' : 'pointer',
+                      opacity: deletingTexture ? 0.6 : 1
+                    }}
+                  >
+                    {deletingTexture ? 'Deleting...' : 'Delete'}
+                  </button>
                 </div>
               )}
               <input
@@ -350,13 +419,13 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
                   type="file"
                   accept=".png,.jpg,.jpeg"
                   onChange={(e) => handleFileChange('texture', e)}
-                  disabled={uploadingFiles.texture || !formData.id}
+                  disabled={uploadingFiles.texture || deletingTexture || !formData.id}
                 />
                 <button
                   type="button"
                   className="admin-button"
                   onClick={() => handleUploadFile('texture')}
-                  disabled={!imageFiles.texture || uploadingFiles.texture || !formData.id}
+                  disabled={!imageFiles.texture || uploadingFiles.texture || deletingTexture || !formData.id}
                 >
                   {uploadingFiles.texture ? 'Uploading...' : 'Upload'}
                 </button>

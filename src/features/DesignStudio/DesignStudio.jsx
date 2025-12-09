@@ -324,12 +324,18 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         }
         const dxfString = await response.text();
         
+        // Apply default texture for panel artwork if not specified
+        let textureUrl = art.textureUrl || null;
+        if (!textureUrl && art.category && art.category.toLowerCase() === 'panels') {
+          textureUrl = '/images/materials/panelbg.png';
+        }
+        
         // Import DXF to Fabric.js group (with optional texture layer)
         const group = await importDxfToFabric({
           dxfString,
           fabricCanvas: fabricInstance,
           importUnit: makerjs.unitType.Inches,
-          textureUrl: art.textureUrl || null
+          textureUrl: textureUrl
         });
         
         if (!group) {
@@ -486,7 +492,154 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             console.log('Applied default black color to SVG artwork:', art.name);
           }
           
-          img = svgGroup; // Use the group as the image object
+          // Handle texture layer for SVG artwork (similar to DXF)
+          // Apply default texture for panel artwork if not specified
+          let textureUrl = art.textureUrl || null;
+          if (!textureUrl && art.category && art.category.toLowerCase() === 'panels') {
+            textureUrl = '/images/materials/panelbg.png';
+            console.log('Applied default panel texture:', textureUrl);
+          }
+          
+          let finalGroup = svgGroup;
+          if (textureUrl && textureUrl.trim()) {
+            console.log('Creating texture layer for SVG artwork:', {
+              name: art.name,
+              category: art.category,
+              textureUrl: textureUrl
+            });
+            
+            try {
+              // Get SVG group bounds to size the texture image
+              // First, ensure SVG group is at origin for accurate bounds calculation
+              svgGroup.set({
+                left: 0,
+                top: 0,
+                originX: 'left',
+                originY: 'top'
+              });
+              svgGroup.setCoords();
+              
+              const svgBounds = svgGroup.getBoundingRect();
+              console.log('SVG group bounds:', svgBounds);
+              
+              // Load texture image as a regular Fabric.js Image (not a pattern fill)
+              const textureImage = await FabricImage.fromURL(textureUrl);
+              
+              if (!textureImage) {
+                throw new Error('Failed to load texture image');
+              }
+              
+              console.log('Texture image loaded:', {
+                width: textureImage.width,
+                height: textureImage.height,
+                naturalWidth: textureImage.getElement()?.naturalWidth,
+                naturalHeight: textureImage.getElement()?.naturalHeight
+              });
+              
+              // Calculate scale to fit texture image WITHIN SVG bounds (not extending beyond)
+              // Use Math.min to ensure texture fits inside, not Math.max which would extend beyond
+              const scaleX = svgBounds.width / textureImage.width;
+              const scaleY = svgBounds.height / textureImage.height;
+              
+              // Use the smaller scale to ensure the image fits within the bounds
+              // This prevents the texture from extending beyond the SVG
+              const scale = Math.min(scaleX, scaleY);
+              
+              // Calculate scaled dimensions
+              const scaledWidth = textureImage.width * scale;
+              const scaledHeight = textureImage.height * scale;
+              
+              // Position texture image at SVG bounds origin (relative to group)
+              // This ensures texture starts at the same point as the SVG
+              const textureLeft = svgBounds.left;
+              const textureTop = svgBounds.top;
+              
+              // Set texture image properties
+              textureImage.set({
+                left: textureLeft,
+                top: textureTop,
+                scaleX: scale,
+                scaleY: scale,
+                originX: 'left',
+                originY: 'top',
+                selectable: false,
+                evented: false,
+                visible: true,
+                opacity: 1
+              });
+              textureImage.setCoords();
+              
+              // Verify texture bounds don't extend beyond SVG bounds
+              const textureBounds = textureImage.getBoundingRect();
+              const textureRight = textureBounds.left + textureBounds.width;
+              const textureBottom = textureBounds.top + textureBounds.height;
+              const svgRight = svgBounds.left + svgBounds.width;
+              const svgBottom = svgBounds.top + svgBounds.height;
+              
+              console.log('Texture image positioned and scaled:', {
+                left: textureImage.left,
+                top: textureImage.top,
+                scaleX: textureImage.scaleX,
+                scaleY: textureImage.scaleY,
+                scaledWidth: scaledWidth,
+                scaledHeight: scaledHeight,
+                svgBounds: svgBounds,
+                textureBounds: textureBounds,
+                extendsBeyond: {
+                  right: textureRight > svgRight,
+                  bottom: textureBottom > svgBottom
+                }
+              });
+              
+              // Create final group with texture image (bottom) and color layer (top)
+              // Both positioned relative to group origin
+              finalGroup = new fabric.Group([textureImage, svgGroup], {
+                left: 0,
+                top: 0,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+                objectCaching: false
+              });
+              
+              // The group's bounds will be automatically calculated from its children
+              // Since we're using Math.min for scaling, the texture should fit within SVG bounds
+              // and the group bounds should match the SVG bounds (the larger of the two)
+              finalGroup.setCoords();
+              
+              // Store texture URL in customData
+              finalGroup.textureUrl = textureUrl;
+              finalGroup.dirty = true;
+              
+              const finalGroupBounds = finalGroup.getBoundingRect();
+              
+              console.log('Created texture layer group for SVG artwork:', {
+                textureLayerType: textureImage.type,
+                colorLayerType: svgGroup.type,
+                finalGroupType: finalGroup.type,
+                childrenCount: finalGroup._objects?.length,
+                textureImageBounds: textureBounds,
+                colorGroupBounds: svgGroup.getBoundingRect(),
+                finalGroupBounds: finalGroupBounds,
+                svgBounds: svgBounds,
+                boundsMatch: Math.abs(finalGroupBounds.width - svgBounds.width) < 0.1 && 
+                            Math.abs(finalGroupBounds.height - svgBounds.height) < 0.1
+              });
+            } catch (textureError) {
+              console.error('Error creating texture layer for SVG:', textureError);
+              // Continue without texture layer if it fails
+              finalGroup = svgGroup;
+            }
+          } else {
+            console.log('No texture URL for SVG artwork:', {
+              name: art.name,
+              category: art.category,
+              hasTextureUrl: !!art.textureUrl,
+              textureUrl: art.textureUrl
+            });
+          }
+          
+          img = finalGroup; // Use the final group (with or without texture layer)
         } else {
           // Load regular image files (PNG, JPG, etc.)
           // Fabric v6 uses fromURL as a Promise-based static method
@@ -538,6 +691,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           strokeWidth: 0
         };
         
+        // Resolve texture URL (with default for panels)
+        let resolvedTextureUrl = art.textureUrl || null;
+        if (!resolvedTextureUrl && isPanelArtwork) {
+          resolvedTextureUrl = '/images/materials/panelbg.png';
+        }
+        
         const customDataObj = {
           type: 'artwork',
           artworkId: art.id,
@@ -545,6 +704,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           defaultWidthInches: artworkWidthInches,
           originalSource: art.imageUrl // Store original source URL for color changes
         };
+        
+        // Add texture URL if present
+        if (resolvedTextureUrl) {
+          customDataObj.textureUrl = resolvedTextureUrl;
+        }
         
         // Add default color info for non-panel SVG artwork
         if (isSvgFile && !isPanelArtwork) {
@@ -582,7 +746,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         // Add to canvas and render
         fabricInstance.add(img);
         fabricInstance.setActiveObject(img);
-        fabricInstance.renderAll();
+        
+        // No need to re-apply anything for image-based texture layers
+        // The texture image is already loaded and positioned correctly
+        
+        fabricInstance.requestRenderAll();
 
         // Close the artwork library after selecting artwork
         setShowArtworkLibrary(false);

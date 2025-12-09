@@ -488,3 +488,37 @@ export async function deleteArtworkFile(artworkId, fileType = 'image') {
   }
 }
 
+/**
+ * Delete all artwork files from Supabase Storage (image and texture)
+ * @param {string} artworkId - Artwork ID
+ * @returns {Promise<{imageDeleted: boolean, textureDeleted: boolean}>} Status of deletions
+ */
+export async function deleteAllArtworkFiles(artworkId) {
+  const results = {
+    imageDeleted: false,
+    textureDeleted: false
+  };
+
+  try {
+    // Delete both files in parallel
+    const [imageResult, textureResult] = await Promise.allSettled([
+      deleteArtworkFile(artworkId, 'image'),
+      deleteArtworkFile(artworkId, 'texture')
+    ]);
+
+    results.imageDeleted = imageResult.status === 'fulfilled' && imageResult.value === true;
+    results.textureDeleted = textureResult.status === 'fulfilled' && textureResult.value === true;
+
+    console.log('Artwork files deletion results:', {
+      artworkId,
+      imageDeleted: results.imageDeleted,
+      textureDeleted: results.textureDeleted
+    });
+
+    return results;
+  } catch (error) {
+    console.error('Error deleting artwork files:', error);
+    return results;
+  }
+}
+

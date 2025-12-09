@@ -327,7 +327,8 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       opacity: colorItem.opacity,
       selectedElement: selectedElement ? {
         type: selectedElement.type,
-        id: selectedElement.elementId
+        id: selectedElement.elementId,
+        customData: selectedElement.customData
       } : null
     });
     
@@ -350,75 +351,207 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       // Store the current active object before color change
       const currentActiveObject = canvas.getActiveObject();
       
-      // For groups and paths (DXF artwork), apply color/stroke directly
+      // Check if this is panel artwork BEFORE determining handler
+      // Try multiple sources: customData.category, artwork lookup, direct property, or ID pattern
+      const artworkId = selectedElement.customData?.artworkId;
+      const category = selectedElement.customData?.category || 
+                       selectedElement.category || 
+                       (artworkId ? artwork.find(a => a.id === artworkId)?.category : null) || 
+                       '';
+      
+      // Check if it's panel artwork: by category OR by ID pattern (panel artwork IDs often start with 'panel')
+      const isPanelArtwork = Boolean(
+        (category && category.toLowerCase() === 'panels') ||
+        (artworkId && typeof artworkId === 'string' && artworkId.toLowerCase().startsWith('panel'))
+      );
+      
+      // For groups and paths (DXF/SVG artwork), apply color/stroke directly
+      // Panel artwork with texture layer is a group, so it should go through this path
       if (selectedElement.type === 'group' || selectedElement.type === 'path') {
-        // Check if this artwork is of category 'Panels' - if so, strokeWidth should be 0
-        const artworkId = selectedElement.customData?.artworkId;
-        const artworkItem = artworkId ? artwork.find(a => a.id === artworkId) : null;
-        const isPanelArtwork = artworkItem?.category === 'Panels';
+        // PRESERVE POSITION: Store exact position AND center point before any modifications
+        // When bounds change (e.g., removing stroke), the center point is more stable than left/top
+        selectedElement.setCoords(); // Ensure coords are up to date before capturing
         
-        // Override strokeWidth to 0 for Panels category
-        const effectiveStrokeWidth = isPanelArtwork ? 0 : colorItem.strokeWidth;
+        // Calculate center point in canvas coordinates (this is stable even when bounds change)
+        const centerPoint = selectedElement.getCenterPoint();
+        const preservedCenter = {
+          x: centerPoint.x,
+          y: centerPoint.y
+        };
+        
+        // Also preserve all position properties
+        const preservedPosition = {
+          left: selectedElement.left,
+          top: selectedElement.top,
+          scaleX: selectedElement.scaleX || 1,
+          scaleY: selectedElement.scaleY || 1,
+          angle: selectedElement.angle || 0,
+          originX: selectedElement.originX || 'center',
+          originY: selectedElement.originY || 'center',
+          flipX: selectedElement.flipX || false,
+          flipY: selectedElement.flipY || false,
+          centerX: preservedCenter.x,
+          centerY: preservedCenter.y
+        };
+        
+        
+        // For panel artwork, use panelStrokeWidth (always 0) instead of strokeWidth
+        // For non-panel artwork, use strokeWidth from ColorData
+        const effectiveStrokeWidth = isPanelArtwork 
+          ? (colorItem.panelStrokeWidth !== undefined ? colorItem.panelStrokeWidth : 0)
+          : colorItem.strokeWidth;
         
         // Check if this is a group with a texture layer
         // Texture layer groups have 2 children: [textureLayer, originalGroup]
+        // For panel artwork, texture layer is an Image, not a pattern fill
         let targetGroup = selectedElement;
         
         if (selectedElement.type === 'group' && selectedElement._objects && selectedElement._objects.length === 2) {
-          // Check if first child has a pattern fill (texture layer indicator)
           const firstChild = selectedElement._objects[0];
+          // Check for pattern fill OR image type (panel artwork uses Image for texture)
           const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
+          const isTextureImage = firstChild.type === 'image';
           
-          if (hasPatternFill) {
+          if (hasPatternFill || isTextureImage) {
             // This is a texture layer group - apply color only to the original group (second child)
             targetGroup = selectedElement._objects[1];
-            console.log('Applying color to original group (texture layer detected)');
           }
         }
         
-        // Apply fill, opacity, and stroke to the target group
-        // For groups, we need to apply to all child paths recursively
-        if (targetGroup.type === 'group' && targetGroup._objects) {
-          // Recursively apply color to all paths in the group
-          const applyColorToPaths = (obj) => {
-            if (obj.type === 'group' && obj._objects) {
-              obj._objects.forEach(child => applyColorToPaths(child));
-            } else if (obj.type === 'path') {
-              obj.set('fill', colorItem.fillColor);
-              obj.set('opacity', colorItem.opacity);
+        // Temporarily disable object caching to prevent bounds recalculation issues
+        const originalObjectCaching = selectedElement.objectCaching;
+        selectedElement.set('objectCaching', false);
+        
+        // Also disable caching on target group if it's different
+        let targetOriginalCaching = null;
+        if (targetGroup !== selectedElement && targetGroup.set) {
+          targetOriginalCaching = targetGroup.objectCaching;
+          targetGroup.set('objectCaching', false);
+        }
+        
+        // Apply color - for panel artwork, ALWAYS treat strokeWidth as 0 regardless of ColorData
+        // For panel artwork, ONLY modify fill and opacity - NEVER touch stroke properties
+        const applyColorToGroup = (obj) => {
+          if (obj.type === 'group' && obj._objects) {
+            obj._objects.forEach(child => applyColorToGroup(child));
+          } else if (obj.type === 'path') {
+            if (isPanelArtwork) {
+              // PANEL ARTWORK: Only modify fill and opacity - NEVER touch stroke
+              // Even if ColorData has strokeWidth > 0, we ignore it completely for panel artwork
+              // This prevents ANY bounds recalculation that could cause position shifts
               
-              if (effectiveStrokeWidth > 0) {
-                obj.set('stroke', colorItem.strokeColor);
-                obj.set('strokeWidth', effectiveStrokeWidth);
-              } else {
-                obj.set('stroke', null);
-                obj.set('strokeWidth', 0);
+              // CRITICAL: For panel artwork, ALWAYS use panelStrokeWidth (always 0) instead of strokeWidth
+              const panelStroke = colorItem.panelStrokeWidth !== undefined ? colorItem.panelStrokeWidth : 0;
+              
+              // Force stroke to null/0 directly (without set()) to avoid triggering bounds recalculation
+              // Use panelStrokeWidth from ColorData, which is always 0 for panel artwork
+              obj.stroke = null;
+              obj.strokeWidth = panelStroke; // Always 0 for panel artwork
+              
+              // Verify strokeWidth was set correctly (safety check)
+              if (obj.strokeWidth !== 0) {
+                obj.strokeWidth = 0;
               }
+              
+              // Now modify fill and opacity - stroke is already guaranteed to be null/0
+              obj.fill = colorItem.fillColor;
+              obj.opacity = colorItem.opacity;
+              
+              // Mark as dirty for re-render
+              obj.dirty = true;
+            } else {
+              // NON-PANEL ARTWORK: Use set() with all properties including stroke
+              // Honor the strokeWidth from ColorData for non-panel artwork
+              const pathProps = {
+                fill: colorItem.fillColor,
+                opacity: colorItem.opacity
+              };
+              
+              // Use effectiveStrokeWidth which respects ColorData for non-panel artwork
+              if (effectiveStrokeWidth > 0) {
+                pathProps.stroke = colorItem.strokeColor;
+                pathProps.strokeWidth = effectiveStrokeWidth;
+              } else {
+                pathProps.stroke = null;
+                pathProps.strokeWidth = 0;
+              }
+              
+              obj.set(pathProps);
             }
-          };
+          }
+        };
+        
+        // Apply color to the target group (color group within texture layer group)
+        applyColorToGroup(targetGroup);
+        
+        // CRITICAL: For panel artwork, restore exact position IMMEDIATELY after modifications
+        // Use direct property assignment instead of set() to avoid triggering bounds recalculation
+        if (isPanelArtwork) {
+          // Restore exact position using direct property assignment (not set())
+          // This prevents Fabric.js from triggering bounds recalculation
+          selectedElement.left = preservedPosition.left;
+          selectedElement.top = preservedPosition.top;
+          selectedElement.scaleX = preservedPosition.scaleX;
+          selectedElement.scaleY = preservedPosition.scaleY;
+          selectedElement.angle = preservedPosition.angle;
+          selectedElement.originX = preservedPosition.originX;
+          selectedElement.originY = preservedPosition.originY;
           
-          applyColorToPaths(targetGroup);
-        } else {
-          // Single path or non-group object
-          targetGroup.set('fill', colorItem.fillColor);
-          targetGroup.set('opacity', colorItem.opacity);
+          // Verify position was restored correctly and restore if needed
+          const positionDrift = Math.abs(selectedElement.left - preservedPosition.left) > 0.01 ||
+                               Math.abs(selectedElement.top - preservedPosition.top) > 0.01;
           
-          if (effectiveStrokeWidth > 0) {
-            targetGroup.set('stroke', colorItem.strokeColor);
-            targetGroup.set('strokeWidth', effectiveStrokeWidth);
-          } else {
-            targetGroup.set('stroke', null);
-            targetGroup.set('strokeWidth', 0);
+          if (positionDrift) {
+            // Force restore again if there was drift
+            selectedElement.left = preservedPosition.left;
+            selectedElement.top = preservedPosition.top;
+          }
+          
+          // Don't call setCoords() - it might trigger bounds recalculation
+          // Just mark as dirty and let render handle it
+        }
+        
+        // Mark groups as dirty to trigger re-render
+        targetGroup.dirty = true;
+        selectedElement.dirty = true;
+        
+        // Restore object caching
+        selectedElement.set('objectCaching', originalObjectCaching);
+        if (targetGroup !== selectedElement && targetGroup.set && targetOriginalCaching !== null) {
+          targetGroup.set('objectCaching', targetOriginalCaching);
+        }
+        
+        // For panel artwork, verify position was preserved and restore if needed
+        if (isPanelArtwork) {
+          const finalLeft = selectedElement.left;
+          const finalTop = selectedElement.top;
+          const leftDrift = Math.abs(finalLeft - preservedPosition.left);
+          const topDrift = Math.abs(finalTop - preservedPosition.top);
+          
+          if (leftDrift > 0.01 || topDrift > 0.01) {
+            // Force restore position if there was drift
+            selectedElement.left = preservedPosition.left;
+            selectedElement.top = preservedPosition.top;
           }
         }
         
         // Update customData on the parent group (for texture layer groups) or the element itself
+        // CRITICAL: For panel artwork, ALWAYS store strokeWidth as 0 in customData, regardless of ColorData
         const customData = selectedElement.customData || {};
         customData.currentColor = colorItem.fillColor;
         customData.currentColorId = colorItem.id;
         customData.currentOpacity = colorItem.opacity;
-        customData.currentStrokeColor = colorItem.strokeColor;
-        customData.currentStrokeWidth = effectiveStrokeWidth;
+        
+        // For panel artwork, NEVER store strokeWidth > 0 in customData - always store 0
+        // This ensures that even if ColorData has strokeWidth > 0, panel artwork always uses 0
+        if (isPanelArtwork) {
+          customData.currentStrokeColor = null;
+          customData.currentStrokeWidth = 0; // ALWAYS 0 for panel artwork
+        } else {
+          customData.currentStrokeColor = colorItem.strokeColor;
+          customData.currentStrokeWidth = effectiveStrokeWidth;
+        }
+        
         selectedElement.set('customData', customData);
         setImageColor(colorItem.fillColor);
         setOpacity(colorItem.opacity);
@@ -431,63 +564,126 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         return;
       }
       
-      // For images, use the existing image color change handler logic
-      await handleImageColorChange({ target: { value: colorItem.fillColor } });
-      
-      // After handleImageColorChange, the image may have been replaced
-      // Get the currently active object (which should be the new/replaced image)
-      let targetElement = canvas.getActiveObject();
-      
-      // If no active object, try to find the image we just modified
-      if (!targetElement) {
-        // Find the most recently added image object
-        const objects = canvas.getObjects();
-        const imageObjects = objects.filter(obj => obj.type === 'image');
-        if (imageObjects.length > 0) {
-          targetElement = imageObjects[imageObjects.length - 1];
-          canvas.setActiveObject(targetElement);
-        } else {
-          // Fallback to original selectedElement if still on canvas
-          if (canvas.getObjects().includes(selectedElement)) {
-            targetElement = selectedElement;
+      // For images (non-group, non-path), use the existing image color change handler logic
+      // IMPORTANT: Panel artwork with texture layer is a GROUP, not an image, so it should
+      // have been handled in the group/path branch above. This branch is only for standalone images.
+      if (selectedElement.type === 'image') {
+        // PRESERVE POSITION: Store exact position before any modifications
+        const preservedPosition = {
+          left: selectedElement.left,
+          top: selectedElement.top,
+          scaleX: selectedElement.scaleX || 1,
+          scaleY: selectedElement.scaleY || 1,
+          angle: selectedElement.angle || 0,
+          originX: selectedElement.originX || 'center',
+          originY: selectedElement.originY || 'center',
+          flipX: selectedElement.flipX || false,
+          flipY: selectedElement.flipY || false
+        };
+        
+        
+        // Check if this is panel artwork - panel artwork should have no stroke
+        const artworkId = selectedElement.customData?.artworkId;
+        const artworkItem = artworkId ? artwork.find(a => a.id === artworkId) : null;
+        const isPanelArtwork = artworkItem?.category === 'Panels';
+        
+        // For panel artwork, use panelStrokeWidth (always 0) instead of strokeWidth
+        // For non-panel artwork, use strokeWidth from ColorData
+        const effectiveStrokeWidth = isPanelArtwork 
+          ? (colorItem.panelStrokeWidth !== undefined ? colorItem.panelStrokeWidth : 0)
+          : colorItem.strokeWidth;
+        
+        // For images, use the existing image color change handler logic
+        await handleImageColorChange({ target: { value: colorItem.fillColor } });
+        
+        // After handleImageColorChange, the image may have been replaced
+        // Get the currently active object (which should be the new/replaced image)
+        let targetElement = canvas.getActiveObject();
+        
+        // If no active object, try to find the image we just modified
+        if (!targetElement) {
+          // Find the most recently added image object
+          const objects = canvas.getObjects();
+          const imageObjects = objects.filter(obj => obj.type === 'image');
+          if (imageObjects.length > 0) {
+            targetElement = imageObjects[imageObjects.length - 1];
+            canvas.setActiveObject(targetElement);
           } else {
-            console.warn('Could not find target element after color change');
-            return;
+            // Fallback to original selectedElement if still on canvas
+            if (canvas.getObjects().includes(selectedElement)) {
+              targetElement = selectedElement;
+            } else {
+              console.warn('Could not find target element after color change');
+              return;
+            }
           }
         }
+        
+        // RESTORE POSITION: After handleImageColorChange may have replaced the image
+        // Restore exact position to prevent any drift
+        if (targetElement && targetElement !== selectedElement) {
+          targetElement.set({
+            left: preservedPosition.left,
+            top: preservedPosition.top,
+            scaleX: preservedPosition.scaleX,
+            scaleY: preservedPosition.scaleY,
+            angle: preservedPosition.angle,
+            originX: preservedPosition.originX,
+            originY: preservedPosition.originY,
+            flipX: preservedPosition.flipX,
+            flipY: preservedPosition.flipY
+          });
+          targetElement.setCoords();
+          
+          // Verify position was preserved
+          const currentLeft = targetElement.left;
+          const currentTop = targetElement.top;
+          if (Math.abs(currentLeft - preservedPosition.left) > 0.01 || 
+              Math.abs(currentTop - preservedPosition.top) > 0.01) {
+            console.warn('Position drift detected for image, restoring:', {
+              expected: { left: preservedPosition.left, top: preservedPosition.top },
+              actual: { left: currentLeft, top: currentTop }
+            });
+            targetElement.set({
+              left: preservedPosition.left,
+              top: preservedPosition.top
+            });
+            targetElement.setCoords();
+          }
+        }
+        
+        // Apply opacity from ColorData to the target element
+        targetElement.set('opacity', colorItem.opacity);
+        setOpacity(colorItem.opacity); // Update local state for UI
+        
+        // Apply stroke if specified (but not for panel artwork)
+        if (effectiveStrokeWidth > 0) {
+          targetElement.set('stroke', colorItem.strokeColor);
+          targetElement.set('strokeWidth', effectiveStrokeWidth);
+        } else {
+          targetElement.set('stroke', null);
+          targetElement.set('strokeWidth', 0);
+        }
+        
+        // Update customData with color info
+        const customData = targetElement.customData || {};
+        customData.currentColor = colorItem.fillColor;
+        customData.currentColorId = colorItem.id;
+        customData.currentOpacity = colorItem.opacity; // Store opacity in customData
+        customData.currentStrokeColor = colorItem.strokeColor;
+        customData.currentStrokeWidth = effectiveStrokeWidth; // Use effective stroke width
+        targetElement.set('customData', customData);
+        setImageColor(colorItem.fillColor);
+        
+        // Ensure the element is selected and rendered
+        canvas.setActiveObject(targetElement);
+        canvas.renderAll();
+        
+        if (onUpdateElement) {
+          onUpdateElement(targetElement);
+        }
+        return;
       }
-      
-      // Apply opacity from ColorData to the target element
-      targetElement.set('opacity', colorItem.opacity);
-      setOpacity(colorItem.opacity); // Update local state for UI
-      
-      // Apply stroke if specified
-      if (colorItem.strokeWidth > 0) {
-        targetElement.set('stroke', colorItem.strokeColor);
-        targetElement.set('strokeWidth', colorItem.strokeWidth);
-      } else {
-        targetElement.set('stroke', null);
-        targetElement.set('strokeWidth', 0);
-      }
-      
-      // Update customData with color info
-      const customData = targetElement.customData || {};
-      customData.currentColor = colorItem.fillColor;
-      customData.currentColorId = colorItem.id;
-      customData.currentOpacity = colorItem.opacity; // Store opacity in customData
-      customData.currentStrokeColor = colorItem.strokeColor;
-      customData.currentStrokeWidth = colorItem.strokeWidth;
-      targetElement.set('customData', customData);
-      setImageColor(colorItem.fillColor);
-      
-      // Ensure the element is selected and rendered
-      canvas.setActiveObject(targetElement);
-      canvas.renderAll();
-      
-      if (onUpdateElement) {
-        onUpdateElement(targetElement);
-      }
-      return;
     }
     
     // For text objects, apply fill, opacity, and stroke
@@ -723,12 +919,26 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
         const svgElement = svgDoc.documentElement;
         
-        // Function to recursively set fill on all elements
+        // Check if this is panel artwork - panel artwork should have no stroke
+        const artworkId = customData.artworkId;
+        const artworkItem = artworkId ? artwork.find(a => a.id === artworkId) : null;
+        const isPanelArtwork = artworkItem?.category === 'Panels';
+        
+        // Function to recursively set fill on all elements and remove strokes for panel artwork
         const setFillRecursive = (element, color) => {
           // Skip text, style, script, and other non-visual elements
           const tagName = element.tagName?.toLowerCase();
           if (tagName === 'style' || tagName === 'script' || tagName === 'defs') {
             return;
+          }
+          
+          // For panel artwork, ALWAYS remove all strokes regardless of ColorData
+          if (isPanelArtwork) {
+            element.removeAttribute('stroke');
+            element.setAttribute('stroke-width', '0');
+            element.setAttribute('strokeWidth', '0');
+            // Also set stroke to 'none' explicitly
+            element.setAttribute('stroke', 'none');
           }
           
           // Get current fill value
@@ -891,15 +1101,24 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         }
         
         // Copy properties from old image to new image
+        // Get exact position values before any operations
+        const oldLeft = selectedElement.left;
+        const oldTop = selectedElement.top;
+        const oldScaleX = selectedElement.scaleX || 1;
+        const oldScaleY = selectedElement.scaleY || 1;
+        const oldAngle = selectedElement.angle || 0;
+        const oldOriginX = selectedElement.originX || 'center';
+        const oldOriginY = selectedElement.originY || 'center';
+        
         const oldCustomData = selectedElement.customData || {};
         const oldProps = {
-          left: selectedElement.left,
-          top: selectedElement.top,
-          scaleX: selectedElement.scaleX,
-          scaleY: selectedElement.scaleY,
-          angle: selectedElement.angle,
-          originX: selectedElement.originX,
-          originY: selectedElement.originY,
+          left: oldLeft,
+          top: oldTop,
+          scaleX: oldScaleX,
+          scaleY: oldScaleY,
+          angle: oldAngle,
+          originX: oldOriginX,
+          originY: oldOriginY,
           selectable: selectedElement.selectable,
           hasControls: selectedElement.hasControls,
           hasBorders: selectedElement.hasBorders,
@@ -922,16 +1141,19 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         // Ensure the image is properly initialized
         newImg.setCoords();
         
-        // Double-check that flip state (negative scaleX/scaleY) is preserved
-        // Sometimes set() might normalize values, so we explicitly set them again
-        if (selectedElement.scaleX !== undefined) {
-          newImg.set('scaleX', selectedElement.scaleX);
-        }
-        if (selectedElement.scaleY !== undefined) {
-          newImg.set('scaleY', selectedElement.scaleY);
-        }
+        // Explicitly set position and scale again to ensure they're preserved exactly
+        // This prevents any drift that might occur during setCoords()
+        newImg.set({
+          left: oldLeft,
+          top: oldTop,
+          scaleX: oldScaleX,
+          scaleY: oldScaleY,
+          angle: oldAngle,
+          originX: oldOriginX,
+          originY: oldOriginY
+        });
         
-        // Re-apply coordinates after setting scale to ensure proper bounds
+        // Re-apply coordinates after setting all properties
         newImg.setCoords();
         
         // Verify the selected element is still on the canvas before replacing
@@ -1319,14 +1541,14 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
             >
               <img src="/images/clone_icon.png" alt="Clone" className="options-panel-icon" style={{ width: '14px', height: '14px' }} />
             </button>
-            <button
-              type="button"
-              className="options-panel-delete-button"
-              onClick={handleDelete}
-              title="Delete element"
-            >
+          <button
+            type="button"
+            className="options-panel-delete-button"
+            onClick={handleDelete}
+            title="Delete element"
+          >
               <img src="/images/delete_icon.png" alt="Delete" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
-            </button>
+          </button>
           </div>
         </div>
 
@@ -1554,14 +1776,14 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
              >
                <img src="/images/clone_icon.png" alt="Clone" className="options-panel-icon" style={{ width: '14px', height: '14px' }} />
              </button>
-            <button
-              type="button"
-              className="options-panel-delete-button"
-              onClick={handleDelete}
-              title="Delete element"
-            >
-              <img src="/images/delete_icon.png" alt="Text" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
-            </button>
+          <button
+            type="button"
+            className="options-panel-delete-button"
+            onClick={handleDelete}
+            title="Delete element"
+          >
+            <img src="/images/delete_icon.png" alt="Text" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
+          </button>
           </div>
         </div>
 
