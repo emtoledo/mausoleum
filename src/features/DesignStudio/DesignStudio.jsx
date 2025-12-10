@@ -1514,6 +1514,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         element.heightPx = pathBounds.height;
         element.width = pixelsToInches(pathBounds.width, scale);
         element.height = pixelsToInches(pathBounds.height, scale);
+        
+        // Save origin point for path elements (defaults to 'center' to match how they're created)
+        const pathOriginX = obj.get ? obj.get('originX') : (obj.originX || 'center');
+        const pathOriginY = obj.get ? obj.get('originY') : (obj.originY || 'center');
+        element.originX = pathOriginX;
+        element.originY = pathOriginY;
+        
         if (obj.artworkId) element.artworkId = obj.artworkId;
         if (obj.textureUrl) element.textureUrl = obj.textureUrl;
         if (obj.imageUrl) element.imageUrl = obj.imageUrl;

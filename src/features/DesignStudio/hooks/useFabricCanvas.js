@@ -558,13 +558,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         console.log('Calculated position:', { baseLeft, baseTop });
         
         // Get saved origin point (defaults vary by object type)
-        // For groups, default to 'center', for other objects default to 'left'/'top'
+        // For groups/artwork/path, default to 'center' (matches how they're created)
+        // For other objects default to 'left'/'top'
         const savedOriginX = element.originX !== undefined 
           ? element.originX 
-          : (element.type === 'group' || element.type === 'artwork' ? 'center' : 'left');
+          : (element.type === 'group' || element.type === 'artwork' || element.type === 'path' || element.type === 'path-group' ? 'center' : 'left');
         const savedOriginY = element.originY !== undefined 
           ? element.originY 
-          : (element.type === 'group' || element.type === 'artwork' ? 'center' : 'top');
+          : (element.type === 'group' || element.type === 'artwork' || element.type === 'path' || element.type === 'path-group' ? 'center' : 'top');
         
         // Initialize baseProps with saved values
         // IMPORTANT: Use saved scaleX/scaleY directly (preserves flip state: negative = flipped)
@@ -1843,34 +1844,37 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   }
                 }
                 
-                // Apply all saved properties
+                // Ensure object dimensions are calculated before applying position
+                finalGroup.setCoords();
+                
+                // Check if flip state was saved (negative scaleX/scaleY indicates flip)
+                const shouldFlipX = baseProps.scaleX < 0;
+                const shouldFlipY = baseProps.scaleY < 0;
+                const absScaleX = Math.abs(baseProps.scaleX);
+                const absScaleY = Math.abs(baseProps.scaleY);
+                
+                // Apply saved properties - set scale/origin first, then position
                 finalGroup.set({
-                  left: baseProps.left,
-                  top: baseProps.top,
-                  scaleX: baseProps.scaleX,
-                  scaleY: baseProps.scaleY,
+                  scaleX: shouldFlipX ? -absScaleX : absScaleX,
+                  scaleY: shouldFlipY ? -absScaleY : absScaleY,
                   angle: baseProps.angle,
                   opacity: baseProps.opacity,
                   originX: finalOriginX,
                   originY: finalOriginY,
-                  flipX: baseProps.scaleX < 0,
-                  flipY: baseProps.scaleY < 0
+                  flipX: shouldFlipX,
+                  flipY: shouldFlipY
                 });
                 
-                // If scaleX/scaleY are negative, use absolute values and set flipX/flipY
-                if (baseProps.scaleX < 0) {
-                  finalGroup.set({
-                    scaleX: Math.abs(baseProps.scaleX),
-                    flipX: true
-                  });
-                }
-                if (baseProps.scaleY < 0) {
-                  finalGroup.set({
-                    scaleY: Math.abs(baseProps.scaleY),
-                    flipY: true
-                  });
-                }
+                // Update coordinates after setting scale/origin
+                finalGroup.setCoords();
                 
+                // Now set position after dimensions are calculated
+                finalGroup.set({
+                  left: baseProps.left,
+                  top: baseProps.top
+                });
+                
+                // Final coordinate update to ensure position is correct
                 finalGroup.setCoords();
                 
                 // Set metadata
@@ -1889,6 +1893,17 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   originalSource: imageUrl,
                   defaultWidthInches: element.defaultWidthInches
                 });
+                
+                // Check for duplicate again before adding (in case async processing allowed a duplicate to slip through)
+                const currentObjects = canvas.getObjects();
+                const duplicateCheck = currentObjects.find(obj => 
+                  obj.elementId === element.id && 
+                  (obj.viewId === (viewId || 'front') || (obj.viewId === null && viewId === null))
+                );
+                if (duplicateCheck) {
+                  console.log(`⚠ Skipping duplicate panel artwork ${element.id} with viewId ${viewId || 'front'} - already exists on canvas (late check)`);
+                  continue;
+                }
                 
                 canvas.add(finalGroup);
                 canvas.renderAll();
@@ -2412,17 +2427,23 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               ? objectsArray[0] 
               : new fabric.Group(objectsArray, svgOptions || {});
             
-            // Normalize stroke widths on all paths (remove strokes, set strokeWidth to 0)
-            const normalizeStrokes = (obj) => {
-              if (obj.type === 'path' || obj.type === 'path-group') {
-                obj.stroke = null;
-                obj.strokeWidth = 0;
-              }
-              if (obj._objects && Array.isArray(obj._objects)) {
-                obj._objects.forEach(child => normalizeStrokes(child));
-              }
-            };
-            normalizeStrokes(svgGroup);
+            // Check if this is panel artwork (needs stroke normalization)
+            const isPanelArtwork = artworkItem.category && artworkItem.category.toLowerCase() === 'panels';
+            
+            // Normalize stroke widths ONLY for panel artwork (remove strokes, set strokeWidth to 0)
+            // Non-panel artwork should preserve their strokeWidth
+            if (isPanelArtwork) {
+              const normalizeStrokes = (obj) => {
+                if (obj.type === 'path' || obj.type === 'path-group') {
+                  obj.stroke = null;
+                  obj.strokeWidth = 0;
+                }
+                if (obj._objects && Array.isArray(obj._objects)) {
+                  obj._objects.forEach(child => normalizeStrokes(child));
+                }
+              };
+              normalizeStrokes(svgGroup);
+            }
             
             // Apply saved fill color to paths
             if (element.fill) {
@@ -2437,8 +2458,25 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               applyFill(svgGroup, element.fill);
             }
             
+            // Apply saved stroke and strokeWidth for non-panel artwork
+            if (!isPanelArtwork && (element.stroke || element.strokeWidthPx !== undefined)) {
+              const applyStroke = (obj, strokeColor, strokeWidth) => {
+                if (obj.type === 'path' || obj.type === 'path-group') {
+                  if (strokeColor) {
+                    obj.stroke = strokeColor;
+                  }
+                  if (strokeWidth !== undefined && strokeWidth !== null) {
+                    obj.strokeWidth = strokeWidth;
+                  }
+                }
+                if (obj._objects && Array.isArray(obj._objects)) {
+                  obj._objects.forEach(child => applyStroke(child, strokeColor, strokeWidth));
+                }
+              };
+              applyStroke(svgGroup, element.stroke, element.strokeWidthPx);
+            }
+            
             // Handle texture layer for panel artwork
-            const isPanelArtwork = artworkItem.category && artworkItem.category.toLowerCase() === 'panels';
             let resolvedTextureUrl = artworkItem.textureUrl || null;
             if (!resolvedTextureUrl && isPanelArtwork) {
               resolvedTextureUrl = '/images/materials/panelbg.png';
@@ -2539,11 +2577,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             const absScaleX = Math.abs(baseProps.scaleX);
             const absScaleY = Math.abs(baseProps.scaleY);
             
+            // Ensure object dimensions are calculated before applying position
+            // This is critical for accurate positioning, especially with origin='center'
+            finalGroup.setCoords();
+            
             // Apply saved properties - position should now be correct since origin matches
             // Use negative scaleX/scaleY for flip, and also set flipX/flipY properties
+            // Set position last to ensure dimensions are calculated
             finalGroup.set({
-              left: baseProps.left,
-              top: baseProps.top,
               scaleX: shouldFlipX ? -absScaleX : absScaleX,
               scaleY: shouldFlipY ? -absScaleY : absScaleY,
               angle: baseProps.angle,
@@ -2562,7 +2603,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               lockScalingY: false
             });
             
-            // Ensure coordinates are updated after setting properties
+            // Update coordinates after setting scale/origin
+            finalGroup.setCoords();
+            
+            // Now set position after dimensions are calculated
+            finalGroup.set({
+              left: baseProps.left,
+              top: baseProps.top
+            });
+            
+            // Final coordinate update to ensure position is correct
             finalGroup.setCoords();
             
             // Verify flip state was applied correctly
