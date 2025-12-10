@@ -6,9 +6,7 @@
  * When an artwork is clicked, calls onSelectArtwork with the selected artwork.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { convertDxfToSvg } from '../../../utils/dxfImporter';
-import * as makerjs from 'makerjs';
+import React, { useState, useMemo } from 'react';
 
 /**
  * @param {Array} artwork - Array of artwork objects from ArtworkData
@@ -20,112 +18,6 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
   // Internal state for filtering
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  
-  // State to store converted DXF preview URLs (DXF -> SVG data URLs)
-  const [dxfPreviewUrls, setDxfPreviewUrls] = useState({});
-
-  /**
-   * Check if an artwork item is a DXF file
-   */
-  const isDxfFile = (imageUrl) => {
-    return imageUrl && (
-      imageUrl.toLowerCase().endsWith('.dxf') ||
-      imageUrl.endsWith('.DXF')
-    );
-  };
-
-  /**
-   * Convert DXF files to SVG for preview
-   */
-  useEffect(() => {
-    const convertDxfFiles = async () => {
-      const conversions = {};
-      const dxfItems = artwork.filter(item => isDxfFile(item.imageUrl));
-      
-      if (dxfItems.length === 0) {
-        return;
-      }
-      
-      console.log(`Converting ${dxfItems.length} DXF files to SVG for preview...`);
-      
-      // Process all DXF files in parallel for better performance
-      const conversionPromises = dxfItems.map(async (item) => {
-        try {
-          console.log(`Fetching DXF file: ${item.name} (${item.imageUrl})`);
-          
-          // Fetch the DXF file
-          const response = await fetch(item.imageUrl);
-          if (!response.ok) {
-            console.warn(`Failed to fetch DXF file for preview: ${item.imageUrl} - Status: ${response.status}`);
-            return { id: item.id, success: false, error: `HTTP ${response.status}` };
-          }
-          
-          const dxfString = await response.text();
-          
-          if (!dxfString || dxfString.length === 0) {
-            console.warn(`DXF file is empty: ${item.name}`);
-            return { id: item.id, success: false, error: 'Empty file' };
-          }
-          
-          console.log(`Converting DXF to SVG: ${item.name} (${dxfString.length} chars)`);
-          
-          // Convert DXF to SVG
-          const svgString = await convertDxfToSvg(dxfString, makerjs.unitType.Inches);
-          
-          if (!svgString || svgString.length === 0) {
-            console.warn(`SVG conversion resulted in empty string: ${item.name}`);
-            return { id: item.id, success: false, error: 'Empty SVG' };
-          }
-          
-          // Validate SVG string
-          if (!svgString.startsWith('<svg') && !svgString.startsWith('<?xml')) {
-            console.warn(`SVG string doesn't start with expected prefix for ${item.name}:`, svgString.substring(0, 100));
-          }
-          
-          // Convert SVG string to data URL for use in img src
-          const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-          console.log(`Successfully converted DXF to SVG: ${item.name}`, {
-            svgLength: svgString.length,
-            dataUrlLength: svgDataUrl.length,
-            dataUrlStart: svgDataUrl.substring(0, 50)
-          });
-          
-          return { id: item.id, success: true, svgDataUrl };
-        } catch (error) {
-          console.error(`Error converting DXF to SVG for ${item.name}:`, error);
-          return { id: item.id, success: false, error: error.message };
-        }
-      });
-      
-      // Wait for all conversions to complete
-      const results = await Promise.all(conversionPromises);
-      
-      // Process results
-      results.forEach(result => {
-        if (result.success && result.svgDataUrl) {
-          conversions[result.id] = result.svgDataUrl;
-        } else {
-          console.warn(`Failed to convert DXF for item ${result.id}: ${result.error || 'Unknown error'}`);
-        }
-      });
-      
-      console.log(`DXF conversion complete. Successfully converted ${Object.keys(conversions).length} of ${dxfItems.length} files.`);
-      console.log('Conversion results:', Object.keys(conversions).map(id => ({ id, hasUrl: !!conversions[id], urlLength: conversions[id]?.length })));
-      
-      // Update state with all successful conversions
-      if (Object.keys(conversions).length > 0) {
-        setDxfPreviewUrls(prev => {
-          const updated = { ...prev, ...conversions };
-          console.log('Updated dxfPreviewUrls state:', Object.keys(updated));
-          return updated;
-        });
-      }
-    };
-    
-    if (artwork && artwork.length > 0) {
-      convertDxfFiles();
-    }
-  }, [artwork]);
 
   /**
    * Get unique categories from artwork array
@@ -247,7 +139,7 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
         ) : (
           filteredArtwork.map((item) => (
             <div
-              key={`${item.id}-${dxfPreviewUrls[item.id] ? 'preview' : 'original'}`}
+              key={item.id}
               className="artwork-item"
               onClick={() => handleArtworkClick(item)}
               role="button"
@@ -261,52 +153,18 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
               }}
             >
               <div className="artwork-item-image">
-                {(() => {
-                  const previewUrl = dxfPreviewUrls[item.id];
-                  const isDxf = isDxfFile(item.imageUrl);
-                  const finalSrc = previewUrl || item.imageUrl;
-                  
-                  // For DXF files, only show image if we have a preview URL
-                  // Otherwise show a loading placeholder
-                  if (isDxf && !previewUrl) {
-                    return (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: '#f0f0f0',
-                        color: '#666',
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        padding: '8px'
-                      }}>
-                        Loading...
-                      </div>
-                    );
-                  }
-                  
-                  return (
-                    <img 
-                      src={finalSrc} 
-                      alt={item.name}
-                      loading="lazy"
-                      onError={(e) => {
-                        // Only log errors for non-DXF files or DXF files that should have loaded
-                        if (!isDxf || previewUrl) {
-                          console.error(`Image load error for ${item.name}:`, {
-                            src: finalSrc.substring(0, 100),
-                            isDxf,
-                            hasPreviewUrl: !!previewUrl
-                          });
-                        }
-                        // Hide image on error
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  );
-                })()}
+                <img 
+                  src={item.imageUrl} 
+                  alt={item.name}
+                  loading="lazy"
+                  onError={(e) => {
+                    console.error(`Image load error for ${item.name}:`, {
+                      src: item.imageUrl?.substring(0, 100)
+                    });
+                    // Hide image on error
+                    e.target.style.display = 'none';
+                  }}
+                />
               </div>
               <div className="artwork-item-info">
                 <div className="artwork-item-name">{item.name}</div>

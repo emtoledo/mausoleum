@@ -167,58 +167,47 @@ const ArtworkManagement = () => {
             </div>
           )}
 
-          <div className="products-table-container">
-            <table className="products-table">
-              <thead>
-                <tr>
-                  <th>Preview</th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Default Width</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredArtwork.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '40px' }}>
-                      No artwork found. Click "Add New Artwork" to create one.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredArtwork.map((item) => (
-                    <tr
-                      key={item.id}
-                      onClick={() => handleArtworkClick(item.id)}
-                      className="products-table-row"
-                    >
-                      <td>
-                        {item.image_url ? (
-                          <img
-                            src={item.image_url}
-                            alt={item.name}
-                            className="artwork-preview-thumb"
-                            onError={(e) => {
-                              e.target.src = '/images/empty.png';
-                            }}
-                          />
-                        ) : (
-                          <div className="product-preview-placeholder">No Image</div>
-                        )}
-                      </td>
-                      <td>{item.name}</td>
-                      <td>{item.category}</td>
-                      <td>{item.default_width}"</td>
-                      <td>
-                        <span className={`status-badge ${item.is_active ? 'active' : 'inactive'}`}>
-                          {item.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="artwork-cards-container">
+            {filteredArtwork.length === 0 ? (
+              <div className="artwork-empty-state">
+                No artwork found. Click "Add New Artwork" to create one.
+              </div>
+            ) : (
+              <div className="artwork-cards-grid">
+                {filteredArtwork.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => handleArtworkClick(item.id)}
+                    className={`artwork-card ${!item.is_active ? 'inactive' : ''}`}
+                  >
+                    <div className="artwork-card-image-container">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="artwork-card-thumb"
+                          onError={(e) => {
+                            e.target.src = '/images/empty.png';
+                          }}
+                        />
+                      ) : (
+                        <div className="artwork-card-placeholder">No Image</div>
+                      )}
+                    </div>
+                    <div className="artwork-card-name">{item.name}</div>
+                    <div className="artwork-card-meta">
+                      <span className="artwork-card-category">{item.category}</span>
+                      {item.default_width && (
+                        <span className="artwork-card-width">{item.default_width}"</span>
+                      )}
+                      <span className={`status-badge ${item.is_active ? 'active' : 'inactive'}`}>
+                        {item.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

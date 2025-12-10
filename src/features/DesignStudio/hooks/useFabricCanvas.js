@@ -8,9 +8,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import * as fabric from 'fabric';
-import * as makerjs from 'makerjs';
 import { calculateScale, inchesToPixels } from '../utils/unitConverter';
-import { importDxfToFabric } from '../../../utils/dxfImporter';
 import { artwork } from '../../../data/ArtworkData';
 import { colorData } from '../../../data/ColorData';
 
@@ -462,7 +460,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     console.log('Current canvas size:', canvas.width, canvas.height);
     console.log('Current objects on canvas before clearing:', canvas.getObjects().length);
 
-    // Count assets that need to be loaded (images, DXF files, etc.)
+    // Count assets that need to be loaded (images, SVG files, etc.)
     const assetsToLoad = elements.filter(el => 
       el.type === 'image' || 
       el.type === 'artwork' || 
@@ -820,6 +818,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               
               // Set properties - use negative scaleX/scaleY for flip
               // Fabric.js may normalize these, so we'll verify and apply fallback if needed
+              // If minWidth exists, lock aspect ratio
+              const imageLockUniScaling = !!imageMinWidthInches;
               img.set({
                 ...baseProps,
                 left: baseProps.left,
@@ -832,7 +832,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 originY: baseProps.originY || 'center',
                 flipX: shouldFlipX, // Try setting flipX/flipY too
                 flipY: shouldFlipY,
-                viewId: viewId || null // Tag with view ID for show/hide management
+                viewId: viewId || null, // Tag with view ID for show/hide management
+                lockUniScaling: imageLockUniScaling // Lock aspect ratio if minWidth exists
               });
               img.setCoords(); // Force recalculation of coordinates
               
@@ -883,8 +884,18 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   }
               
               // Store artwork metadata if available
+              let imageMinWidthInches = null;
               if (element.artworkId) {
                 img.artworkId = element.artworkId;
+                // Look up artwork item to get minWidth
+                const imageArtworkItem = allArtwork.find(a => a.id === element.artworkId);
+                if (imageArtworkItem && imageArtworkItem.minWidth) {
+                  imageMinWidthInches = imageArtworkItem.minWidth;
+                  console.log('Found minWidth for image artwork:', {
+                    artworkId: element.artworkId,
+                    minWidthInches: imageMinWidthInches
+                  });
+                }
               }
               if (element.category) {
                 img.category = element.category;
@@ -996,8 +1007,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                         originalSource: imageSrc,
                         currentColor: element.fill,
                         currentColorId: element.colorId,
-                        currentOpacity: element.opacity
+                        currentOpacity: element.opacity,
+                        minWidthInches: imageMinWidthInches || null // Store minWidth if it exists
                       });
+                      
+                      // Set lockUniScaling on colored image if minWidth exists
+                      if (imageMinWidthInches) {
+                        coloredImg.set('lockUniScaling', true);
+                      }
                       
                       canvas.add(coloredImg);
                       canvas.renderAll();
@@ -1032,14 +1049,18 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               }
               
               // Store color in customData if available (even if not SVG)
+              const imageCustomData = {
+                originalSource: imageSrc
+              };
               if (element.fill) {
-                img.set('customData', {
-                  originalSource: imageSrc,
-                  currentColor: element.fill,
-                  currentColorId: element.colorId,
-                  currentOpacity: element.opacity
-                });
+                imageCustomData.currentColor = element.fill;
+                imageCustomData.currentColorId = element.colorId;
+                imageCustomData.currentOpacity = element.opacity;
               }
+              if (imageMinWidthInches) {
+                imageCustomData.minWidthInches = imageMinWidthInches;
+              }
+              img.set('customData', imageCustomData);
               
               canvas.add(img);
               canvas.renderAll();
@@ -1074,7 +1095,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             fabricObject = new fabric.Image('', baseProps);
           }
         } else if (element.type === 'group' || element.type === 'artwork') {
-          // Handle groups (DXF artwork with textures)
+          // Handle groups (SVG artwork with textures)
           let imageUrl = element.imageUrl || element.content;
           let textureUrl = element.textureUrl;
           
@@ -1115,8 +1136,11 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             }
           }
           
+          // Get artwork item and minWidth if available
+          let artworkItem = null;
+          let minWidthInches = null;
           if (artworkId) {
-            const artworkItem = allArtwork.find(a => a.id === artworkId);
+            artworkItem = allArtwork.find(a => a.id === artworkId);
             if (artworkItem) {
               if ((!imageUrl || imageUrl.trim() === '') && artworkItem.imageUrl) {
                 imageUrl = artworkItem.imageUrl;
@@ -1132,6 +1156,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   textureUrl: textureUrl
                 });
               }
+              // Get minWidth from artwork item
+              if (artworkItem.minWidth) {
+                minWidthInches = artworkItem.minWidth;
+                console.log('Found minWidth from artwork item:', {
+                  artworkId: artworkId,
+                  minWidthInches: minWidthInches
+                });
+              }
             } else {
               console.warn('Artwork not found in ArtworkData for artworkId:', artworkId);
             }
@@ -1144,9 +1176,17 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             textureUrl: textureUrl,
             artworkId: element.artworkId,
             hasImageUrl: !!imageUrl,
-            isDxfFile: imageUrl && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF')),
             elementKeys: Object.keys(element)
           });
+          
+          // Skip DXF files - they should have been converted to SVG in admin area
+          if (imageUrl && imageUrl.trim() && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF'))) {
+            console.warn('DXF files are no longer supported. Please convert DXF files to SVG in the admin area:', {
+              elementId: element.id,
+              imageUrl: imageUrl
+            });
+            continue; // Skip this element
+          }
           
           // Final check: if we still don't have imageUrl but have textureUrl, try one more lookup
           // Try with category first if available, then fall back to textureUrl only
@@ -1179,463 +1219,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             }
           }
           
+          // Skip DXF files - they should have been converted to SVG in admin area
           if (imageUrl && imageUrl.trim() && (imageUrl.endsWith('.dxf') || imageUrl.endsWith('.DXF'))) {
-            console.log('Detected DXF file, starting import...');
-            // This is a DXF file - re-import it
-            try {
-              const response = await fetch(imageUrl);
-              if (!response.ok) {
-                throw new Error(`Failed to fetch DXF file: ${response.statusText}`);
-              }
-              const dxfString = await response.text();
-              
-              // Import DXF to Fabric.js group
-              // NOTE: importDxfToFabric adds the group to the canvas automatically
-              // We need to remove it first, modify it, then add it back
-              const group = await importDxfToFabric({
-                dxfString,
-                fabricCanvas: canvas,
-                importUnit: makerjs.unitType.Inches,
-                textureUrl: textureUrl || null
-              });
-              
-              if (group) {
-                // Remove group from canvas temporarily so we can modify it without breaking structure
-                // IMPORTANT: Check if group is actually on canvas before removing
-                const objectsBeforeRemove = canvas.getObjects();
-                const groupOnCanvas = objectsBeforeRemove.includes(group);
-                
-                if (groupOnCanvas) {
-                  canvas.remove(group);
-                  console.log('Removed group from canvas for modification');
-                } else {
-                  console.log('Group not on canvas, skipping remove');
-                }
-                
-                // Verify group structure before modifications
-                const groupStructureAfterImport = {
-                  type: group.type,
-                  childrenCount: group._objects?.length,
-                  childrenTypes: group._objects?.map(obj => obj.type),
-                  hasTextureLayer: group._objects?.length === 2 && 
-                    group._objects[0]?.fill && 
-                    typeof group._objects[0].fill === 'object' && 
-                    group._objects[0].fill.type === 'pattern',
-                  // Check if children are still part of the group
-                  childrenStillInGroup: group._objects?.every(child => {
-                    // In Fabric.js, children of a group should not have a canvas reference when group is removed
-                    return child && child.type;
-                  })
-                };
-                
-                console.log('Group structure after import:', groupStructureAfterImport);
-                
-                // If group structure is broken, log error
-                if (group.type !== 'group' || !group._objects || group._objects.length === 0) {
-                  console.error('CRITICAL: Group structure is broken after import!', group);
-                  continue; // Skip this element
-                }
-                // Apply saved properties to the group
-                const savedWidth = element.width || 0;
-                const savedHeight = element.height || 0;
-                
-                // Get actual group dimensions (before rotation/scale)
-                // These are the base dimensions of the group object itself
-                const baseGroupWidth = group.width || 0;
-                const baseGroupHeight = group.height || 0;
-                
-                // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
-                // These saved dimensions are the actual object size (width * scaleX, height * scaleY) BEFORE rotation
-                let targetWidthPx, targetHeightPx;
-                if (element.widthPx !== undefined && element.heightPx !== undefined) {
-                  // New format: Use pixel values directly
-                  // These represent the actual object dimensions (width * scaleX, height * scaleY) before rotation
-                  targetWidthPx = element.widthPx;
-                  targetHeightPx = element.heightPx;
-                  console.log(`✓ Using group dimensions from pixels:`, { widthPx: targetWidthPx, heightPx: targetHeightPx });
-                } else if (savedWidth > 0 && savedHeight > 0) {
-                  // Backward compatibility: Convert from inches
-                  targetWidthPx = inchesToPixels(savedWidth, scale.current);
-                  targetHeightPx = inchesToPixels(savedHeight, scale.current);
-                  console.log(`⚠ Converting group dimensions from inches:`, { 
-                    width: savedWidth, 
-                    height: savedHeight,
-                    scale: scale.current,
-                    converted: { widthPx: targetWidthPx, heightPx: targetHeightPx }
-                  });
-                }
-                
-                console.log('Group loading (comparing actual dimensions, not bounding box):', {
-                  baseGroupWidth,
-                  baseGroupHeight,
-                  targetWidthPx,
-                  targetHeightPx,
-                  groupScaleX: group.scaleX,
-                  groupScaleY: group.scaleY,
-                  savedScaleX: element.scaleX,
-                  savedScaleY: element.scaleY,
-                  savedAngle: element.rotation || element.angle
-                });
-                
-                if (targetWidthPx > 0 && targetHeightPx > 0 && baseGroupWidth > 0 && baseGroupHeight > 0) {
-                  // Calculate scale magnitude based on actual dimensions (not bounding box)
-                  // targetWidthPx = baseGroupWidth * scaleX, so scaleX = targetWidthPx / baseGroupWidth
-                  const scaleMagnitudeX = targetWidthPx / baseGroupWidth;
-                  const scaleMagnitudeY = targetHeightPx / baseGroupHeight;
-                  
-                  // IMPORTANT: Preserve flip state (sign) from saved scaleX/scaleY
-                  // If saved scaleX/scaleY is negative, the artwork was flipped
-                  const savedScaleX = element.scaleX || 1;
-                  const savedScaleY = element.scaleY || element.scaleX || 1;
-                  
-                  // Apply the sign (positive or negative) from saved scale to the calculated magnitude
-                  baseProps.scaleX = Math.sign(savedScaleX) * Math.abs(scaleMagnitudeX);
-                  baseProps.scaleY = Math.sign(savedScaleY) * Math.abs(scaleMagnitudeY);
-                  
-                  console.log('Calculated group scale (preserving flip state):', { 
-                    scaleX: baseProps.scaleX, 
-                    scaleY: baseProps.scaleY,
-                    savedScaleX,
-                    savedScaleY,
-                    scaleMagnitudeX,
-                    scaleMagnitudeY
-                  });
-                } else {
-                  // Use saved scaleX/scaleY directly (preserves flip state - use !== undefined to allow negative values)
-                  baseProps.scaleX = element.scaleX !== undefined ? element.scaleX : 1;
-                  baseProps.scaleY = element.scaleY !== undefined ? element.scaleY : (element.scaleX !== undefined ? element.scaleX : 1);
-                  console.log('Using saved scaleX/scaleY (preserving flip state):', { 
-                    scaleX: baseProps.scaleX, 
-                    scaleY: baseProps.scaleY,
-                    savedScaleX: element.scaleX,
-                    savedScaleY: element.scaleY
-                  });
-                }
-                
-                console.log('Group final properties (before set):', {
-                  left: baseLeft,
-                  top: baseTop,
-                  scaleX: baseProps.scaleX,
-                  scaleY: baseProps.scaleY,
-                  rotation: baseProps.angle,
-                  savedScaleX: element.scaleX,
-                  savedScaleY: element.scaleY,
-                  savedRotation: element.rotation
-                });
-                
-                // Check if flip state was saved (negative scaleX/scaleY indicates flip)
-                const savedFlipX = baseProps.scaleX < 0;
-                const savedFlipY = baseProps.scaleY < 0;
-                
-                // IMPORTANT: For rotated groups, property order matters!
-                // Set origin point FIRST, then position, then rotation, then scale/flip
-                // This ensures Fabric.js calculates coordinates correctly for rotated objects
-                
-                // Step 1: Set origin point first (critical for rotated groups)
-                group.set({
-                  originX: baseProps.originX,
-                  originY: baseProps.originY
-                });
-                
-                // Step 2: Set position, rotation, scale, and flip in one operation
-                group.set({
-                  left: baseProps.left,
-                  top: baseProps.top,
-                  angle: baseProps.angle, // Rotation (already set in baseProps from element.rotation)
-                  // Use absolute values for scale (Fabric.js normalizes negative values)
-                  scaleX: Math.abs(baseProps.scaleX),
-                  scaleY: Math.abs(baseProps.scaleY),
-                  // Apply flip using Fabric.js flipX/flipY properties (proper way to handle flips)
-                  flipX: savedFlipX,
-                  flipY: savedFlipY,
-                  opacity: baseProps.opacity,
-                  fill: baseProps.fill
-                });
-                
-                // Step 3: Force recalculation of coordinates after setting all properties
-                // This is especially important for rotated groups
-                group.setCoords();
-                group.elementId = element.id;
-                group.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
-                group.viewId = viewId; // Tag with view ID for show/hide management
-                
-                // Store original opacity for visibility toggling (preserve existing opacity or default to 1)
-                if (group.originalOpacity === undefined) {
-                  group.originalOpacity = group.opacity !== undefined ? group.opacity : 1;
-                }
-                
-                // Also tag all children with the same viewId for proper visibility management
-                if (group._objects && Array.isArray(group._objects)) {
-                  group._objects.forEach(child => {
-                    child.viewId = viewId;
-                    // Store original opacity for children too
-                    if (child.originalOpacity === undefined) {
-                      child.originalOpacity = child.opacity !== undefined ? child.opacity : 1;
-                    }
-                  });
-                }
-                
-                // CRITICAL: Preserve artwork metadata on the group object for saving
-                // These properties are needed when saving to identify the artwork source
-                if (artworkId) {
-                  group.artworkId = artworkId;
-                }
-                if (imageUrl) {
-                  group.imageUrl = imageUrl;
-                }
-                if (textureUrl) {
-                  group.textureUrl = textureUrl;
-                }
-                if (element.category) {
-                  group.category = element.category;
-                }
-                
-                // Also ensure customData has the metadata
-                const existingCustomData = group.customData || group.get?.('customData') || {};
-                group.set('customData', {
-                  ...existingCustomData,
-                  type: 'artwork',
-                  artworkId: artworkId || existingCustomData.artworkId,
-                  artworkName: element.content || existingCustomData.artworkName,
-                  imageUrl: imageUrl || existingCustomData.imageUrl,
-                  originalSource: imageUrl || existingCustomData.originalSource,
-                  textureUrl: textureUrl || existingCustomData.textureUrl,
-                  category: element.category || existingCustomData.category,
-                  defaultWidthInches: element.defaultWidthInches || existingCustomData.defaultWidthInches,
-                  isDxf: true
-                });
-                
-                console.log('Group loaded with metadata:', {
-                  elementId: group.elementId,
-                  artworkId: group.artworkId,
-                  imageUrl: group.imageUrl,
-                  textureUrl: group.textureUrl,
-                  category: group.category
-                });
-                
-                console.log('Group loaded with rotation:', {
-                  left: group.left,
-                  top: group.top,
-                  angle: group.angle,
-                  originX: group.originX,
-                  originY: group.originY,
-                  scaleX: group.scaleX,
-                  scaleY: group.scaleY,
-                  flipX: group.flipX,
-                  flipY: group.flipY
-                });
-                
-                console.log('Group properties after set:', {
-                  left: group.left,
-                  top: group.top,
-                  scaleX: group.scaleX,
-                  scaleY: group.scaleY,
-                  angle: group.angle
-                });
-                
-                // Check if this is a texture layer group (has 2 children: texture + artwork)
-                const isTextureLayerGroup = group._objects && group._objects.length === 2;
-                let textureLayer = null;
-                let artworkGroup = group;
-                
-                if (isTextureLayerGroup) {
-                  const firstChild = group._objects[0];
-                  const hasPatternFill = firstChild.fill && typeof firstChild.fill === 'object' && firstChild.fill.type === 'pattern';
-                  if (hasPatternFill) {
-                    textureLayer = firstChild;
-                    artworkGroup = group._objects[1];
-                    console.log('Detected texture layer group:', {
-                      textureLayerType: textureLayer.type,
-                      artworkGroupType: artworkGroup.type,
-                      textureHasPattern: !!textureLayer.fill
-                    });
-                  }
-                }
-                
-                // Apply color to artwork group if it was saved
-                // Always apply fill if it exists (even if black), or look up by colorId
-                if ((element.fill || element.colorId) && artworkGroup) {
-                  let finalColor = element.fill;
-                  
-                  // If we have a colorId but no fill (or fill is default black), look it up from colorData
-                  if ((!finalColor || finalColor === '#000000') && element.colorId) {
-                    try {
-                      const { colorData } = require('../../../data/ColorData');
-                      const colorObj = colorData.find(c => c.id === element.colorId);
-                      if (colorObj) {
-                        finalColor = colorObj.hex || colorObj.color || finalColor;
-                      }
-                    } catch (e) {
-                      console.warn('Could not load colorData for colorId lookup:', e);
-                    }
-                  }
-                  
-                  // Apply color if we have one (including black if it was explicitly set)
-                  if (finalColor) {
-                    // Recursively apply color to all path objects in the artwork group
-                    const applyColorToPaths = (obj) => {
-                      if (obj.type === 'group' && obj._objects) {
-                        obj._objects.forEach(child => applyColorToPaths(child));
-                      } else if (obj.type === 'path') {
-                        obj.set({
-                          fill: finalColor,
-                          stroke: element.stroke || finalColor,
-                          strokeWidth: baseProps.strokeWidth !== undefined ? baseProps.strokeWidth : 0,
-                          opacity: baseProps.opacity !== undefined ? baseProps.opacity : 1
-                        });
-                      }
-                    };
-                    
-                    applyColorToPaths(artworkGroup);
-                    console.log('Applied color to artwork group:', { colorId: element.colorId, fill: finalColor, elementId: element.id });
-                  } else {
-                    console.warn('No color to apply to artwork group:', { elementId: element.id, hasFill: !!element.fill, colorId: element.colorId });
-                  }
-                }
-                
-                // Ensure texture layer pattern is preserved and refreshed after transforms
-                if (textureLayer && textureUrl) {
-                  console.log('Refreshing texture layer pattern after transforms...');
-                  
-                  // Recursively refresh pattern fills in texture layer
-                  const refreshTexturePattern = async (obj) => {
-                    if (obj.type === 'group' && obj._objects) {
-                      for (const child of obj._objects) {
-                        await refreshTexturePattern(child);
-                      }
-                    } else if (obj.type === 'path' && obj.fill && typeof obj.fill === 'object' && obj.fill.type === 'pattern') {
-                      // Pattern exists, but might need refresh after transforms
-                      // Mark as dirty to force re-render
-                      obj.dirty = true;
-                      obj.setCoords();
-                      
-                      // If pattern source is lost, reload it
-                      if (!obj.fill.source) {
-                        try {
-                          const textureImage = await new Promise((resolve, reject) => {
-                            const img = new Image();
-                            img.crossOrigin = 'anonymous';
-                            img.onload = () => resolve(img);
-                            img.onerror = () => reject(new Error('Failed to load texture image'));
-                            img.src = textureUrl;
-                          });
-                          
-                          let pattern;
-                          try {
-                            pattern = new fabric.Pattern({
-                              source: textureImage,
-                              repeat: 'repeat'
-                            });
-                            if (pattern && typeof pattern.initialize === 'function') {
-                              pattern.initialize(textureImage);
-                            }
-                          } catch (patternError) {
-                            // Fallback: try fromURL
-                            pattern = await fabric.Pattern.fromURL(textureUrl, {
-                              repeat: 'repeat'
-                            });
-                          }
-                          
-                          obj.set('fill', pattern);
-                          obj.dirty = true;
-                        } catch (error) {
-                          console.error('Failed to refresh texture pattern:', error);
-                        }
-                      }
-                    }
-                  };
-                  
-                  await refreshTexturePattern(textureLayer);
-                  
-                  // Force canvas to re-render after pattern refresh
-                  canvas.renderAll();
-                }
-                
-                // Verify group structure is still intact before adding
-                const groupStructure = {
-                  type: group.type,
-                  childrenCount: group._objects?.length,
-                  childrenTypes: group._objects?.map(obj => obj.type),
-                  isGroup: group.type === 'group',
-                  hasTextureLayer: group._objects?.length === 2,
-                  textureLayerHasPattern: group._objects?.[0]?.fill && 
-                    typeof group._objects[0].fill === 'object' && 
-                    group._objects[0].fill.type === 'pattern'
-                };
-                
-                console.log('Group structure before adding to canvas:', groupStructure);
-                
-                // Ensure group structure is preserved - must be a group with children
-                if (group.type === 'group' && group._objects && group._objects.length > 0) {
-                  // Double-check that children are still part of the group (not orphaned)
-                  const allChildrenValid = group._objects.every(child => {
-                    // Check if child has a parent reference (if available in Fabric.js version)
-                    return child && (child.type === 'group' || child.type === 'path');
-                  });
-                  
-                  if (allChildrenValid) {
-                    // Group structure is intact, add it
-                    // Make sure group is not already on canvas (shouldn't be after remove, but double-check)
-                    const existingObjects = canvas.getObjects();
-                    const alreadyOnCanvas = existingObjects.includes(group);
-                    
-                    if (!alreadyOnCanvas) {
-                      canvas.add(group);
-                      canvas.renderAll();
-                      console.log('Group successfully added to canvas');
-                      
-                      // Update loading progress
-                      loadedAssets++;
-                      if (onProgressUpdate) {
-                        // Multi-view load - use global progress callback
-                        onProgressUpdate(1);
-                      } else if (!skipLoadingState) {
-                        // Single view load - update local progress
-                        updateLoadingState({ 
-                          loaded: loadedAssets, 
-                          message: `Loading project... (${loadedAssets}/${totalAssets})` 
-                        });
-                      }
-                    } else {
-                      console.warn('Group already on canvas, skipping add');
-                      canvas.renderAll();
-                    }
-                  } else {
-                    console.error('Group children invalid, cannot add to canvas:', {
-                      children: group._objects.map((child, idx) => ({
-                        index: idx,
-                        type: child?.type,
-                        valid: !!child
-                      }))
-                    });
-                  }
-                } else {
-                  console.error('Group structure broken, cannot add to canvas:', {
-                    type: group.type,
-                    hasObjects: !!group._objects,
-                    objectsLength: group._objects?.length
-                  });
-                }
-              } else {
-                console.error('Failed to import DXF group - group is null/undefined:', {
-                  elementId: element.id,
-                  imageUrl: imageUrl,
-                  textureUrl: textureUrl,
-                  element: element
-                });
-              }
-            } catch (err) {
-              console.error('Error re-importing DXF group:', err);
-              console.error('Error details:', {
-                message: err.message,
-                stack: err.stack,
-                elementId: element.id,
-                imageUrl: imageUrl,
-                textureUrl: textureUrl
-              });
-            }
-            continue;
-          } else if (imageUrl && imageUrl.trim()) {
+            console.warn('DXF files are no longer supported. Please convert DXF files to SVG in the admin area:', {
+              elementId: element.id,
+              imageUrl: imageUrl
+            });
+            continue; // Skip this element
+          }
+          
+          if (imageUrl && imageUrl.trim()) {
             // Check if this is panel artwork that should be loaded as SVG paths with texture
             const isSvg = imageUrl.toLowerCase().endsWith('.svg');
             const isPanelArtwork = textureUrl || 
@@ -1698,6 +1291,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                     artworkName: element.artworkName
                   });
                   continue;
+                }
+                
+                // Get minWidth from artwork item
+                let panelMinWidthInches = null;
+                if (artworkItem.minWidth) {
+                  panelMinWidthInches = artworkItem.minWidth;
+                  console.log('Found minWidth for panel artwork:', {
+                    artworkId: artworkId,
+                    minWidthInches: panelMinWidthInches
+                  });
                 }
                 
                 // Fetch SVG content
@@ -1854,6 +1457,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 const absScaleY = Math.abs(baseProps.scaleY);
                 
                 // Apply saved properties - set scale/origin first, then position
+                // If minWidth exists, lock aspect ratio
+                const panelLockUniScaling = !!panelMinWidthInches;
                 finalGroup.set({
                   scaleX: shouldFlipX ? -absScaleX : absScaleX,
                   scaleY: shouldFlipY ? -absScaleY : absScaleY,
@@ -1862,7 +1467,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   originX: finalOriginX,
                   originY: finalOriginY,
                   flipX: shouldFlipX,
-                  flipY: shouldFlipY
+                  flipY: shouldFlipY,
+                  lockUniScaling: panelLockUniScaling // Lock aspect ratio if minWidth exists
                 });
                 
                 // Update coordinates after setting scale/origin
@@ -1891,7 +1497,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   currentStrokeColor: element.stroke,
                   currentStrokeWidth: 0,
                   originalSource: imageUrl,
-                  defaultWidthInches: element.defaultWidthInches
+                  defaultWidthInches: element.defaultWidthInches,
+                  minWidthInches: panelMinWidthInches || null // Store minWidth if it exists
                 });
                 
                 // Check for duplicate again before adding (in case async processing allowed a duplicate to slip through)
@@ -2379,13 +1986,16 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 artworkId: artworkId,
                 imageUrl: element.imageUrl
               });
+              // Try to find artwork in allArtwork to get minWidth
+              const foundArtwork = allArtwork.find(a => a.id === artworkId || a.name === element.artworkName);
               // Create a minimal artworkItem object from saved data
               artworkItem = {
                 id: artworkId.trim() || element.artworkName || 'unknown',
                 name: element.artworkName || artworkId.trim() || 'Unknown',
                 imageUrl: element.imageUrl,
                 category: element.category || '',
-                textureUrl: element.textureUrl || null
+                textureUrl: element.textureUrl || null,
+                minWidth: foundArtwork?.minWidth || null // Include minWidth if found
               };
             }
             
@@ -2396,12 +2006,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   artworkId: artworkId,
                   imageUrl: element.imageUrl
                 });
+                // Try to find artwork in allArtwork to get minWidth
+                const foundArtwork = allArtwork.find(a => a.id === artworkId || a.name === element.artworkName);
                 artworkItem = {
                   id: artworkId.trim() || element.artworkName || 'unknown',
                   name: element.artworkName || artworkId.trim() || 'Unknown',
                   imageUrl: element.imageUrl,
                   category: element.category || '',
-                  textureUrl: element.textureUrl || null
+                  textureUrl: element.textureUrl || null,
+                  minWidth: foundArtwork?.minWidth || null // Include minWidth if found
                 };
               } else {
                 console.warn('Artwork not found and no imageUrl in saved data:', {
@@ -2603,6 +2216,10 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               }
             }
             
+            // Get minWidth from artwork item for lockUniScaling
+            const pathMinWidthInches = artworkItem.minWidth || null;
+            const pathLockUniScaling = !!pathMinWidthInches;
+            
             // Check if flip state was saved (negative scaleX/scaleY indicates flip)
             const shouldFlipX = baseProps.scaleX < 0;
             const shouldFlipY = baseProps.scaleY < 0;
@@ -2627,7 +2244,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               lockMovementY: false,
               lockRotation: false,
               lockScalingX: false,
-              lockScalingY: false
+              lockScalingY: false,
+              lockUniScaling: pathLockUniScaling // Lock aspect ratio if minWidth exists
             });
             
             // Update coordinates to ensure bounding box is calculated correctly
@@ -2708,7 +2326,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             finalGroup.viewId = viewId;
             finalGroup.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
             
-            // Store customData
+            // Store customData (use pathMinWidthInches already defined above)
             const customDataObj = {
               type: 'artwork',
               artworkId: artworkId,
@@ -2718,7 +2336,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               currentColorId: element.colorId || null,
               currentOpacity: element.opacity !== undefined ? element.opacity : 1,
               currentStrokeColor: element.stroke || null,
-              currentStrokeWidth: element.strokeWidth || 0
+              currentStrokeWidth: element.strokeWidth || 0,
+              minWidthInches: pathMinWidthInches || null // Store minWidth if it exists
             };
             
             if (artworkItem.category) {
@@ -2729,6 +2348,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             }
             
             finalGroup.set('customData', customDataObj);
+            
+            // Log if minWidth constraint is being applied
+            if (pathLockUniScaling) {
+              console.log('Set lockUniScaling for restored path artwork:', {
+                artworkId: artworkId,
+                minWidthInches: pathMinWidthInches,
+                lockUniScaling: pathLockUniScaling
+              });
+            }
             
             // Set fabricObject so it gets added to canvas
             fabricObject = finalGroup;
@@ -3276,9 +2904,167 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         showConstraintBorder();
       });
 
+      // Use before:transform to intercept scaling before it happens
+      canvas.on('before:transform', (e) => {
+        // Safety checks
+        if (!e || !e.target || !e.transform) {
+          return;
+        }
+        
+        const obj = e.target;
+        const transform = e.transform;
+        
+        // Debug logging
+        console.log('before:transform fired:', {
+          objType: obj?.type,
+          hasCustomData: !!obj?.customData,
+          customData: obj?.customData,
+          transformScaleX: transform?.scaleX
+        });
+        
+        // Check if this artwork has a minWidth constraint
+        const customData = obj?.customData || obj?.get?.('customData') || {};
+        const minWidthInches = customData?.minWidthInches;
+        
+        console.log('Checking minWidth constraint:', {
+          minWidthInches: minWidthInches,
+          objType: obj?.type,
+          hasMinWidth: !!minWidthInches
+        });
+        
+        if (minWidthInches && obj && (obj.type === 'group' || obj.type === 'path' || obj.type === 'image')) {
+          // Calculate scale for converting inches to pixels
+          const realWorldWidth = initialData?.realWorldWidth || 24;
+          const canvasWidth = fabricCanvasInstance.current?.width || 800;
+          const scale = canvasWidth / realWorldWidth;
+          
+          // Get object's base width in pixels (before transform)
+          const baseWidthPx = obj.width || 0;
+          if (!baseWidthPx) {
+            console.warn('Cannot enforce minWidth: object has no width', obj);
+            return; // Can't enforce if no width
+          }
+          
+          // Get the new scaleX from the transform (this is the new absolute scale)
+          const newScaleX = transform?.scaleX;
+          if (newScaleX === undefined || newScaleX === null) {
+            return; // Can't enforce if no scaleX in transform
+          }
+          
+          const newWidthPx = baseWidthPx * Math.abs(newScaleX);
+          
+          // Calculate minimum width in pixels
+          const minWidthPx = minWidthInches * scale;
+          
+          console.log('Enforcing minWidth constraint:', {
+            artworkId: customData.artworkId,
+            minWidthInches: minWidthInches,
+            minWidthPx: minWidthPx,
+            baseWidthPx: baseWidthPx,
+            newScaleX: newScaleX,
+            newWidthPx: newWidthPx,
+            belowMinimum: newWidthPx < minWidthPx
+          });
+          
+          // If new width would be below minimum, enforce minimum
+          if (newWidthPx < minWidthPx) {
+            const minScaleX = (minWidthPx / baseWidthPx) * (newScaleX < 0 ? -1 : 1);
+            console.log('Enforcing minimum scale:', { minScaleX, minWidthPx, baseWidthPx });
+            // Lock aspect ratio by using the same scale for both X and Y
+            if (transform) {
+              transform.scaleX = minScaleX;
+              transform.scaleY = minScaleX;
+            }
+          } else {
+            // Even if above minimum, lock aspect ratio by matching scaleY to scaleX
+            if (transform && transform.scaleX !== undefined) {
+              transform.scaleY = transform.scaleX;
+            }
+          }
+        }
+      });
+      
       canvas.on('object:scaling', (e) => {
         const obj = e.target;
         isObjectMoving.current = true;
+        
+        // Check if this artwork has a minWidth constraint
+        const customData = obj?.customData || obj?.get?.('customData') || {};
+        const minWidthInches = customData?.minWidthInches;
+        
+        console.log('object:scaling fired:', {
+          objType: obj?.type,
+          hasCustomData: !!obj?.customData,
+          minWidthInches: minWidthInches,
+          currentScaleX: obj?.scaleX,
+          currentScaleY: obj?.scaleY
+        });
+        
+        if (minWidthInches && obj && (obj.type === 'group' || obj.type === 'path' || obj.type === 'image')) {
+          // Calculate scale for converting inches to pixels
+          const realWorldWidth = initialData?.realWorldWidth || 24;
+          const canvasWidth = fabricCanvasInstance.current?.width || 800;
+          const scale = canvasWidth / realWorldWidth;
+          
+          // Get object's base width in pixels
+          const baseWidthPx = obj.width || 0;
+          if (!baseWidthPx) {
+            console.warn('Cannot enforce minWidth: object has no width', obj);
+            constrainObjectInCanvas(obj);
+            showConstraintBorder();
+            return;
+          }
+          
+          // Get current scale
+          const currentScaleX = Math.abs(obj.scaleX || 1);
+          const currentWidthPx = baseWidthPx * currentScaleX;
+          
+          // Calculate minimum width in pixels
+          const minWidthPx = minWidthInches * scale;
+          
+          console.log('Checking minWidth during scaling:', {
+            artworkId: customData.artworkId,
+            minWidthInches: minWidthInches,
+            minWidthPx: minWidthPx,
+            baseWidthPx: baseWidthPx,
+            currentScaleX: currentScaleX,
+            currentWidthPx: currentWidthPx,
+            belowMinimum: currentWidthPx < minWidthPx
+          });
+          
+          // If current width is below minimum, enforce minimum
+          if (currentWidthPx < minWidthPx) {
+            const minScaleX = minWidthPx / baseWidthPx;
+            const preserveFlipX = obj.scaleX < 0;
+            const preserveFlipY = obj.scaleY < 0;
+            
+            console.log('Enforcing minimum scale:', {
+              minScaleX: minScaleX,
+              preserveFlipX: preserveFlipX,
+              preserveFlipY: preserveFlipY
+            });
+            
+            // Lock aspect ratio by using the same scale for both X and Y
+            obj.set({
+              scaleX: preserveFlipX ? -minScaleX : minScaleX,
+              scaleY: preserveFlipY ? -minScaleX : minScaleX,
+              lockUniScaling: true
+            });
+            obj.setCoords();
+          } else {
+            // Even if above minimum, lock aspect ratio by matching scaleY to scaleX
+            const currentScale = Math.abs(obj.scaleX || 1);
+            const preserveFlipX = obj.scaleX < 0;
+            const preserveFlipY = obj.scaleY < 0;
+            
+            obj.set({
+              scaleY: preserveFlipY ? -currentScale : currentScale,
+              lockUniScaling: true
+            });
+            obj.setCoords();
+          }
+        }
+        
         constrainObjectInCanvas(obj);
         showConstraintBorder();
       });

@@ -11,6 +11,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
     imageUrl: '',
     textureUrl: '',
     defaultWidth: 5.0,
+    minWidth: '',
     isActive: true
   });
 
@@ -35,6 +36,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
         imageUrl: artwork.image_url || '',
         textureUrl: artwork.texture_url || '',
         defaultWidth: artwork.default_width?.toString() || '5.0',
+        minWidth: artwork.min_width?.toString() || '',
         isActive: artwork.is_active !== undefined ? artwork.is_active : true
       });
       setImageFiles({ image: null, texture: null });
@@ -47,6 +49,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
         imageUrl: '',
         textureUrl: '',
         defaultWidth: '5.0',
+        minWidth: '',
         isActive: true
       });
       setImageFiles({ image: null, texture: null });
@@ -172,6 +175,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
         imageUrl: updatedFormData.imageUrl || null,
         textureUrl: null, // Explicitly set to null
         defaultWidth: parseFloat(updatedFormData.defaultWidth) || 5.0,
+        minWidth: updatedFormData.minWidth ? parseFloat(updatedFormData.minWidth) : null,
         isActive: updatedFormData.isActive
       };
       
@@ -210,6 +214,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
       imageUrl: formData.imageUrl || null,
       textureUrl: formData.textureUrl || null,
       defaultWidth: parseFloat(formData.defaultWidth) || 5.0,
+      minWidth: formData.minWidth ? parseFloat(formData.minWidth) : null,
       isActive: formData.isActive
     };
 
@@ -291,7 +296,29 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
                 step="0.1"
                 min="0.1"
                 placeholder="5.0"
+                disabled={!!formData.minWidth && formData.minWidth.trim() !== ''}
               />
+              {formData.minWidth && formData.minWidth.trim() !== '' && (
+                <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                  Disabled: Minimum Width overrides Default Width
+                </small>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label>Minimum Width (inches)</label>
+              <input
+                type="number"
+                name="minWidth"
+                value={formData.minWidth}
+                onChange={handleChange}
+                step="0.1"
+                min="0.1"
+                placeholder="Leave empty for no minimum"
+              />
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                If set, locks aspect ratio and prevents resizing below this width. Overrides Default Width.
+              </small>
             </div>
 
             <div className="form-group">
@@ -433,9 +460,16 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
             </div>
           </div>
         </div>
-
+        
         {onDelete && (
-          <div className="form-footer">
+          <div className="form-footer" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end',gap: '10px',borderTop: '1px solid #eee', paddingTop: '20px' }}>
+          <button type="button" className="cancel-button" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="submit" form="artwork-form" className="save-button">
+            Save
+          </button>
+
             <button
               type="button"
               className="delete-button"
@@ -445,6 +479,7 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
             </button>
           </div>
         )}
+
       </form>
     </div>
   );

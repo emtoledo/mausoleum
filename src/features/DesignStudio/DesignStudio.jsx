@@ -9,7 +9,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FabricImage, FabricText, IText } from 'fabric';
 import * as fabric from 'fabric';
-import * as makerjs from 'makerjs';
 import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { pixelsToInches, calculateScale, inchesToPixels } from './utils/unitConverter';
 import DesignStudioToolbar from './components/DesignStudioToolbar';
@@ -17,7 +16,6 @@ import MaterialPicker from './components/MaterialPicker';
 import ArtworkLibrary from './components/ArtworkLibrary';
 import OptionsPanel from './components/OptionsPanel';
 import exportToDxf, { exportToDxfUnified } from './utils/dxfExporter';
-import { importDxfToFabric } from '../../utils/dxfImporter';
 import { captureCombinedCanvas } from '../../utils/canvasCapture';
 import { uploadPreviewImage } from '../../utils/storageService';
 import AlertMessage from '../../components/ui/AlertMessage';
@@ -305,117 +303,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const handleAddArtwork = useCallback(async (art) => {
     if (!fabricInstance || !art || !initialData) return;
 
-    console.log('Adding artwork:', art);
+        console.log('Adding artwork:', art);
+        if (art.minWidth) {
+          console.log('Artwork has minWidth constraint:', { artworkId: art.id, minWidth: art.minWidth });
+        }
     
-    // Check if this is a DXF file
-    const isDxfFile = art.imageUrl && (
-      art.imageUrl.toLowerCase().endsWith('.dxf') ||
-      art.imageUrl.endsWith('.DXF')
-    );
-
-    if (isDxfFile) {
-      // Handle DXF file import
-      try {
-        console.log('Detected DXF file, importing...');
-        
-        // Fetch the DXF file content as text
-        const response = await fetch(art.imageUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch DXF file: ${response.statusText}`);
-        }
-        const dxfString = await response.text();
-        
-        // Apply default texture for panel artwork if not specified
-        let textureUrl = art.textureUrl || null;
-        if (!textureUrl && art.category && art.category.toLowerCase() === 'panels') {
-          textureUrl = '/images/materials/panelbg.png';
-        }
-        
-        // Import DXF to Fabric.js group (with optional texture layer)
-        const group = await importDxfToFabric({
-          dxfString,
-          fabricCanvas: fabricInstance,
-          importUnit: makerjs.unitType.Inches,
-          textureUrl: textureUrl
-        });
-        
-        if (!group) {
-          console.error('Failed to import DXF file');
-          return;
-        }
-
-        console.log('DXF imported successfully:', group);
-
-        // Calculate scale factor based on template dimensions
-        const realWorldWidth = initialData.realWorldWidth || 24; // inches
-        const canvasWidth = fabricInstance.width || 800;
-        const scale = calculateScale(realWorldWidth, canvasWidth);
-        
-        // Get the artwork's default width in real-world inches
-        const artworkWidthInches = art.defaultWidth || 6; // Default to 6 inches for DXF
-        const artworkWidthPixels = artworkWidthInches * scale;
-        
-        // Get the current group dimensions
-        const groupWidth = group.width * group.scaleX;
-        const groupHeight = group.height * group.scaleY;
-        
-        // Calculate scale factors to match the target width
-        const scaleX = artworkWidthPixels / groupWidth;
-        const scaleY = scaleX; // Maintain aspect ratio
-        
-        // Calculate center position for the artwork
-        const canvasHeight = fabricInstance.height || 600;
-        const centerX = canvasWidth / 2;
-        const centerY = canvasHeight / 2;
-
-        // Update group properties
-        group.set({
-          left: centerX,
-          top: centerY,
-          scaleX: scaleX,
-          scaleY: scaleY,
-          originX: 'center',
-          originY: 'center',
-          selectable: true,
-          hasControls: true,
-          hasBorders: true,
-          lockMovementX: false,
-          lockMovementY: false,
-          lockRotation: false,
-          lockScalingX: false,
-          lockScalingY: false,
-          // Store artwork metadata for potential export
-          customData: {
-            type: 'artwork',
-            artworkId: art.id,
-            artworkName: art.name,
-            defaultWidthInches: artworkWidthInches,
-            originalSource: art.imageUrl,
-            imageUrl: art.imageUrl, // Store directly for easier access
-            isDxf: true
-          }
-        });
-        
-        // Also store directly on group for easier access during save/load
-        group.imageUrl = art.imageUrl;
-        group.artworkId = art.id;
-        group.viewId = currentView; // Tag with current view for multi-view support
-        group.zIndex = fabricInstance.getObjects().length; // Set z-index for layer ordering
-
-        // Re-render canvas
-        fabricInstance.setActiveObject(group);
-        fabricInstance.renderAll();
-
-        // Close the artwork library after selecting artwork
-        setShowArtworkLibrary(false);
-
-        console.log('DXF artwork added to canvas:', group);
-        console.log(`DXF artwork scaled to ${artworkWidthInches}" width (${artworkWidthPixels}px)`);
-      } catch (error) {
-        console.error('Error importing DXF artwork:', error);
-      }
-    } else {
-      // Handle regular image artwork (including SVG files)
+    // Handle image artwork (including SVG files)
       try {
         // Check if this is an SVG file - if so, load it as SVG objects instead of image
         const isSvgFile = art.imageUrl && art.imageUrl.toLowerCase().endsWith('.svg');
@@ -449,7 +342,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             : new fabric.Group(objectsArray, svgOptions || {});
           
           // Normalize stroke widths on all paths (remove strokes, set strokeWidth to 0)
-          // This matches how DXF files are processed and prevents thick strokes
+          // This prevents thick strokes on SVG paths
           const normalizeStrokes = (obj) => {
             if (obj.type === 'group' && obj._objects) {
               obj._objects.forEach(child => normalizeStrokes(child));
@@ -493,7 +386,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             console.log('Applied default black color to SVG artwork:', art.name);
           }
           
-          // Handle texture layer for SVG artwork (similar to DXF)
+          // Handle texture layer for SVG artwork
           // Apply default texture for panel artwork if not specified
           let textureUrl = art.textureUrl || null;
           if (!textureUrl && art.category && art.category.toLowerCase() === 'panels') {
@@ -691,8 +584,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         const canvasWidth = fabricInstance.width || 800;
         const scale = calculateScale(realWorldWidth, canvasWidth);
         
-        // Get the artwork's default width in real-world inches
-        const artworkWidthInches = art.defaultWidth || 2.5; // Default to 2.5 inches
+        // Get the artwork's width in real-world inches
+        // If minWidth exists, it overrides defaultWidth
+        const artworkWidthInches = art.minWidth || art.defaultWidth || 2.5; // Default to 2.5 inches
         const artworkWidthPixels = artworkWidthInches * scale;
         
         // Calculate the aspect ratio to maintain proportions
@@ -729,6 +623,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           artworkId: art.id,
           artworkName: art.name,
           defaultWidthInches: artworkWidthInches,
+          minWidthInches: art.minWidth || null, // Store minWidth if it exists
           originalSource: art.imageUrl // Store original source URL for color changes
         };
         
@@ -746,6 +641,19 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           customDataObj.currentStrokeWidth = 0;
         }
         
+        // If minWidth exists, lock aspect ratio
+        const lockUniScaling = !!art.minWidth;
+        
+        if (lockUniScaling) {
+          console.log('Setting lockUniScaling for artwork with minWidth:', {
+            artworkId: art.id,
+            minWidth: art.minWidth,
+            minWidthInches: customDataObj.minWidthInches,
+            lockUniScaling: lockUniScaling,
+            customData: customDataObj
+          });
+        }
+        
         img.set({
           left: centerX,
           top: centerY,
@@ -761,9 +669,19 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           lockRotation: false,
           lockScalingX: false,
           lockScalingY: false,
+          lockUniScaling: lockUniScaling, // Lock aspect ratio if minWidth exists
           // Store artwork metadata for potential export
           customData: customDataObj
         });
+        
+        // Verify customData was set correctly
+        if (lockUniScaling) {
+          console.log('Verifying customData after setting:', {
+            hasCustomData: !!img.customData,
+            minWidthInches: img.customData?.minWidthInches,
+            artworkId: img.customData?.artworkId
+          });
+        }
 
         // Add metadata for tracking
         img.elementId = `image-${Date.now()}`;
@@ -787,7 +705,6 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       } catch (error) {
         console.error('Error loading artwork:', error);
       }
-    }
   }, [fabricInstance, initialData, currentView]);
 
   /**

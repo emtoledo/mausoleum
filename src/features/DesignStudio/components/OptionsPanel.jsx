@@ -365,7 +365,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         (artworkId && typeof artworkId === 'string' && artworkId.toLowerCase().startsWith('panel'))
       );
       
-      // For groups and paths (DXF/SVG artwork), apply color/stroke directly
+      // For groups and paths (SVG artwork), apply color/stroke directly
       // Panel artwork with texture layer is a group, so it should go through this path
       if (selectedElement.type === 'group' || selectedElement.type === 'path') {
         // PRESERVE POSITION: Store exact position AND center point before any modifications

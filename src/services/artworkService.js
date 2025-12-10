@@ -103,6 +103,7 @@ class ArtworkService {
         image_url: artwork.imageUrl || null,
         texture_url: artwork.textureUrl || null,
         default_width: artwork.defaultWidth || 5.0,
+        min_width: artwork.minWidth || null,
         is_active: artwork.isActive !== undefined ? artwork.isActive : true,
         updated_at: new Date().toISOString()
       };
@@ -132,6 +133,7 @@ class ArtworkService {
         image_url: updates.imageUrl || null,
         texture_url: updates.textureUrl || null,
         default_width: updates.defaultWidth || 5.0,
+        min_width: updates.minWidth || null,
         is_active: updates.isActive !== undefined ? updates.isActive : true,
         updated_at: new Date().toISOString()
       };

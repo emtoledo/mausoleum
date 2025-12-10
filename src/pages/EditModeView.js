@@ -51,7 +51,8 @@ const EditModeView = ({ onHandlersReady }) => {
             category: item.category,
             imageUrl: item.image_url,
             textureUrl: textureUrl,
-            defaultWidth: item.default_width || 5.0
+            defaultWidth: item.default_width || 5.0,
+            minWidth: item.min_width || null
           };
         });
         setArtwork(transformedArtwork);
