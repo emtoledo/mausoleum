@@ -12,6 +12,7 @@ import * as makerjs from 'makerjs';
 import { calculateScale, inchesToPixels } from '../utils/unitConverter';
 import { importDxfToFabric } from '../../../utils/dxfImporter';
 import { artwork } from '../../../data/ArtworkData';
+import { colorData } from '../../../data/ColorData';
 
 // Set global selection color for all Fabric.js objects
 // This must be set at module level before any objects are created
@@ -32,7 +33,7 @@ fabric.Object.prototype.selectionBackgroundColor = 'rgba(0, 143, 240, 0.1)';
  * 
  * @returns {Object} Canvas instance
  */
-export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial, materials = [], onLoadingStateChange = null, currentView = 'front') => {
+export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, onElementSelect, canvasSize, onCanvasReady, activeMaterial, materials = [], onLoadingStateChange = null, currentView = 'front', artworkData = []) => {
   const fabricCanvasInstance = useRef(null);
   const scale = useRef(0);
   const loadingStateRef = useRef({ isLoading: false, loaded: 0, total: 0, message: '' });
@@ -1080,6 +1081,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           if (imageUrl && imageUrl.trim() === '') imageUrl = null;
           if (textureUrl && textureUrl.trim() === '') textureUrl = null;
           
+          // Combine artworkData (from Supabase) with static artwork for lookups
+          const allArtwork = [...(artworkData || []), ...artwork];
+          
           // Fallback: If imageUrl or textureUrl is missing but we have artworkId, look it up from artwork data
           // Also check if we can infer artworkId from category or other properties
           let artworkId = element.artworkId;
@@ -1091,12 +1095,12 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             
             // Try with category first if available
             if (element.category) {
-              foundArtwork = artwork.find(a => a.category === element.category && a.textureUrl === textureUrl);
+              foundArtwork = allArtwork.find(a => a.category === element.category && a.textureUrl === textureUrl);
             }
             
             // If not found with category, try textureUrl only
             if (!foundArtwork) {
-              foundArtwork = artwork.find(a => a.textureUrl === textureUrl);
+              foundArtwork = allArtwork.find(a => a.textureUrl === textureUrl);
             }
             
             if (foundArtwork) {
@@ -1111,7 +1115,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           }
           
           if (artworkId) {
-            const artworkItem = artwork.find(a => a.id === artworkId);
+            const artworkItem = allArtwork.find(a => a.id === artworkId);
             if (artworkItem) {
               if ((!imageUrl || imageUrl.trim() === '') && artworkItem.imageUrl) {
                 imageUrl = artworkItem.imageUrl;
@@ -1150,12 +1154,12 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             
             // Try with category first if available
             if (element.category) {
-              foundArtwork = artwork.find(a => a.category === element.category && a.textureUrl === textureUrl && a.imageUrl);
+              foundArtwork = allArtwork.find(a => a.category === element.category && a.textureUrl === textureUrl && a.imageUrl);
             }
             
             // If not found with category, try textureUrl only
             if (!foundArtwork) {
-              foundArtwork = artwork.find(a => a.textureUrl === textureUrl && a.imageUrl);
+              foundArtwork = allArtwork.find(a => a.textureUrl === textureUrl && a.imageUrl);
             }
             
             if (foundArtwork && foundArtwork.imageUrl) {
@@ -1631,10 +1635,282 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             }
             continue;
           } else if (imageUrl && imageUrl.trim()) {
+            // Check if this is panel artwork that should be loaded as SVG paths with texture
+            const isSvg = imageUrl.toLowerCase().endsWith('.svg');
+            const isPanelArtwork = textureUrl || 
+                                   (element.category && element.category.toLowerCase() === 'panels') ||
+                                   (element.artworkId && element.artworkId.toLowerCase().startsWith('panel'));
+            
+            // If it's SVG with texture (panel artwork), route to path restoration logic
+            if (isSvg && isPanelArtwork) {
+              console.log('Detected panel artwork SVG, routing to path restoration:', {
+                elementId: element.id,
+                imageUrl: imageUrl,
+                textureUrl: textureUrl,
+                artworkId: element.artworkId
+              });
+              
+              // Convert element type to 'path' to use path restoration logic
+              const pathElement = {
+                ...element,
+                type: 'path'
+              };
+              
+              // Use the path restoration logic (which handles SVG + texture)
+              // We'll fall through to the path handling section below
+              // For now, let's handle it inline here
+              try {
+                // Get artworkId from element
+                let artworkId = element.artworkId || null;
+                
+                if (!artworkId && element.imageUrl) {
+                  const imageUrlMatch = element.imageUrl.match(/artwork\/([^\/]+)\/image-/);
+                  if (imageUrlMatch && imageUrlMatch[1]) {
+                    artworkId = imageUrlMatch[1].trim();
+                  }
+                }
+                
+                if (!artworkId) {
+                  console.warn('Panel artwork missing artworkId:', {
+                    elementId: element.id,
+                    imageUrl: element.imageUrl
+                  });
+                  continue;
+                }
+                
+                // Look up artwork data
+                let artworkItem = allArtwork.find(a => {
+                  const aId = (a.id || '').toString().trim();
+                  const eId = artworkId.toString().trim();
+                  return aId === eId || aId.toLowerCase() === eId.toLowerCase();
+                });
+                
+                if (!artworkItem && element.artworkName) {
+                  artworkItem = allArtwork.find(a => 
+                    (a.name || '').toString().trim() === element.artworkName.toString().trim()
+                  );
+                }
+                
+                if (!artworkItem) {
+                  console.warn('Panel artwork not found:', {
+                    artworkId: artworkId,
+                    artworkName: element.artworkName
+                  });
+                  continue;
+                }
+                
+                // Fetch SVG content
+                const response = await fetch(imageUrl);
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch SVG: ${response.statusText}`);
+                }
+                const svgString = await response.text();
+                
+                // Load SVG into Fabric.js as objects
+                // Try Promise-based API first, then fallback to callback
+                let loadResult;
+                try {
+                  // Try as Promise
+                  loadResult = await fabric.loadSVGFromString(svgString);
+                } catch (promiseErr) {
+                  // If that fails, try callback-based API
+                  loadResult = await new Promise((resolve, reject) => {
+                    fabric.loadSVGFromString(svgString, (objects, options) => {
+                      if (objects && objects.length > 0) {
+                        resolve({ objects, options });
+                      } else {
+                        reject(new Error('No objects loaded from SVG (callback)'));
+                      }
+                    }, (err) => {
+                      reject(err || new Error('Failed to load SVG'));
+                    });
+                  });
+                }
+                
+                const svgObjects = loadResult.objects || loadResult;
+                const svgOptions = loadResult.options || {};
+                
+                const objectsArray = Array.isArray(svgObjects) ? svgObjects : [svgObjects].filter(Boolean);
+                
+                console.log('SVG loaded for panel artwork:', {
+                  elementId: element.id,
+                  objectsCount: objectsArray.length,
+                  loadResultType: typeof loadResult,
+                  hasObjects: !!loadResult.objects,
+                  isArray: Array.isArray(svgObjects)
+                });
+                
+                if (objectsArray.length === 0) {
+                  throw new Error('No objects loaded from SVG');
+                }
+                
+                // Create a group from SVG objects
+                let svgGroup = objectsArray.length === 1 
+                  ? objectsArray[0] 
+                  : new fabric.Group(objectsArray, svgOptions || {});
+                
+                // Normalize stroke widths
+                const normalizeStrokes = (obj) => {
+                  if (obj.type === 'path' || obj.type === 'path-group') {
+                    obj.stroke = null;
+                    obj.strokeWidth = 0;
+                  }
+                  if (obj._objects && Array.isArray(obj._objects)) {
+                    obj._objects.forEach(child => normalizeStrokes(child));
+                  }
+                };
+                normalizeStrokes(svgGroup);
+                
+                // Apply saved fill color
+                if (element.fill) {
+                  const applyFill = (obj, fillColor) => {
+                    if (obj.type === 'path' || obj.type === 'path-group') {
+                      obj.fill = fillColor;
+                    }
+                    if (obj._objects && Array.isArray(obj._objects)) {
+                      obj._objects.forEach(child => applyFill(child, fillColor));
+                    }
+                  };
+                  applyFill(svgGroup, element.fill);
+                }
+                
+                // Handle texture layer
+                let resolvedTextureUrl = textureUrl || artworkItem.textureUrl || null;
+                if (!resolvedTextureUrl && artworkItem.category && artworkItem.category.toLowerCase() === 'panels') {
+                  resolvedTextureUrl = '/images/materials/panelbg.png';
+                }
+                
+                const finalOriginX = baseProps.originX || 'center';
+                const finalOriginY = baseProps.originY || 'center';
+                
+                svgGroup.set({
+                  originX: finalOriginX,
+                  originY: finalOriginY
+                });
+                
+                let finalGroup = svgGroup;
+                
+                // Create texture layer if we have a texture URL
+                if (resolvedTextureUrl) {
+                  try {
+                    const textureImgResult = fabric.Image.fromURL(resolvedTextureUrl, { crossOrigin: 'anonymous' });
+                    let textureImg;
+                    
+                    if (textureImgResult && typeof textureImgResult.then === 'function') {
+                      textureImg = await textureImgResult;
+                    } else {
+                      textureImg = await new Promise((resolve, reject) => {
+                        fabric.Image.fromURL(resolvedTextureUrl, (loadedImg) => {
+                          if (loadedImg) {
+                            resolve(loadedImg);
+                          } else {
+                            reject(new Error('Failed to load texture image'));
+                          }
+                        }, { crossOrigin: 'anonymous' });
+                      });
+                    }
+                    
+                    if (textureImg) {
+                      const svgBounds = svgGroup.getBoundingRect();
+                      const svgWidth = svgBounds.width;
+                      const svgHeight = svgBounds.height;
+                      
+                      // Scale texture to fit SVG bounds
+                      const scaleX = svgWidth / textureImg.width;
+                      const scaleY = svgHeight / textureImg.height;
+                      const textureScale = Math.min(scaleX, scaleY);
+                      
+                      textureImg.set({
+                        left: svgBounds.left,
+                        top: svgBounds.top,
+                        scaleX: textureScale,
+                        scaleY: textureScale,
+                        originX: 'left',
+                        originY: 'top',
+                        selectable: false,
+                        evented: false
+                      });
+                      
+                      // Create group with texture first, then SVG on top
+                      finalGroup = new fabric.Group([textureImg, svgGroup], {
+                        originX: finalOriginX,
+                        originY: finalOriginY
+                      });
+                    }
+                  } catch (textureErr) {
+                    console.error('Error creating texture layer for panel artwork:', textureErr);
+                    // Continue with SVG group only
+                  }
+                }
+                
+                // Apply all saved properties
+                finalGroup.set({
+                  left: baseProps.left,
+                  top: baseProps.top,
+                  scaleX: baseProps.scaleX,
+                  scaleY: baseProps.scaleY,
+                  angle: baseProps.angle,
+                  opacity: baseProps.opacity,
+                  originX: finalOriginX,
+                  originY: finalOriginY,
+                  flipX: baseProps.scaleX < 0,
+                  flipY: baseProps.scaleY < 0
+                });
+                
+                // If scaleX/scaleY are negative, use absolute values and set flipX/flipY
+                if (baseProps.scaleX < 0) {
+                  finalGroup.set({
+                    scaleX: Math.abs(baseProps.scaleX),
+                    flipX: true
+                  });
+                }
+                if (baseProps.scaleY < 0) {
+                  finalGroup.set({
+                    scaleY: Math.abs(baseProps.scaleY),
+                    flipY: true
+                  });
+                }
+                
+                finalGroup.setCoords();
+                
+                // Set metadata
+                finalGroup.elementId = element.id;
+                finalGroup.artworkId = artworkId;
+                finalGroup.imageUrl = imageUrl;
+                finalGroup.viewId = viewId || 'front'; // Ensure viewId is set
+                finalGroup.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
+                
+                finalGroup.set('customData', {
+                  currentColor: element.fill,
+                  currentColorId: element.colorId,
+                  currentOpacity: element.opacity,
+                  currentStrokeColor: element.stroke,
+                  currentStrokeWidth: 0,
+                  originalSource: imageUrl,
+                  defaultWidthInches: element.defaultWidthInches
+                });
+                
+                canvas.add(finalGroup);
+                canvas.renderAll();
+                
+                console.log('Panel artwork restored successfully:', {
+                  elementId: element.id,
+                  artworkId: artworkId,
+                  hasTexture: !!resolvedTextureUrl,
+                  type: finalGroup.type
+                });
+                
+                continue;
+              } catch (pathErr) {
+                console.error('Error restoring panel artwork as path:', pathErr);
+                // Fall through to regular image loading as fallback
+              }
+            }
+            
             // Try loading as regular image (including SVG files)
             console.log('Loading artwork image (SVG or regular image):', {
               imageUrl: imageUrl,
-              isSvg: imageUrl.toLowerCase().endsWith('.svg'),
+              isSvg: isSvg,
               elementId: element.id
             });
             
@@ -1802,17 +2078,17 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 }
                 
                 // Apply color modifications if saved (for SVG images)
-                if (element.fill && imageSrc.toLowerCase().endsWith('.svg')) {
+                if (element.fill && imageUrl && imageUrl.toLowerCase().endsWith('.svg')) {
                   console.log('Applying saved color to SVG image:', {
                     elementId: element.id,
                     savedColor: element.fill,
-                    imageSrc: imageSrc
+                    imageUrl: imageUrl
                   });
                   
                   // Use the same color change logic as OptionsPanel
                   try {
                     // Fetch the SVG content
-                    const response = await fetch(imageSrc);
+                    const response = await fetch(imageUrl);
                     if (response.ok) {
                       const svgText = await response.text();
                       
@@ -1904,7 +2180,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                         
                         // Store color in customData
                         coloredImg.set('customData', {
-                          originalSource: imageSrc,
+                          originalSource: imageUrl,
                           currentColor: element.fill,
                           currentColorId: element.colorId,
                           currentOpacity: element.opacity
@@ -1979,8 +2255,396 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             }
           }
         } else if (element.type === 'path' || element.type === 'path-group') {
-          // Path objects - treat similar to groups
-          console.warn('Path objects restoration not fully implemented:', element);
+          // Path objects - restore SVG artwork
+          try {
+            // Get artworkId from element (preserve as-is, we'll trim only for lookups if needed)
+            let artworkId = element.artworkId || null;
+            
+            // If artworkId is missing, try to infer it from:
+            // 1. imageUrl if present
+            // 2. Clone ID pattern (extract original element ID and look it up)
+            if (!artworkId) {
+              // Check if this is a clone - clone IDs have pattern: "originalId-clone-timestamp"
+              if (element.id && element.id.includes('-clone-')) {
+                const originalElementId = element.id.split('-clone-')[0];
+                // Find the original element in the same elements array
+                const originalElement = sortedElements.find(el => el.id === originalElementId);
+                if (originalElement && originalElement.artworkId) {
+                  // Preserve the original artworkId as-is (don't trim, as it might have leading/trailing spaces)
+                  artworkId = originalElement.artworkId;
+                  console.log('Inferred artworkId from clone:', {
+                    cloneId: element.id,
+                    originalElementId: originalElementId,
+                    inferredArtworkId: artworkId,
+                    originalArtworkId: originalElement.artworkId
+                  });
+                }
+              }
+              
+              // If still no artworkId, try to extract from imageUrl if present
+              if (!artworkId && element.imageUrl) {
+                // Try to extract artwork ID from imageUrl pattern
+                // Pattern: .../artwork/{artworkId}/image-{artworkId}.svg
+                const imageUrlMatch = element.imageUrl.match(/artwork\/([^\/]+)\/image-/);
+                if (imageUrlMatch && imageUrlMatch[1]) {
+                  artworkId = imageUrlMatch[1].trim();
+                  console.log('Inferred artworkId from imageUrl:', {
+                    imageUrl: element.imageUrl,
+                    inferredArtworkId: artworkId
+                  });
+                }
+              }
+            }
+            
+            if (!artworkId) {
+              console.warn('Path element missing artworkId and could not infer it:', {
+                elementId: element.id,
+                hasImageUrl: !!element.imageUrl,
+                imageUrl: element.imageUrl
+              });
+              continue;
+            }
+            
+            // Look up artwork from passed artworkData (from Supabase) or fallback to static ArtworkData
+            // Combine both sources: artworkData first (from Supabase), then static artwork
+            const allArtwork = [...(artworkData || []), ...artwork];
+            
+            // Try exact match first (with original artworkId, preserving spaces)
+            let artworkItem = allArtwork.find(a => a.id === artworkId);
+            
+            // If exact match failed, try trimmed version (handles cases where artworkId has leading/trailing spaces)
+            if (!artworkItem && artworkId) {
+              const trimmedArtworkId = artworkId.trim();
+              if (trimmedArtworkId !== artworkId) {
+                artworkItem = allArtwork.find(a => a.id === trimmedArtworkId);
+                if (artworkItem) {
+                  console.log('Found artwork with trimmed ID match:', {
+                    originalId: artworkId,
+                    trimmedId: trimmedArtworkId,
+                    foundId: artworkItem.id
+                  });
+                  artworkId = artworkItem.id; // Update to use the found ID
+                }
+              }
+            }
+            
+            // Try case-insensitive match if exact match failed (trim both sides for comparison)
+            if (!artworkItem && artworkId) {
+              const trimmedId = artworkId.trim();
+              artworkItem = allArtwork.find(a => 
+                a.id && a.id.trim().toLowerCase() === trimmedId.toLowerCase()
+              );
+              if (artworkItem) {
+                console.log('Found artwork with case-insensitive match:', {
+                  searchedId: artworkId,
+                  foundId: artworkItem.id
+                });
+                artworkId = artworkItem.id; // Update to use the correct case
+              }
+            }
+            
+            // Try matching by name if ID match failed
+            if (!artworkItem && element.artworkName) {
+              artworkItem = allArtwork.find(a => 
+                a.name && a.name.toLowerCase() === element.artworkName.toLowerCase()
+              );
+              if (artworkItem) {
+                console.log('Found artwork by name match:', {
+                  searchedName: element.artworkName,
+                  foundId: artworkItem.id,
+                  foundName: artworkItem.name
+                });
+                artworkId = artworkItem.id;
+              }
+            }
+            
+            if (!artworkItem || !artworkItem.imageUrl) {
+              console.warn('Artwork not found or missing imageUrl:', {
+                artworkId: artworkId,
+                artworkName: element.artworkName,
+                found: !!artworkItem,
+                hasImageUrl: artworkItem?.imageUrl,
+                artworkDataCount: artworkData?.length || 0,
+                staticArtworkCount: artwork.length,
+                allArtworkIds: allArtwork.map(a => a.id).slice(0, 20), // Log first 20 IDs for debugging
+                allArtworkNames: allArtwork.map(a => a.name).slice(0, 20) // Log first 20 names for debugging
+              });
+              continue;
+            }
+            
+            const imageUrl = artworkItem.imageUrl;
+            const isSvgFile = imageUrl.toLowerCase().endsWith('.svg');
+            
+            if (!isSvgFile) {
+              console.warn('Path element artwork is not SVG, skipping:', {
+                artworkId: artworkId,
+                imageUrl: imageUrl
+              });
+              continue;
+            }
+            
+            console.log('Restoring path artwork:', {
+              artworkId: artworkId,
+              imageUrl: imageUrl,
+              elementId: element.id
+            });
+            
+            // Fetch and load SVG
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch SVG: ${response.statusText}`);
+            }
+            const svgString = await response.text();
+            
+            // Load SVG into Fabric.js as objects
+            const loadResult = await fabric.loadSVGFromString(svgString);
+            const svgObjects = loadResult.objects || loadResult;
+            const svgOptions = loadResult.options || {};
+            
+            const objectsArray = Array.isArray(svgObjects) ? svgObjects : [svgObjects].filter(Boolean);
+            
+            if (objectsArray.length === 0) {
+              throw new Error('No objects loaded from SVG');
+            }
+            
+            // Create a group from SVG objects
+            let svgGroup = objectsArray.length === 1 
+              ? objectsArray[0] 
+              : new fabric.Group(objectsArray, svgOptions || {});
+            
+            // Normalize stroke widths on all paths (remove strokes, set strokeWidth to 0)
+            const normalizeStrokes = (obj) => {
+              if (obj.type === 'path' || obj.type === 'path-group') {
+                obj.stroke = null;
+                obj.strokeWidth = 0;
+              }
+              if (obj._objects && Array.isArray(obj._objects)) {
+                obj._objects.forEach(child => normalizeStrokes(child));
+              }
+            };
+            normalizeStrokes(svgGroup);
+            
+            // Apply saved fill color to paths
+            if (element.fill) {
+              const applyFill = (obj, fillColor) => {
+                if (obj.type === 'path' || obj.type === 'path-group') {
+                  obj.fill = fillColor;
+                }
+                if (obj._objects && Array.isArray(obj._objects)) {
+                  obj._objects.forEach(child => applyFill(child, fillColor));
+                }
+              };
+              applyFill(svgGroup, element.fill);
+            }
+            
+            // Handle texture layer for panel artwork
+            const isPanelArtwork = artworkItem.category && artworkItem.category.toLowerCase() === 'panels';
+            let resolvedTextureUrl = artworkItem.textureUrl || null;
+            if (!resolvedTextureUrl && isPanelArtwork) {
+              resolvedTextureUrl = '/images/materials/panelbg.png';
+            }
+            
+            // Get the saved origin before creating texture group
+            const finalOriginX = baseProps.originX || savedOriginX;
+            const finalOriginY = baseProps.originY || savedOriginY;
+            
+            // Set SVG group origin to match saved origin from the start
+            // This ensures position calculations are correct
+            svgGroup.set({
+              left: 0,
+              top: 0,
+              originX: finalOriginX,
+              originY: finalOriginY
+            });
+            svgGroup.setCoords();
+            
+            let finalGroup = svgGroup;
+            if (resolvedTextureUrl && resolvedTextureUrl.trim() && isPanelArtwork) {
+              try {
+                // Get SVG group bounds - use saved origin for consistency
+                svgGroup.set({
+                  left: 0,
+                  top: 0,
+                  originX: finalOriginX,
+                  originY: finalOriginY
+                });
+                svgGroup.setCoords();
+                
+                const svgBounds = svgGroup.getBoundingRect();
+                
+                // Load texture image
+                const textureImageResult = fabric.Image.fromURL(resolvedTextureUrl, { crossOrigin: 'anonymous' });
+                let textureImage;
+                
+                if (textureImageResult && typeof textureImageResult.then === 'function') {
+                  textureImage = await textureImageResult;
+                } else {
+                  textureImage = await new Promise((resolve, reject) => {
+                    fabric.Image.fromURL(resolvedTextureUrl, (loadedImg) => {
+                      if (loadedImg) {
+                        resolve(loadedImg);
+                      } else {
+                        reject(new Error('Failed to load texture image'));
+                      }
+                    }, { crossOrigin: 'anonymous' });
+                  });
+                }
+                
+                if (textureImage) {
+                  // Calculate scale to fit texture within SVG bounds
+                  const scaleX = svgBounds.width / textureImage.width;
+                  const scaleY = svgBounds.height / textureImage.height;
+                  const scale = Math.min(scaleX, scaleY);
+                  
+                  // Position texture to match SVG bounds
+                  // Since both SVG and texture are children of the group at (0,0),
+                  // and the group will be positioned later, we position texture relative to SVG
+                  textureImage.set({
+                    left: svgBounds.left,
+                    top: svgBounds.top,
+                    scaleX: scale,
+                    scaleY: scale,
+                    originX: 'left',
+                    originY: 'top',
+                    selectable: false,
+                    evented: false,
+                    visible: true,
+                    opacity: 1
+                  });
+                  textureImage.setCoords();
+                  
+                  // Create group with texture (bottom) and color layer (top)
+                  // Use saved origin from the start to maintain position
+                  finalGroup = new fabric.Group([textureImage, svgGroup], {
+                    left: 0,
+                    top: 0,
+                    originX: finalOriginX,
+                    originY: finalOriginY,
+                    selectable: true,
+                    objectCaching: false
+                  });
+                  finalGroup.setCoords();
+                  finalGroup.textureUrl = resolvedTextureUrl;
+                  finalGroup.dirty = true;
+                }
+              } catch (textureError) {
+                console.error('Error creating texture layer for restored artwork:', textureError);
+                // Continue without texture layer
+              }
+            }
+            
+            // Check if flip state was saved (negative scaleX/scaleY indicates flip)
+            const shouldFlipX = baseProps.scaleX < 0;
+            const shouldFlipY = baseProps.scaleY < 0;
+            const absScaleX = Math.abs(baseProps.scaleX);
+            const absScaleY = Math.abs(baseProps.scaleY);
+            
+            // Apply saved properties - position should now be correct since origin matches
+            // Use negative scaleX/scaleY for flip, and also set flipX/flipY properties
+            finalGroup.set({
+              left: baseProps.left,
+              top: baseProps.top,
+              scaleX: shouldFlipX ? -absScaleX : absScaleX,
+              scaleY: shouldFlipY ? -absScaleY : absScaleY,
+              angle: baseProps.angle,
+              opacity: baseProps.opacity !== undefined ? baseProps.opacity : 1,
+              originX: finalOriginX,
+              originY: finalOriginY,
+              flipX: shouldFlipX, // Explicitly set flipX property
+              flipY: shouldFlipY, // Explicitly set flipY property
+              selectable: true,
+              hasControls: true,
+              hasBorders: true,
+              lockMovementX: false,
+              lockMovementY: false,
+              lockRotation: false,
+              lockScalingX: false,
+              lockScalingY: false
+            });
+            
+            // Ensure coordinates are updated after setting properties
+            finalGroup.setCoords();
+            
+            // Verify flip state was applied correctly
+            const verifyScaleX = finalGroup.scaleX || finalGroup.get('scaleX');
+            const verifyScaleY = finalGroup.scaleY || finalGroup.get('scaleY');
+            const verifyFlipX = finalGroup.flipX || finalGroup.get('flipX');
+            const verifyFlipY = finalGroup.flipY || finalGroup.get('flipY');
+            
+            // If flip state wasn't applied correctly, try to fix it
+            if (shouldFlipX && verifyScaleX > 0 && !verifyFlipX) {
+              console.warn('Flip state not applied correctly, attempting to fix:', {
+                elementId: element.id,
+                shouldFlipX: shouldFlipX,
+                verifyScaleX: verifyScaleX,
+                verifyFlipX: verifyFlipX
+              });
+              finalGroup.set({
+                flipX: true,
+                scaleX: -absScaleX
+              });
+              finalGroup.setCoords();
+            }
+            
+            if (shouldFlipY && verifyScaleY > 0 && !verifyFlipY) {
+              console.warn('Flip state not applied correctly, attempting to fix:', {
+                elementId: element.id,
+                shouldFlipY: shouldFlipY,
+                verifyScaleY: verifyScaleY,
+                verifyFlipY: verifyFlipY
+              });
+              finalGroup.set({
+                flipY: true,
+                scaleY: -absScaleY
+              });
+              finalGroup.setCoords();
+            }
+            
+            // Store metadata
+            finalGroup.elementId = element.id;
+            finalGroup.artworkId = artworkId;
+            finalGroup.imageUrl = imageUrl;
+            finalGroup.viewId = viewId;
+            finalGroup.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
+            
+            // Store customData
+            const customDataObj = {
+              type: 'artwork',
+              artworkId: artworkId,
+              artworkName: artworkItem.name,
+              originalSource: imageUrl,
+              currentColor: element.fill || null,
+              currentColorId: element.colorId || null,
+              currentOpacity: element.opacity !== undefined ? element.opacity : 1,
+              currentStrokeColor: element.stroke || null,
+              currentStrokeWidth: element.strokeWidth || 0
+            };
+            
+            if (artworkItem.category) {
+              customDataObj.category = artworkItem.category;
+            }
+            if (resolvedTextureUrl) {
+              customDataObj.textureUrl = resolvedTextureUrl;
+            }
+            
+            finalGroup.set('customData', customDataObj);
+            
+            // Set fabricObject so it gets added to canvas
+            fabricObject = finalGroup;
+            
+            console.log('Path artwork restored successfully:', {
+              elementId: element.id,
+              artworkId: artworkId,
+              type: finalGroup.type,
+              hasTexture: !!resolvedTextureUrl
+            });
+            
+          } catch (pathError) {
+            console.error('Error restoring path artwork:', pathError);
+            console.error('Path element:', element);
+            // Continue to next element
+            continue;
+          }
         }
 
         if (fabricObject) {

@@ -99,6 +99,23 @@ export async function captureFabricCanvas(fabricInstance, options = {}) {
       });
       resolve(dataURL);
     } catch (error) {
+      // Check if this is a tainted canvas error (CORS issue)
+      if (error.name === 'SecurityError' || error.message.includes('Tainted') || error.message.includes('tainted')) {
+        console.warn('Canvas is tainted (CORS issue). This usually happens when images are loaded from different origins without proper CORS headers.');
+        console.warn('Attempting fallback: using canvas element directly...');
+        
+        // Try fallback: get the canvas element and use its toDataURL
+        try {
+          const canvasElement = fabricInstance.getElement();
+          if (canvasElement && canvasElement.toDataURL) {
+            const fallbackDataURL = canvasElement.toDataURL(format, quality);
+            resolve(fallbackDataURL);
+            return;
+          }
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+        }
+      }
       reject(error);
     }
   });

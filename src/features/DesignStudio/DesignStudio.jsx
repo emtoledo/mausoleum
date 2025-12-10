@@ -235,7 +235,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     activeMaterial, // Pass active material for product canvas fill
     materials, // Pass materials array for productBase rendering
     handleLoadingStateChange, // Pass loading state callback
-    currentView // Pass current view for visibility management
+    currentView, // Pass current view for visibility management
+    artwork // Pass artwork array from Supabase
   );
 
   // Use the fabric instance from state (set via callback) or hook return value as fallback
@@ -523,17 +524,43 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               console.log('SVG group bounds:', svgBounds);
               
               // Load texture image as a regular Fabric.js Image (not a pattern fill)
-              const textureImage = await FabricImage.fromURL(textureUrl);
+              // IMPORTANT: Use crossOrigin: 'anonymous' to prevent CORS/tainted canvas issues
+              let textureImage;
+              const textureImageResult = FabricImage.fromURL(textureUrl, { crossOrigin: 'anonymous' });
+              
+              if (textureImageResult && typeof textureImageResult.then === 'function') {
+                // Promise-based API (Fabric.js v6)
+                textureImage = await textureImageResult;
+              } else {
+                // Callback-based API (fallback)
+                textureImage = await new Promise((resolve, reject) => {
+                  FabricImage.fromURL(textureUrl, (loadedImg) => {
+                    if (loadedImg) {
+                      resolve(loadedImg);
+                    } else {
+                      reject(new Error('Failed to load texture image'));
+                    }
+                  }, { crossOrigin: 'anonymous' });
+                });
+              }
               
               if (!textureImage) {
                 throw new Error('Failed to load texture image');
               }
               
+              // Ensure the underlying image element has crossOrigin set
+              const imageElement = textureImage.getElement();
+              if (imageElement && !imageElement.crossOrigin) {
+                imageElement.crossOrigin = 'anonymous';
+                console.log('Set crossOrigin on texture image element');
+              }
+              
               console.log('Texture image loaded:', {
                 width: textureImage.width,
                 height: textureImage.height,
-                naturalWidth: textureImage.getElement()?.naturalWidth,
-                naturalHeight: textureImage.getElement()?.naturalHeight
+                naturalWidth: imageElement?.naturalWidth,
+                naturalHeight: imageElement?.naturalHeight,
+                crossOrigin: imageElement?.crossOrigin
               });
               
               // Calculate scale to fit texture image WITHIN SVG bounds (not extending beyond)
@@ -1257,7 +1284,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       
       // Get scaleX/scaleY (handling flip state)
       let actualScaleX, actualScaleY;
-      if (obj.type === 'group') {
+      if (obj.type === 'group' || obj.type === 'path' || obj.type === 'path-group') {
         const directScaleX = obj.scaleX;
         const directScaleY = obj.scaleY;
         const getScaleX = obj.get ? obj.get('scaleX') : undefined;
@@ -1269,8 +1296,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         const flipX = obj.flipX || (obj.get ? obj.get('flipX') : false) || false;
         const flipY = obj.flipY || (obj.get ? obj.get('flipY') : false) || false;
         
-        if (flipX) actualScaleX = -Math.abs(actualScaleX);
-        if (flipY) actualScaleY = -Math.abs(actualScaleY);
+        // Convert flipX/flipY to negative scaleX/scaleY for saving
+        // Also preserve negative scaleX/scaleY if already set
+        if (flipX || actualScaleX < 0) actualScaleX = -Math.abs(actualScaleX);
+        if (flipY || actualScaleY < 0) actualScaleY = -Math.abs(actualScaleY);
       } else if (obj.type === 'image' || obj.type === 'imagebox') {
         const directScaleX = obj.scaleX;
         const directScaleY = obj.scaleY;
@@ -1597,7 +1626,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           console.log('Preview image uploaded successfully:', previewImageUrl);
         } catch (previewError) {
           // Don't fail the save if preview capture fails, just log it
-          console.warn('Failed to capture/upload preview image:', previewError);
+          // This can happen if the canvas is tainted (CORS issue with external images)
+          if (previewError.name === 'SecurityError' || previewError.message?.includes('Tainted') || previewError.message?.includes('tainted')) {
+            console.warn('Canvas is tainted (CORS issue). Preview image capture skipped. The project will still be saved.');
+            console.warn('To fix this, ensure all images are loaded with proper CORS headers or use crossOrigin: "anonymous"');
+          } else {
+            console.warn('Failed to capture/upload preview image:', previewError);
+          }
         }
       }
 
