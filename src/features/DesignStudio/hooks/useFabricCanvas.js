@@ -2373,18 +2373,49 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               }
             }
             
-            if (!artworkItem || !artworkItem.imageUrl) {
-              console.warn('Artwork not found or missing imageUrl:', {
+            // If artwork not found but we have imageUrl from saved data, use it
+            if (!artworkItem && element.imageUrl) {
+              console.log('Artwork lookup failed, but using imageUrl from saved data:', {
                 artworkId: artworkId,
-                artworkName: element.artworkName,
-                found: !!artworkItem,
-                hasImageUrl: artworkItem?.imageUrl,
-                artworkDataCount: artworkData?.length || 0,
-                staticArtworkCount: artwork.length,
-                allArtworkIds: allArtwork.map(a => a.id).slice(0, 20), // Log first 20 IDs for debugging
-                allArtworkNames: allArtwork.map(a => a.name).slice(0, 20) // Log first 20 names for debugging
+                imageUrl: element.imageUrl
               });
-              continue;
+              // Create a minimal artworkItem object from saved data
+              artworkItem = {
+                id: artworkId.trim() || element.artworkName || 'unknown',
+                name: element.artworkName || artworkId.trim() || 'Unknown',
+                imageUrl: element.imageUrl,
+                category: element.category || '',
+                textureUrl: element.textureUrl || null
+              };
+            }
+            
+            if (!artworkItem || !artworkItem.imageUrl) {
+              // Try to use imageUrl from element if available
+              if (element.imageUrl) {
+                console.log('Using imageUrl directly from element:', {
+                  artworkId: artworkId,
+                  imageUrl: element.imageUrl
+                });
+                artworkItem = {
+                  id: artworkId.trim() || element.artworkName || 'unknown',
+                  name: element.artworkName || artworkId.trim() || 'Unknown',
+                  imageUrl: element.imageUrl,
+                  category: element.category || '',
+                  textureUrl: element.textureUrl || null
+                };
+              } else {
+                console.warn('Artwork not found and no imageUrl in saved data:', {
+                  artworkId: artworkId,
+                  artworkName: element.artworkName,
+                  found: !!artworkItem,
+                  hasImageUrl: artworkItem?.imageUrl,
+                  artworkDataCount: artworkData?.length || 0,
+                  staticArtworkCount: artwork.length,
+                  allArtworkIds: allArtwork.map(a => a.id).slice(0, 20), // Log first 20 IDs for debugging
+                  allArtworkNames: allArtwork.map(a => a.name).slice(0, 20) // Log first 20 names for debugging
+                });
+                continue;
+              }
             }
             
             const imageUrl = artworkItem.imageUrl;
@@ -2482,15 +2513,27 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               resolvedTextureUrl = '/images/materials/panelbg.png';
             }
             
-            // Get the saved origin before creating texture group
+            // Get the saved origin - use saved value or default to 'center' for paths
             const finalOriginX = baseProps.originX || savedOriginX;
             const finalOriginY = baseProps.originY || savedOriginY;
             
-            // Set SVG group origin to match saved origin from the start
-            // This ensures position calculations are correct
+            // Check if this is a cloned object
+            const isClone = element.id && element.id.includes('-clone-');
+            
+            // Log origin info for debugging cloned objects
+            if (isClone) {
+              console.log('Restoring cloned path artwork:', {
+                elementId: element.id,
+                savedOriginX: element.originX,
+                savedOriginY: element.originY,
+                finalOriginX: finalOriginX,
+                finalOriginY: finalOriginY,
+                savedPosition: { left: baseProps.left, top: baseProps.top }
+              });
+            }
+            
+            // Set origin on SVG group to match saved origin
             svgGroup.set({
-              left: 0,
-              top: 0,
               originX: finalOriginX,
               originY: finalOriginY
             });
@@ -2499,15 +2542,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             let finalGroup = svgGroup;
             if (resolvedTextureUrl && resolvedTextureUrl.trim() && isPanelArtwork) {
               try {
-                // Get SVG group bounds - use saved origin for consistency
-                svgGroup.set({
-                  left: 0,
-                  top: 0,
-                  originX: finalOriginX,
-                  originY: finalOriginY
-                });
                 svgGroup.setCoords();
-                
                 const svgBounds = svgGroup.getBoundingRect();
                 
                 // Load texture image
@@ -2535,8 +2570,6 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   const scale = Math.min(scaleX, scaleY);
                   
                   // Position texture to match SVG bounds
-                  // Since both SVG and texture are children of the group at (0,0),
-                  // and the group will be positioned later, we position texture relative to SVG
                   textureImage.set({
                     left: svgBounds.left,
                     top: svgBounds.top,
@@ -2552,7 +2585,6 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                   textureImage.setCoords();
                   
                   // Create group with texture (bottom) and color layer (top)
-                  // Use saved origin from the start to maintain position
                   finalGroup = new fabric.Group([textureImage, svgGroup], {
                     left: 0,
                     top: 0,
@@ -2577,13 +2609,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             const absScaleX = Math.abs(baseProps.scaleX);
             const absScaleY = Math.abs(baseProps.scaleY);
             
-            // Ensure object dimensions are calculated before applying position
-            // This is critical for accurate positioning, especially with origin='center'
-            finalGroup.setCoords();
-            
-            // Apply saved properties - position should now be correct since origin matches
-            // Use negative scaleX/scaleY for flip, and also set flipX/flipY properties
-            // Set position last to ensure dimensions are calculated
+            // Apply scale, origin, and other properties FIRST (before position)
+            // This ensures the bounding box is correct before we set position
             finalGroup.set({
               scaleX: shouldFlipX ? -absScaleX : absScaleX,
               scaleY: shouldFlipY ? -absScaleY : absScaleY,
@@ -2591,8 +2618,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               opacity: baseProps.opacity !== undefined ? baseProps.opacity : 1,
               originX: finalOriginX,
               originY: finalOriginY,
-              flipX: shouldFlipX, // Explicitly set flipX property
-              flipY: shouldFlipY, // Explicitly set flipY property
+              flipX: shouldFlipX,
+              flipY: shouldFlipY,
               selectable: true,
               hasControls: true,
               hasBorders: true,
@@ -2603,27 +2630,19 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               lockScalingY: false
             });
             
-            // Update coordinates after setting scale/origin
+            // Update coordinates to ensure bounding box is calculated correctly
             finalGroup.setCoords();
             
-            // Now set position after dimensions are calculated
-            finalGroup.set({
-              left: baseProps.left,
-              top: baseProps.top
-            });
-            
-            // Final coordinate update to ensure position is correct
-            finalGroup.setCoords();
-            
-            // Verify flip state was applied correctly
+            // Verify flip state was applied correctly BEFORE setting position
+            // If flip state needs fixing, it will change the bounding box, so we need to fix it first
             const verifyScaleX = finalGroup.scaleX || finalGroup.get('scaleX');
             const verifyScaleY = finalGroup.scaleY || finalGroup.get('scaleY');
             const verifyFlipX = finalGroup.flipX || finalGroup.get('flipX');
             const verifyFlipY = finalGroup.flipY || finalGroup.get('flipY');
             
-            // If flip state wasn't applied correctly, try to fix it
+            // If flip state wasn't applied correctly, fix it now (before setting position)
             if (shouldFlipX && verifyScaleX > 0 && !verifyFlipX) {
-              console.warn('Flip state not applied correctly, attempting to fix:', {
+              console.warn('Flip state not applied correctly, fixing before position:', {
                 elementId: element.id,
                 shouldFlipX: shouldFlipX,
                 verifyScaleX: verifyScaleX,
@@ -2637,7 +2656,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             }
             
             if (shouldFlipY && verifyScaleY > 0 && !verifyFlipY) {
-              console.warn('Flip state not applied correctly, attempting to fix:', {
+              console.warn('Flip state not applied correctly, fixing before position:', {
                 elementId: element.id,
                 shouldFlipY: shouldFlipY,
                 verifyScaleY: verifyScaleY,
@@ -2648,6 +2667,38 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 scaleY: -absScaleY
               });
               finalGroup.setCoords();
+            }
+            
+            // NOW set position after all properties (including flip) are correct
+            // The saved position (xPx, yPx) represents where the origin point should be
+            finalGroup.set({
+              left: baseProps.left,
+              top: baseProps.top
+            });
+            
+            // Final coordinate update to ensure position is correct
+            finalGroup.setCoords();
+            
+            // For cloned objects, verify the position matches saved position
+            if (isClone) {
+              const actualCenter = finalGroup.getCenterPoint();
+              const bounds = finalGroup.getBoundingRect();
+              console.log('Cloned object position after restoration:', {
+                elementId: element.id,
+                savedPosition: { left: baseProps.left, top: baseProps.top },
+                actualPosition: { left: finalGroup.left, top: finalGroup.top },
+                actualCenter: { x: actualCenter.x, y: actualCenter.y },
+                expectedCenter: { x: baseProps.left, y: baseProps.top },
+                bounds: bounds,
+                originX: finalOriginX,
+                originY: finalOriginY,
+                scaleX: finalGroup.scaleX,
+                flipX: finalGroup.flipX,
+                centerDiff: {
+                  x: Math.abs(actualCenter.x - baseProps.left),
+                  y: Math.abs(actualCenter.y - baseProps.top)
+                }
+              });
             }
             
             // Store metadata
