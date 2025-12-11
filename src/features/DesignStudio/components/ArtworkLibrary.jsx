@@ -13,9 +13,10 @@ import artworkService from '../../../services/artworkService';
  * @param {Array} artwork - Array of artwork objects (initial/fallback)
  * @param {Function} onSelectArtwork - Callback fired when an artwork is selected
  * @param {Function} onArtworkLoad - Optional callback when artwork is loaded
+ * @param {Function} onClose - Callback fired when the close button is clicked
  * @returns {JSX.Element}
  */
-const ArtworkLibrary = ({ artwork = [], onSelectArtwork, onArtworkLoad }) => {
+const ArtworkLibrary = ({ artwork = [], onSelectArtwork, onArtworkLoad, onClose }) => {
   
   // Internal state for filtering
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,64 +136,77 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork, onArtworkLoad }) => {
     setSelectedCategory(e.target.value);
   };
 
-  if (loading) {
-    return (
-      <div className="artwork-library">
-        <div className="artwork-library-empty">Loading artwork...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="artwork-library add-panel-container">
-      <h3 className="artwork-library-title">Artwork Library</h3>
-      
-      {/* Category Filter */}
-      <div className="artwork-library-controls">
-        <div className="control-group">
-          <label htmlFor="category-filter" className="control-label">
-            Category
-          </label>
-          <select
-            id="category-filter"
-            className="control-select"
-            value={selectedCategory}
-            onChange={handleCategoryChange}
-          >
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+      {/* Sticky Header */}
+      <div className="artwork-library-header">
+        <div className="artwork-library-title-row">
+          <h3 className="artwork-library-title">Artwork Library</h3>
+          {onClose && (
+            <button
+              className="artwork-library-close"
+              onClick={onClose}
+              aria-label="Close Artwork Library"
+              type="button"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        
+        {/* Category Filter */}
+        <div className="artwork-library-controls">
+          <div className="control-group">
+            <label htmlFor="category-filter" className="control-label">
+              Category
+            </label>
+            <select
+              id="category-filter"
+              className="control-select"
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+              disabled={loading}
+            >
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search Bar */}
+          <div className="control-group">
+            <label htmlFor="search-artwork" className="control-label">
+              Search
+            </label>
+            <input
+              id="search-artwork"
+              type="text"
+              className="control-input"
+              placeholder="Search artwork..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              disabled={loading}
+            />
+          </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="control-group">
-          <label htmlFor="search-artwork" className="control-label">
-            Search
-          </label>
-          <input
-            id="search-artwork"
-            type="text"
-            className="control-input"
-            placeholder="Search artwork..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-          />
-        </div>
+        {/* Results Count */}
+        {searchTerm.trim() !== '' && !loading && (
+          <div className="artwork-library-results">
+            Showing {filteredArtwork.length} {filteredArtwork.length === 1 ? 'item' : 'items'}
+          </div>
+        )}
       </div>
-
-      {/* Results Count */}
-      {searchTerm.trim() !== '' && (
-        <div className="artwork-library-results">
-          Showing {filteredArtwork.length} {filteredArtwork.length === 1 ? 'item' : 'items'}
-        </div>
-      )}
 
       {/* Artwork Grid */}
       <div className="artwork-library-grid">
-        {filteredArtwork.length === 0 ? (
+        {loading ? (
+          <div className="artwork-library-empty">
+            Loading artwork...
+          </div>
+        ) : filteredArtwork.length === 0 ? (
           <div className="artwork-library-empty-search">
             No artwork found matching your search.
           </div>

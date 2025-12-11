@@ -2064,6 +2064,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             <ArtworkLibrary
               artwork={artwork}
               onSelectArtwork={handleAddArtwork}
+              onClose={handleToggleArtworkLibrary}
             />
           
         )}
