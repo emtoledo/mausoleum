@@ -353,10 +353,21 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       
       // Check if this is panel artwork BEFORE determining handler
       // Try multiple sources: customData.category, artwork lookup, direct property, or ID pattern
-      const artworkId = selectedElement.customData?.artworkId;
+      const artworkId = selectedElement.customData?.artworkId || selectedElement.artworkId;
+      
+      // Look up artwork item with more robust matching (handle whitespace/trimming)
+      let artworkItem = null;
+      if (artworkId) {
+        const trimmedId = typeof artworkId === 'string' ? artworkId.trim() : artworkId;
+        artworkItem = artwork.find(a => {
+          const aId = a.id ? String(a.id).trim() : '';
+          return aId === trimmedId || aId.toLowerCase() === String(trimmedId).toLowerCase();
+        });
+      }
+      
       const category = selectedElement.customData?.category || 
                        selectedElement.category || 
-                       (artworkId ? artwork.find(a => a.id === artworkId)?.category : null) || 
+                       artworkItem?.category || 
                        '';
       
       // Check if it's panel artwork: by category OR by ID pattern (panel artwork IDs often start with 'panel')
@@ -364,6 +375,20 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         (category && category.toLowerCase() === 'panels') ||
         (artworkId && typeof artworkId === 'string' && artworkId.toLowerCase().startsWith('panel'))
       );
+      
+      // Debug logging for panel artwork detection (always log to help debug)
+      console.log('Panel artwork detection:', {
+        artworkId: artworkId,
+        category: category,
+        categoryLower: category ? category.toLowerCase() : null,
+        foundArtworkItem: !!artworkItem,
+        artworkItemCategory: artworkItem?.category,
+        isPanelArtwork: isPanelArtwork,
+        panelStrokeWidth: colorItem.panelStrokeWidth,
+        regularStrokeWidth: colorItem.strokeWidth,
+        selectedElementType: selectedElement.type,
+        customData: selectedElement.customData
+      });
       
       // For groups and paths (SVG artwork), apply color/stroke directly
       // Panel artwork with texture layer is a group, so it should go through this path
@@ -443,6 +468,15 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               // CRITICAL: For panel artwork, ALWAYS use panelStrokeWidth (always 0) instead of strokeWidth
               const panelStroke = colorItem.panelStrokeWidth !== undefined ? colorItem.panelStrokeWidth : 0;
               
+              console.log('Applying panel artwork color to path:', {
+                pathId: obj.elementId || 'unknown',
+                panelStrokeWidth: panelStroke,
+                colorItemPanelStrokeWidth: colorItem.panelStrokeWidth,
+                colorItemStrokeWidth: colorItem.strokeWidth,
+                beforeStroke: obj.stroke,
+                beforeStrokeWidth: obj.strokeWidth
+              });
+              
               // Force stroke to null/0 directly (without set()) to avoid triggering bounds recalculation
               // Use panelStrokeWidth from ColorData, which is always 0 for panel artwork
               obj.stroke = null;
@@ -450,8 +484,21 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               
               // Verify strokeWidth was set correctly (safety check)
               if (obj.strokeWidth !== 0) {
+                console.warn('Panel artwork path had non-zero strokeWidth, forcing to 0:', {
+                  pathId: obj.elementId || 'unknown',
+                  was: obj.strokeWidth,
+                  now: 0
+                });
                 obj.strokeWidth = 0;
               }
+              
+              console.log('Panel artwork path after color change:', {
+                pathId: obj.elementId || 'unknown',
+                stroke: obj.stroke,
+                strokeWidth: obj.strokeWidth,
+                fill: obj.fill,
+                opacity: obj.opacity
+              });
               
               // Now modify fill and opacity - stroke is already guaranteed to be null/0
               obj.fill = colorItem.fillColor;
@@ -583,9 +630,24 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         
         
         // Check if this is panel artwork - panel artwork should have no stroke
-        const artworkId = selectedElement.customData?.artworkId;
-        const artworkItem = artworkId ? artwork.find(a => a.id === artworkId) : null;
-        const isPanelArtwork = artworkItem?.category === 'Panels';
+        const artworkId = selectedElement.customData?.artworkId || selectedElement.artworkId;
+        
+        // Look up artwork item with more robust matching (handle whitespace/trimming)
+        let artworkItem = null;
+        if (artworkId) {
+          const trimmedId = typeof artworkId === 'string' ? artworkId.trim() : artworkId;
+          artworkItem = artwork.find(a => {
+            const aId = a.id ? String(a.id).trim() : '';
+            return aId === trimmedId || aId.toLowerCase() === String(trimmedId).toLowerCase();
+          });
+        }
+        
+        // Use case-insensitive check for consistency
+        const category = artworkItem?.category || selectedElement.customData?.category || selectedElement.category || '';
+        const isPanelArtwork = Boolean(
+          (category && category.toLowerCase() === 'panels') ||
+          (artworkId && typeof artworkId === 'string' && artworkId.toLowerCase().startsWith('panel'))
+        );
         
         // For panel artwork, use panelStrokeWidth (always 0) instead of strokeWidth
         // For non-panel artwork, use strokeWidth from ColorData
@@ -921,8 +983,23 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         
         // Check if this is panel artwork - panel artwork should have no stroke
         const artworkId = customData.artworkId;
-        const artworkItem = artworkId ? artwork.find(a => a.id === artworkId) : null;
-        const isPanelArtwork = artworkItem?.category === 'Panels';
+        
+        // Look up artwork item with more robust matching (handle whitespace/trimming)
+        let artworkItem = null;
+        if (artworkId) {
+          const trimmedId = typeof artworkId === 'string' ? artworkId.trim() : artworkId;
+          artworkItem = artwork.find(a => {
+            const aId = a.id ? String(a.id).trim() : '';
+            return aId === trimmedId || aId.toLowerCase() === String(trimmedId).toLowerCase();
+          });
+        }
+        
+        // Use case-insensitive check for consistency
+        const category = artworkItem?.category || customData.category || '';
+        const isPanelArtwork = Boolean(
+          (category && category.toLowerCase() === 'panels') ||
+          (artworkId && typeof artworkId === 'string' && artworkId.toLowerCase().startsWith('panel'))
+        );
         
         // Function to recursively set fill on all elements and remove strokes for panel artwork
         const setFillRecursive = (element, color) => {

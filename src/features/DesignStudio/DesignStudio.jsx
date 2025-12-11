@@ -622,6 +622,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           type: 'artwork',
           artworkId: art.id,
           artworkName: art.name,
+          category: art.category || null, // Store category for panel artwork detection
           defaultWidthInches: artworkWidthInches,
           minWidthInches: art.minWidth || null, // Store minWidth if it exists
           originalSource: art.imageUrl // Store original source URL for color changes
