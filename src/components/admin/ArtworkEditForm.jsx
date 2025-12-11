@@ -132,12 +132,6 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
         [fileType === 'image' ? 'imageUrl' : 'textureUrl']: url
       }));
       setImageFiles(prev => ({ ...prev, [fileType]: null }));
-      
-      const fileTypeName = fileType === 'image' ? 'Image' : 'Texture';
-      const conversionNote = fileType === 'image' && file.name.endsWith('.svg') 
-        ? ' (converted from DXF)' 
-        : '';
-      alert(`${fileTypeName} uploaded successfully!${conversionNote}`);
     } catch (error) {
       console.error(`Error uploading ${fileType}:`, error);
       alert(`Failed to upload ${fileType}. Please try again.`);
