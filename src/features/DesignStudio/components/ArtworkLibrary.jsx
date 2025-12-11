@@ -6,37 +6,97 @@
  * When an artwork is clicked, calls onSelectArtwork with the selected artwork.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import artworkService from '../../../services/artworkService';
 
 /**
- * @param {Array} artwork - Array of artwork objects from ArtworkData
+ * @param {Array} artwork - Array of artwork objects (initial/fallback)
  * @param {Function} onSelectArtwork - Callback fired when an artwork is selected
+ * @param {Function} onArtworkLoad - Optional callback when artwork is loaded
  * @returns {JSX.Element}
  */
-const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
+const ArtworkLibrary = ({ artwork = [], onSelectArtwork, onArtworkLoad }) => {
   
   // Internal state for filtering
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('Featured');
+  const [loadedArtwork, setLoadedArtwork] = useState([]);
+  const [categories, setCategories] = useState(['Featured']);
+  const [loading, setLoading] = useState(true);
 
-  /**
-   * Get unique categories from artwork array
-   */
-  const categories = useMemo(() => {
-    const uniqueCategories = new Set(artwork.map(a => a.category).filter(Boolean));
-    return ['All', ...Array.from(uniqueCategories)];
+  // Load all categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const result = await artworkService.getAllCategories();
+        if (result.success) {
+          setCategories(['Featured', ...(result.data || [])]);
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err);
+        // Fallback to categories from artwork prop
+        const uniqueCategories = new Set(artwork.map(a => a.category).filter(Boolean));
+        setCategories(['Featured', ...Array.from(uniqueCategories)]);
+      }
+    };
+    loadCategories();
   }, [artwork]);
 
+  // Load artwork based on selected category
+  useEffect(() => {
+    const loadArtwork = async () => {
+      setLoading(true);
+      try {
+        let result;
+        if (selectedCategory === 'Featured') {
+          result = await artworkService.getFeaturedArtwork();
+        } else {
+          result = await artworkService.getArtworkByCategory(selectedCategory);
+        }
+
+        if (result.success) {
+          // Transform database format to match expected format
+          const transformedArtwork = (result.data || []).map(item => {
+            let textureUrl = item.texture_url || null;
+            if (!textureUrl && item.category && item.category.toLowerCase() === 'panels') {
+              textureUrl = '/images/materials/panelbg.png';
+            }
+            
+            return {
+              id: item.id,
+              name: item.name,
+              category: item.category,
+              imageUrl: item.image_url,
+              textureUrl: textureUrl,
+              defaultWidth: item.default_width || 5.0,
+              minWidth: item.min_width || null,
+              featured: item.featured || false
+            };
+          });
+          setLoadedArtwork(transformedArtwork);
+          if (onArtworkLoad) {
+            onArtworkLoad(transformedArtwork);
+          }
+        } else {
+          console.warn('Failed to load artwork:', result.error);
+          setLoadedArtwork([]);
+        }
+      } catch (err) {
+        console.error('Error loading artwork:', err);
+        setLoadedArtwork([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadArtwork();
+  }, [selectedCategory, onArtworkLoad]);
+
   /**
-   * Filter artwork based on search term and category
+   * Filter artwork based on search term (category filtering is done server-side)
    */
   const filteredArtwork = useMemo(() => {
-    let result = artwork;
-
-    // Filter by category
-    if (selectedCategory !== 'All') {
-      result = result.filter(art => art.category === selectedCategory);
-    }
+    let result = loadedArtwork;
 
     // Filter by search term
     if (searchTerm.trim() !== '') {
@@ -48,7 +108,7 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
     }
 
     return result;
-  }, [artwork, selectedCategory, searchTerm]);
+  }, [loadedArtwork, searchTerm]);
 
   /**
    * Handle artwork item click
@@ -75,10 +135,10 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
     setSelectedCategory(e.target.value);
   };
 
-  if (!artwork || artwork.length === 0) {
+  if (loading) {
     return (
       <div className="artwork-library">
-        <div className="artwork-library-empty">No artwork available</div>
+        <div className="artwork-library-empty">Loading artwork...</div>
       </div>
     );
   }
@@ -124,9 +184,9 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork }) => {
       </div>
 
       {/* Results Count */}
-      {filteredArtwork.length !== artwork.length && (
+      {searchTerm.trim() !== '' && (
         <div className="artwork-library-results">
-          Showing {filteredArtwork.length} of {artwork.length} items
+          Showing {filteredArtwork.length} {filteredArtwork.length === 1 ? 'item' : 'items'}
         </div>
       )}
 

@@ -52,6 +52,26 @@ class ArtworkService {
   }
 
   /**
+   * Get featured artwork
+   */
+  async getFeaturedArtwork() {
+    try {
+      const { data, error } = await supabase
+        .from('artwork')
+        .select('*')
+        .eq('featured', true)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      console.error('Error fetching featured artwork:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Get all categories
    */
   async getAllCategories() {
@@ -105,6 +125,7 @@ class ArtworkService {
         default_width: artwork.defaultWidth || 5.0,
         min_width: artwork.minWidth || null,
         is_active: artwork.isActive !== undefined ? artwork.isActive : true,
+        featured: artwork.featured !== undefined ? artwork.featured : false,
         updated_at: new Date().toISOString()
       };
 
@@ -135,6 +156,7 @@ class ArtworkService {
         default_width: updates.defaultWidth || 5.0,
         min_width: updates.minWidth || null,
         is_active: updates.isActive !== undefined ? updates.isActive : true,
+        featured: updates.featured !== undefined ? updates.featured : false,
         updated_at: new Date().toISOString()
       };
 

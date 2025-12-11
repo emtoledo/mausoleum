@@ -116,7 +116,9 @@ const ArtworkManagement = () => {
   };
 
   const filteredArtwork = filterCategory
-    ? artwork.filter(item => item.category === filterCategory)
+    ? filterCategory === 'Featured'
+      ? artwork.filter(item => item.featured === true)
+      : artwork.filter(item => item.category === filterCategory)
     : artwork;
 
   if (loading) {
@@ -149,23 +151,22 @@ const ArtworkManagement = () => {
         />
       ) : (
         <>
-          {categories.length > 0 && (
-            <div className="products-filters">
-              <label>
-                Filter by Category:
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="admin-select"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
+          <div className="products-filters">
+            <label>
+              Filter by Category:
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="admin-select"
+              >
+                <option value="">All Categories</option>
+                <option value="Featured">Featured</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </label>
+          </div>
 
           <div className="artwork-cards-container">
             {filteredArtwork.length === 0 ? (

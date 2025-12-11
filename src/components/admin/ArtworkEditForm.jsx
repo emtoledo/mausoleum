@@ -12,7 +12,8 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
     textureUrl: '',
     defaultWidth: 5.0,
     minWidth: '',
-    isActive: true
+    isActive: true,
+    featured: false
   });
 
   const [uploadingFiles, setUploadingFiles] = useState({
@@ -37,7 +38,8 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
         textureUrl: artwork.texture_url || '',
         defaultWidth: artwork.default_width?.toString() || '5.0',
         minWidth: artwork.min_width?.toString() || '',
-        isActive: artwork.is_active !== undefined ? artwork.is_active : true
+        isActive: artwork.is_active !== undefined ? artwork.is_active : true,
+        featured: artwork.featured !== undefined ? artwork.featured : false
       });
       setImageFiles({ image: null, texture: null });
     } else {
@@ -50,7 +52,8 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
         textureUrl: '',
         defaultWidth: '5.0',
         minWidth: '',
-        isActive: true
+        isActive: true,
+        featured: false
       });
       setImageFiles({ image: null, texture: null });
     }
@@ -170,7 +173,8 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
         textureUrl: null, // Explicitly set to null
         defaultWidth: parseFloat(updatedFormData.defaultWidth) || 5.0,
         minWidth: updatedFormData.minWidth ? parseFloat(updatedFormData.minWidth) : null,
-        isActive: updatedFormData.isActive
+        isActive: updatedFormData.isActive,
+        featured: updatedFormData.featured
       };
       
       await onSave(artworkData);
@@ -209,7 +213,8 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
       textureUrl: formData.textureUrl || null,
       defaultWidth: parseFloat(formData.defaultWidth) || 5.0,
       minWidth: formData.minWidth ? parseFloat(formData.minWidth) : null,
-      isActive: formData.isActive
+      isActive: formData.isActive,
+      featured: formData.featured
     };
 
     onSave(artworkData);
@@ -325,6 +330,21 @@ const ArtworkEditForm = ({ artwork, onSave, onCancel, onDelete }) => {
                 />
                 <span>Active</span>
               </label>
+            </div>
+
+            <div className="form-group">
+              <label className="form-group-label">
+                <input
+                  type="checkbox"
+                  name="featured"
+                  checked={formData.featured}
+                  onChange={handleChange}
+                />
+                <span>Featured</span>
+              </label>
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                Featured artwork appears in the "Featured" category when users add artwork to the canvas.
+              </small>
             </div>
           </div>
 
