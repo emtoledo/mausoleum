@@ -2358,6 +2358,17 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               });
             }
             
+            // Final duplicate check before adding to canvas (async operations may have completed)
+            const existingObjectsAfterLoad = canvas.getObjects();
+            const duplicateCheck = existingObjectsAfterLoad.find(obj => 
+              obj.elementId === element.id && 
+              (obj.viewId === viewId || (obj.viewId === null && viewId === null))
+            );
+            if (duplicateCheck) {
+              console.log(`⚠ Skipping duplicate path artwork ${element.id} with viewId ${viewId} - already exists on canvas (late check)`);
+              continue;
+            }
+            
             // Set fabricObject so it gets added to canvas
             fabricObject = finalGroup;
             
@@ -3104,10 +3115,17 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
    */
   const viewsLoadedRef = useRef(false);
   const prevCurrentViewRef = useRef(null);
+  const isLoadingRef = useRef(false); // Guard to prevent multiple simultaneous loads
   
   useEffect(() => {
     const canvas = fabricCanvasInstance.current;
     if (!canvas || !canvas.listening || !initialData) return; // Only run after canvas is initialized
+    
+    // Prevent multiple simultaneous loads
+    if (isLoadingRef.current) {
+      console.log('⚠ Load already in progress, skipping duplicate load');
+      return;
+    }
     
       // Use currentView from props, but always default to 'front' on initial load
       // This ensures we always start with the front view, regardless of what was saved
@@ -3132,6 +3150,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     
     // On initial load, load ALL views onto canvas with viewId property
     if (!viewsLoadedRef.current) {
+      // Set loading guard immediately to prevent duplicate loads
+      isLoadingRef.current = true;
+      
       console.log('Initial load - loading all views onto canvas:', Object.keys(allDesignElements));
       console.log('Initial load - allDesignElements content:', JSON.stringify(allDesignElements, null, 2));
       console.log('Initial load - activeView will be:', activeView, '(currentView prop:', currentView, ')');
@@ -3202,6 +3223,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       
       // If no views have elements, still mark as loaded
       if (loadPromises.length === 0) {
+        isLoadingRef.current = false; // Clear loading guard
         viewsLoadedRef.current = true;
         prevCurrentViewRef.current = activeView;
         if (onLoadingStateChange) {
@@ -3211,10 +3233,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       }
       
       // Wait for all views to load, then set visibility and reorder by z-index
-      Promise.all(loadPromises).then(() => {
-        // Get all objects and reorder them by z-index to maintain proper layer order
-        // This ensures objects are rendered in the correct order regardless of which view loaded first
-        const allObjects = canvas.getObjects();
+      Promise.all(loadPromises)
+        .then(() => {
+          // Clear loading guard after all loads complete
+          isLoadingRef.current = false;
+          
+          // Get all objects and reorder them by z-index to maintain proper layer order
+          // This ensures objects are rendered in the correct order regardless of which view loaded first
+          const allObjects = canvas.getObjects();
         
         // Filter out constraint overlay (keep it at bottom)
         const constraintOverlayObj = allObjects.find(obj => obj.excludeFromExport === true);
@@ -3375,6 +3401,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         // Ensure loading state is cleared after all views are loaded
         if (onLoadingStateChange) {
           updateLoadingState({ isLoading: false, loaded: totalAssetsAcrossAllViews, total: totalAssetsAcrossAllViews, message: '' });
+        }
+      })
+      .catch((error) => {
+        // Clear loading guard even on error
+        isLoadingRef.current = false;
+        console.error('Error loading views:', error);
+        if (onLoadingStateChange) {
+          updateLoadingState({ isLoading: false, loaded: 0, total: 0, message: 'Error loading project' });
         }
       });
       
