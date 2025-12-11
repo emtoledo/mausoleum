@@ -264,18 +264,30 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
 
     console.log('Add text clicked');
     
+    // Determine default color based on selected material
+    // If Grey Granite is selected, use black; otherwise use white
+    const isGreyGranite = activeMaterial?.name === 'Grey Granite' || activeMaterial?.id === 'mat-002';
+    const defaultColor = isGreyGranite ? '#000000' : '#FFFFFF';
+    const defaultColorId = isGreyGranite ? 'black' : 'white';
+    
     // Create a new text object using IText for inline editing support
     const textObject = new IText('Edit Me', {
       left: fabricInstance.width / 2,
       top: fabricInstance.height / 2,
       fontSize: 20,
       fontFamily: 'Times New Roman',
-      fill: '#000000',
+      fill: defaultColor,
       originX: 'center',
       originY: 'center',
       editable: true, // Enable inline editing
       selectable: true // Allow selection for moving/scaling
     });
+
+    // Store color info in customData for consistency
+    textObject.customData = {
+      currentColor: defaultColor,
+      currentColorId: defaultColorId
+    };
 
     // Add metadata for tracking
     textObject.elementId = `text-${Date.now()}`;
@@ -288,7 +300,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     fabricInstance.renderAll();
     
     console.log('Text object added:', textObject);
-  }, [fabricInstance, initialData, currentView]);
+  }, [fabricInstance, initialData, currentView, activeMaterial]);
 
   /**
    * Handler: Toggle Artwork Library Visibility
@@ -355,27 +367,30 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           };
           normalizeStrokes(svgGroup);
           
-          // Apply default black color to non-panel SVG artwork
+          // Apply default color to non-panel SVG artwork based on selected material
           // Check if this is panel artwork - panels should not get default fill
           const isPanelArtwork = art.category && art.category.toLowerCase() === 'panels';
           
           if (!isPanelArtwork) {
-            // Get default black color from ColorData
-            const defaultBlackColor = colorData.find(c => c.id === 'black') || {
-              fillColor: '#000000',
+            // Determine default color based on selected material
+            // If Grey Granite is selected, use black; otherwise use white
+            const isGreyGranite = activeMaterial?.name === 'Grey Granite' || activeMaterial?.id === 'mat-002';
+            const defaultColorId = isGreyGranite ? 'black' : 'white';
+            const defaultColor = colorData.find(c => c.id === defaultColorId) || {
+              fillColor: isGreyGranite ? '#000000' : '#FFFFFF',
               opacity: 1.0,
               strokeColor: '#000000',
               strokeWidth: 0
             };
             
-            // Apply default black fill to all paths in the SVG group
+            // Apply default color fill to all paths in the SVG group
             const applyDefaultColor = (obj) => {
               if (obj.type === 'group' && obj._objects) {
                 obj._objects.forEach(child => applyDefaultColor(child));
               } else if (obj.type === 'path' || obj.type === 'polyline' || obj.type === 'polygon') {
                 obj.set({
-                  fill: defaultBlackColor.fillColor,
-                  opacity: defaultBlackColor.opacity,
+                  fill: defaultColor.fillColor,
+                  opacity: defaultColor.opacity,
                   stroke: null,
                   strokeWidth: 0
                 });
@@ -383,7 +398,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             };
             
             applyDefaultColor(svgGroup);
-            console.log('Applied default black color to SVG artwork:', art.name);
+            console.log(`Applied default ${defaultColorId} color to SVG artwork:`, art.name);
           }
           
           // Handle texture layer for SVG artwork
@@ -605,8 +620,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         // Set position and scale
         // Prepare customData with default color for non-panel SVG artwork
         const isPanelArtwork = art.category && art.category.toLowerCase() === 'panels';
-        const defaultBlackColor = colorData.find(c => c.id === 'black') || {
-          fillColor: '#000000',
+        
+        // Determine default color based on selected material (only for non-panel artwork)
+        // If Grey Granite is selected, use black; otherwise use white
+        const isGreyGranite = activeMaterial?.name === 'Grey Granite' || activeMaterial?.id === 'mat-002';
+        const defaultColorId = isGreyGranite ? 'black' : 'white';
+        const defaultColor = colorData.find(c => c.id === defaultColorId) || {
+          fillColor: isGreyGranite ? '#000000' : '#FFFFFF',
           opacity: 1.0,
           strokeColor: '#000000',
           strokeWidth: 0
@@ -635,9 +655,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         
         // Add default color info for non-panel SVG artwork
         if (isSvgFile && !isPanelArtwork) {
-          customDataObj.currentColor = defaultBlackColor.fillColor;
-          customDataObj.currentColorId = 'black';
-          customDataObj.currentOpacity = defaultBlackColor.opacity;
+          customDataObj.currentColor = defaultColor.fillColor;
+          customDataObj.currentColorId = defaultColorId;
+          customDataObj.currentOpacity = defaultColor.opacity;
           customDataObj.currentStrokeColor = null;
           customDataObj.currentStrokeWidth = 0;
         }
@@ -706,7 +726,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       } catch (error) {
         console.error('Error loading artwork:', error);
       }
-  }, [fabricInstance, initialData, currentView]);
+    }, [fabricInstance, initialData, currentView, activeMaterial]);
 
   /**
    * Handler: Delete Selected Element

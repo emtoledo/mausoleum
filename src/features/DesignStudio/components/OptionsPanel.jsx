@@ -319,19 +319,6 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
   };
 
   const handleColorSwatchSelect = async (colorItem) => {
-    console.log('handleColorSwatchSelect called:', {
-      colorItem,
-      colorId: colorItem.id,
-      colorName: colorItem.name,
-      fillColor: colorItem.fillColor,
-      opacity: colorItem.opacity,
-      selectedElement: selectedElement ? {
-        type: selectedElement.type,
-        id: selectedElement.elementId,
-        customData: selectedElement.customData
-      } : null
-    });
-    
     setSelectedColorId(colorItem.id);
     setColor(colorItem.fillColor);
     
@@ -375,20 +362,6 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
         (category && category.toLowerCase() === 'panels') ||
         (artworkId && typeof artworkId === 'string' && artworkId.toLowerCase().startsWith('panel'))
       );
-      
-      // Debug logging for panel artwork detection (always log to help debug)
-      console.log('Panel artwork detection:', {
-        artworkId: artworkId,
-        category: category,
-        categoryLower: category ? category.toLowerCase() : null,
-        foundArtworkItem: !!artworkItem,
-        artworkItemCategory: artworkItem?.category,
-        isPanelArtwork: isPanelArtwork,
-        panelStrokeWidth: colorItem.panelStrokeWidth,
-        regularStrokeWidth: colorItem.strokeWidth,
-        selectedElementType: selectedElement.type,
-        customData: selectedElement.customData
-      });
       
       // For groups and paths (SVG artwork), apply color/stroke directly
       // Panel artwork with texture layer is a group, so it should go through this path
@@ -468,15 +441,6 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               // CRITICAL: For panel artwork, ALWAYS use panelStrokeWidth (always 0) instead of strokeWidth
               const panelStroke = colorItem.panelStrokeWidth !== undefined ? colorItem.panelStrokeWidth : 0;
               
-              console.log('Applying panel artwork color to path:', {
-                pathId: obj.elementId || 'unknown',
-                panelStrokeWidth: panelStroke,
-                colorItemPanelStrokeWidth: colorItem.panelStrokeWidth,
-                colorItemStrokeWidth: colorItem.strokeWidth,
-                beforeStroke: obj.stroke,
-                beforeStrokeWidth: obj.strokeWidth
-              });
-              
               // Force stroke to null/0 directly (without set()) to avoid triggering bounds recalculation
               // Use panelStrokeWidth from ColorData, which is always 0 for panel artwork
               obj.stroke = null;
@@ -484,21 +448,8 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               
               // Verify strokeWidth was set correctly (safety check)
               if (obj.strokeWidth !== 0) {
-                console.warn('Panel artwork path had non-zero strokeWidth, forcing to 0:', {
-                  pathId: obj.elementId || 'unknown',
-                  was: obj.strokeWidth,
-                  now: 0
-                });
                 obj.strokeWidth = 0;
               }
-              
-              console.log('Panel artwork path after color change:', {
-                pathId: obj.elementId || 'unknown',
-                stroke: obj.stroke,
-                strokeWidth: obj.strokeWidth,
-                fill: obj.fill,
-                opacity: obj.opacity
-              });
               
               // Now modify fill and opacity - stroke is already guaranteed to be null/0
               obj.fill = colorItem.fillColor;

@@ -1713,6 +1713,34 @@ body:has(.canvas-layout) .footer-branding {
     font-weight: 500;
 }
 
+/* View Dropdown Styles */
+.view-dropdown-container {
+    position: relative;
+}
+
+.view-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 999;
+    min-width: 120px;
+    margin-top: 8px;
+}
+
+.view-dropdown .dropdown-item.active {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.view-dropdown .dropdown-item.active .dropdown-text {
+    color: #1976d2;
+    font-weight: 600;
+}
+
 /* Account Settings Styles */
 .account-settings-container {
     width: 100%;

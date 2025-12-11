@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import ProfileDropdown from '../ui/ProfileDropdown';
 import { useAuth } from '../../hooks/useAuth';
@@ -35,6 +35,8 @@ const AppHeader = ({
   const location = useLocation();
   const params = useParams();
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
+  const viewDropdownRef = useRef(null);
   const { logout, isAuthenticated, user } = useAuth();
   const { openWizard } = useProjectFlow();
   
@@ -146,6 +148,43 @@ const AppHeader = ({
     setIsProfileDropdownOpen(false);
   };
 
+  const handleViewDropdownToggle = () => {
+    setIsViewDropdownOpen(!isViewDropdownOpen);
+  };
+
+  const handleCloseViewDropdown = () => {
+    setIsViewDropdownOpen(false);
+  };
+
+  const handleViewSelect = (view) => {
+    if (onViewChange && view !== currentView) {
+      onViewChange(view);
+    }
+    setIsViewDropdownOpen(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (viewDropdownRef.current && !viewDropdownRef.current.contains(event.target)) {
+        setIsViewDropdownOpen(false);
+      }
+    };
+
+    if (isViewDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isViewDropdownOpen]);
+
+  // Capitalize first letter of view name for display
+  const formatViewName = (view) => {
+    return view.charAt(0).toUpperCase() + view.slice(1);
+  };
+
   const handleAllProjects = () => {
     console.log('AppHeader - All Projects clicked');
     navigate('/projects');
@@ -245,49 +284,41 @@ const AppHeader = ({
               </div>
             </div>
             
-            {(() => {
-              console.log('AppHeader: availableViews:', availableViews, 'currentView:', currentView, 'onViewChange:', typeof onViewChange);
-              return null;
-            })()}
             {availableViews && availableViews.length > 0 && (
               <div className="control-group">
                 <div className="control-separator">|</div>
-                {availableViews.includes('top') && !availableViews.includes('front') && !availableViews.includes('back') ? (
-                  // Top-only view: just show "Top" without selection
+                {availableViews.length === 1 ? (
+                  // Single view: just show it without selection
                   <div className="control-item active">
-                    <span className="control-text">Top</span>
+                    <span className="control-text">{formatViewName(availableViews[0])}</span>
                   </div>
                 ) : (
-                  // Front/Back views: show selectable options
-                  <>
-                    {availableViews.includes('front') && (
-                      <div 
-                        className={`control-item view ${currentView === 'front' ? 'active' : ''}`}
-                        onClick={() => {
-                          console.log('AppHeader: Front clicked, currentView:', currentView, 'calling onViewChange');
-                          onViewChange && onViewChange('front');
-                        }}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <span className="control-text">Front</span>
-                      </div>
+                  // Multiple views: show dropdown
+                  <div className="view-dropdown-container" ref={viewDropdownRef} style={{ position: 'relative' }}>
+                    <div 
+                      className="control-item view active"
+                      onClick={handleViewDropdownToggle}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span className="control-text">{formatViewName(currentView)}</span>
+                    </div>
+                    {isViewDropdownOpen && (
+                      <>
+                        <div className="dropdown-backdrop" onClick={handleCloseViewDropdown}></div>
+                        <div className="view-dropdown">
+                          {availableViews.map((view) => (
+                            <div
+                              key={view}
+                              className={`dropdown-item ${currentView === view ? 'active' : ''}`}
+                              onClick={() => handleViewSelect(view)}
+                            >
+                              <span className="dropdown-text">{formatViewName(view)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
-                    {availableViews.includes('front') && availableViews.includes('back') && (
-                      <div className="control-separator">|</div>
-                    )}
-                    {availableViews.includes('back') && (
-                      <div 
-                        className={`control-item view ${currentView === 'back' ? 'active' : ''}`}
-                        onClick={() => {
-                          console.log('AppHeader: Back clicked, currentView:', currentView, 'calling onViewChange');
-                          onViewChange && onViewChange('back');
-                        }}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <span className="control-text">Back</span>
-                      </div>
-                    )}
-                  </>
+                  </div>
                 )}
                 <div className="control-separator">|</div>
               </div>
