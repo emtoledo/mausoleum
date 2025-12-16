@@ -166,7 +166,7 @@ const ProductsManagement = () => {
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="category-filter"
+            className="category-filter default-select"
           >
             <option value="">All Categories</option>
             {categories.map(cat => (

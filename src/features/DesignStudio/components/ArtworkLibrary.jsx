@@ -141,7 +141,7 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork, onArtworkLoad, onClose 
       {/* Sticky Header */}
       <div className="artwork-library-header">
         <div className="artwork-library-title-row">
-          <h3 className="artwork-library-title">Artwork Library</h3>
+          <h3 className="artwork-library-title">Artwork</h3>
           {onClose && (
             <button
               className="artwork-library-close"
@@ -157,12 +157,10 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork, onArtworkLoad, onClose 
         {/* Category Filter */}
         <div className="artwork-library-controls">
           <div className="control-group">
-            <label htmlFor="category-filter" className="control-label">
-              Category
-            </label>
+
             <select
               id="category-filter"
-              className="control-select"
+              className="control-select default-select"
               value={selectedCategory}
               onChange={handleCategoryChange}
               disabled={loading}
@@ -177,14 +175,11 @@ const ArtworkLibrary = ({ artwork = [], onSelectArtwork, onArtworkLoad, onClose 
 
           {/* Search Bar */}
           <div className="control-group">
-            <label htmlFor="search-artwork" className="control-label">
-              Search
-            </label>
             <input
               id="search-artwork"
               type="text"
-              className="control-input"
-              placeholder="Search artwork..."
+              className="control-input default-input"
+              placeholder="Search"
               value={searchTerm}
               onChange={handleSearchChange}
               disabled={loading}

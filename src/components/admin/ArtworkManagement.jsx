@@ -130,6 +130,22 @@ const ArtworkManagement = () => {
       <div className="products-header">
         <h2>Artwork Management</h2>
         <div className="products-actions">
+
+        <label>
+        
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="admin-select default-select"
+        >
+          <option value="">All Categories</option>
+          <option value="Featured">Featured</option>
+          {categories.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </label>
+
           <button className="add-button primary" onClick={handleAddArtwork}>
             Add New Artwork
           </button>
@@ -152,20 +168,7 @@ const ArtworkManagement = () => {
       ) : (
         <>
           <div className="products-filters">
-            <label>
-              Filter by Category:
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="admin-select"
-              >
-                <option value="">All Categories</option>
-                <option value="Featured">Featured</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </label>
+
           </div>
 
           <div className="artwork-cards-container">
