@@ -1554,6 +1554,271 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     );
   }
 
+  // Handle multiple selection (ActiveSelection) - check early before other type checks
+  // Check both type string and instanceof for compatibility
+  const isActiveSelection = selectedElement.type === 'activeSelection' || 
+                            selectedElement.type === 'ActiveSelection' ||
+                            (selectedElement.constructor && selectedElement.constructor.name === 'ActiveSelection') ||
+                            (fabric.ActiveSelection && selectedElement instanceof fabric.ActiveSelection);
+  
+  if (isActiveSelection) {
+    const handleAlignLeft = () => {
+      if (!selectedElement || !selectedElement.canvas) return;
+      
+      const objects = selectedElement._objects || [];
+      if (objects.length < 2) return;
+      
+      // Find the leftmost edge using bounding rects
+      let minLeft = Infinity;
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        if (bounds.left < minLeft) {
+          minLeft = bounds.left;
+        }
+      });
+      
+      // Align all objects to this left edge
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        const currentLeft = bounds.left;
+        const offset = minLeft - currentLeft;
+        obj.set('left', obj.left + offset);
+        obj.setCoords();
+      });
+      
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    };
+    
+    const handleAlignRight = () => {
+      if (!selectedElement || !selectedElement.canvas) return;
+      
+      const objects = selectedElement._objects || [];
+      if (objects.length < 2) return;
+      
+      // Find the rightmost edge using bounding rects
+      let maxRight = -Infinity;
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        const right = bounds.left + bounds.width;
+        if (right > maxRight) {
+          maxRight = right;
+        }
+      });
+      
+      // Align all objects to this right edge
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        const currentRight = bounds.left + bounds.width;
+        const offset = maxRight - currentRight;
+        obj.set('left', obj.left + offset);
+        obj.setCoords();
+      });
+      
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    };
+    
+    const handleAlignTop = () => {
+      if (!selectedElement || !selectedElement.canvas) return;
+      
+      const objects = selectedElement._objects || [];
+      if (objects.length < 2) return;
+      
+      // Find the topmost edge using bounding rects
+      let minTop = Infinity;
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        if (bounds.top < minTop) {
+          minTop = bounds.top;
+        }
+      });
+      
+      // Align all objects to this top edge
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        const currentTop = bounds.top;
+        const offset = minTop - currentTop;
+        obj.set('top', obj.top + offset);
+        obj.setCoords();
+      });
+      
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    };
+    
+    const handleAlignBottom = () => {
+      if (!selectedElement || !selectedElement.canvas) return;
+      
+      const objects = selectedElement._objects || [];
+      if (objects.length < 2) return;
+      
+      // Find the bottommost edge using bounding rects
+      let maxBottom = -Infinity;
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        const bottom = bounds.top + bounds.height;
+        if (bottom > maxBottom) {
+          maxBottom = bottom;
+        }
+      });
+      
+      // Align all objects to this bottom edge
+      objects.forEach(obj => {
+        const bounds = obj.getBoundingRect();
+        const currentBottom = bounds.top + bounds.height;
+        const offset = maxBottom - currentBottom;
+        obj.set('top', obj.top + offset);
+        obj.setCoords();
+      });
+      
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    };
+    
+    const handleAlignHorizontal = () => {
+      if (!selectedElement || !selectedElement.canvas) return;
+      
+      const objects = selectedElement._objects || [];
+      if (objects.length < 2) return;
+      
+      // Calculate the horizontal center of the selection bounding box
+      const bounds = selectedElement.getBoundingRect();
+      const centerX = bounds.left + (bounds.width / 2);
+      
+      // Align all objects to this center
+      objects.forEach(obj => {
+        const objBounds = obj.getBoundingRect();
+        const objCenterX = objBounds.left + (objBounds.width / 2);
+        const offset = centerX - objCenterX;
+        obj.set('left', obj.left + offset);
+        obj.setCoords();
+      });
+      
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    };
+    
+    const handleAlignVertical = () => {
+      if (!selectedElement || !selectedElement.canvas) return;
+      
+      const objects = selectedElement._objects || [];
+      if (objects.length < 2) return;
+      
+      // Calculate the vertical center of the selection bounding box
+      const bounds = selectedElement.getBoundingRect();
+      const centerY = bounds.top + (bounds.height / 2);
+      
+      // Align all objects to this center
+      objects.forEach(obj => {
+        const objBounds = obj.getBoundingRect();
+        const objCenterY = objBounds.top + (objBounds.height / 2);
+        const offset = centerY - objCenterY;
+        obj.set('top', obj.top + offset);
+        obj.setCoords();
+      });
+      
+      selectedElement.setCoords();
+      selectedElement.canvas.renderAll();
+      
+      if (onUpdateElement) {
+        onUpdateElement(selectedElement);
+      }
+    };
+    
+    return (
+      <div className="options-panel">
+        <div className="options-panel-header">
+          <h3 className="options-panel-title">Multiple Selection</h3>
+          <button
+            type="button"
+            className="options-panel-delete-button"
+            onClick={handleDelete}
+            title="Delete selected elements"
+          >
+            <img src="/images/delete_icon.png" alt="Delete" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
+          </button>
+        </div>
+        
+        <div className="options-panel-actions">
+          <div className="options-panel-section">
+            <label className="options-panel-label">Alignment</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="options-panel-action-button"
+                onClick={handleAlignLeft}
+                title="Align Left"
+              >
+                <img src="/images/left_icon.png" alt="Align Left" style={{ width: '20px', height: '20px' }} />
+              </button>
+              <button
+                type="button"
+                className="options-panel-action-button"
+                onClick={handleAlignHorizontal}
+                title="Align Center Horizontally"
+              >
+                <img src="/images/halign_icon.png" alt="Align Center Horizontally" style={{ width: '20px', height: '20px' }} />
+              </button>
+              <button
+                type="button"
+                className="options-panel-action-button"
+                onClick={handleAlignRight}
+                title="Align Right"
+              >
+                <img src="/images/right_icon.png" alt="Align Right" style={{ width: '20px', height: '20px' }} />
+              </button>
+              <button
+                type="button"
+                className="options-panel-action-button"
+                onClick={handleAlignTop}
+                title="Align Top"
+              >
+                <img src="/images/top_icon.png" alt="Align Top" style={{ width: '20px', height: '20px' }} />
+              </button>
+              <button
+                type="button"
+                className="options-panel-action-button"
+                onClick={handleAlignVertical}
+                title="Align Center Vertically"
+              >
+                <img src="/images/valign_icon.png" alt="Align Center Vertically" style={{ width: '20px', height: '20px' }} />
+              </button>
+              <button
+                type="button"
+                className="options-panel-action-button"
+                onClick={handleAlignBottom}
+                title="Align Bottom"
+              >
+                <img src="/images/bottom_icon.png" alt="Align Bottom" style={{ width: '20px', height: '20px' }} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Render text properties panel
   if (selectedElement.type === 'text' || selectedElement.type === 'i-text' || selectedElement.type === 'itext') {
     return (
@@ -1960,6 +2225,28 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
                 })}
               </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render text properties panel
+  if (selectedElement.type === 'text' || selectedElement.type === 'i-text' || selectedElement.type === 'itext') {
+    return (
+      <div className="options-panel">
+        <div className="options-panel-empty">
+          Text panel rendering (should not reach here if ActiveSelection is handled correctly)
+        </div>
+      </div>
+    );
+  }
+
+  // Render artwork properties panel (for image, group, and path types)
+  if (selectedElement.type === 'image' || selectedElement.type === 'group' || selectedElement.type === 'path') {
+    return (
+      <div className="options-panel">
+        <div className="options-panel-empty">
+          Artwork panel rendering (should not reach here if ActiveSelection is handled correctly)
         </div>
       </div>
     );
