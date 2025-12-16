@@ -389,18 +389,32 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       const processedElements = designElements.map(element => {
         const processed = { ...element };
         
-        // For artwork/group/image elements, apply default color if no color is set
+        // Check if this is a text element
+        const isTextElement = element.type === 'text' || element.type === 'i-text' || 
+                              element.type === 'itext' || element.type === 'textbox';
+        
+        // For artwork/group/image/path elements, always apply material-based default color
         // Skip panel artwork (they shouldn't get default colors)
         const isPanelArtwork = element.category && element.category.toLowerCase() === 'panels';
+        const isArtworkElement = element.type === 'artwork' || element.type === 'group' || 
+                                  element.type === 'image' || element.type === 'path' ||
+                                  (element.imageUrl && element.artworkId);
         
-        if (!isPanelArtwork) {
-          // If element has no fill or has default black fill, apply material-based color
-          if (!processed.fill || processed.fill === '#000000' || processed.fill === '#000') {
-            processed.fill = defaultColor.fillColor;
-            processed.colorId = defaultColorId;
-            if (processed.opacity === undefined) {
-              processed.opacity = defaultColor.opacity;
-            }
+        // Apply material-based default color to text elements (honor Grey Granite rule)
+        if (isTextElement) {
+          processed.fill = defaultColor.fillColor;
+          processed.colorId = defaultColorId;
+          if (processed.opacity === undefined) {
+            processed.opacity = defaultColor.opacity;
+          }
+        }
+        
+        // Apply material-based default color to artwork elements (honor Grey Granite rule)
+        if (isArtworkElement && !isPanelArtwork) {
+          processed.fill = defaultColor.fillColor;
+          processed.colorId = defaultColorId;
+          if (processed.opacity === undefined) {
+            processed.opacity = defaultColor.opacity;
           }
         }
         
@@ -463,8 +477,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               top: baseTop,
               fontSize: finalFontSizePx,
               fontFamily: element.font || 'Arial',
-              fill: element.fill || defaultColor.fillColor,
-              opacity: element.opacity !== undefined ? element.opacity : 1,
+              fill: element.fill || defaultColor.fillColor, // Use processed fill (already has default applied)
+              opacity: element.opacity !== undefined ? element.opacity : defaultColor.opacity,
               originX: element.originX || 'center',
               originY: element.originY || 'center',
               scaleX: 1,
@@ -476,16 +490,26 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               elementId: element.id,
               zIndex: element.zIndex || 0,
               customData: {
-                currentColor: element.fill || defaultColor.fillColor,
-                currentColorId: element.colorId || defaultColorId
+                currentColor: element.fill || defaultColor.fillColor, // Use processed fill
+                currentColorId: element.colorId || defaultColorId // Use processed colorId
               }
             });
             
             fabric.add(textObject);
-          } else if (element.type === 'artwork' || element.type === 'group' || element.type === 'path' || element.type === 'image' || (element.imageUrl && element.artworkId)) {
-            // Load artwork/group element - use the same logic as handleAddArtwork
-            // For DXF files, use importDxfToFabric
-            if (element.isDxfFile && element.dxfData) {
+            } else if (element.type === 'artwork' || element.type === 'group' || element.type === 'path' || element.type === 'image' || (element.imageUrl && element.artworkId)) {
+              // Resolve artworkId first (needed for multiple checks)
+              let artworkId = element.artworkId || null;
+              if (!artworkId && (element.imageUrl || element.content)) {
+                const imageSrcForId = element.imageUrl || element.content;
+                const imageUrlMatch = imageSrcForId.match(/artwork\/([^\/]+)\/image-/);
+                if (imageUrlMatch && imageUrlMatch[1]) {
+                  artworkId = imageUrlMatch[1].trim();
+                }
+              }
+              
+              // Load artwork/group element - use the same logic as handleAddArtwork
+              // For DXF files, use importDxfToFabric
+              if (element.isDxfFile && element.dxfData) {
               // DXF artwork - import using dxfImporter
               // Note: importDxfToFabric adds the group to the canvas automatically
               // We need to remove it first, apply properties, then re-add it
@@ -546,9 +570,18 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               let textureUrl = element.textureUrl || null;
               const isSvg = imageSrc && imageSrc.toLowerCase().endsWith('.svg');
               
+              // Resolve artworkId first (needed for multiple checks)
+              let artworkId = element.artworkId || null;
+              if (!artworkId && imageSrc) {
+                const imageUrlMatch = imageSrc.match(/artwork\/([^\/]+)\/image-/);
+                if (imageUrlMatch && imageUrlMatch[1]) {
+                  artworkId = imageUrlMatch[1].trim();
+                }
+              }
+              
               // Detect panel artwork by category or artworkId (even without textureUrl)
               const isPanelArtwork = (element.category && element.category.toLowerCase() === 'panels') ||
-                                     (element.artworkId && element.artworkId && element.artworkId.toString().toLowerCase().includes('panel'));
+                                     (artworkId && artworkId.toString().toLowerCase().includes('panel'));
               
               // If it's panel artwork but no textureUrl, try to resolve it from artwork data
               if (isPanelArtwork && !textureUrl && element.artworkId) {
@@ -842,7 +875,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                 type: element.type,
                 imageSrc: imageSrc,
                 artworkId: element.artworkId,
-                category: element.category
+                category: element.category,
+                fill: element.fill,
+                colorId: element.colorId
               });
               
               if (!imageSrc) {
@@ -857,9 +892,90 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                 continue;
               }
               
+              // Check if this is SVG artwork that needs color modification
+              // Resolve artworkId if not already resolved
+              let artworkIdForColor = element.artworkId || null;
+              if (!artworkIdForColor && imageSrc) {
+                const imageUrlMatch = imageSrc.match(/artwork\/([^\/]+)\/image-/);
+                if (imageUrlMatch && imageUrlMatch[1]) {
+                  artworkIdForColor = imageUrlMatch[1].trim();
+                }
+              }
+              
+              const isSvgArtwork = imageSrc && imageSrc.toLowerCase().endsWith('.svg');
+              const isPanelArtworkForColor = (element.category && element.category.toLowerCase() === 'panels') ||
+                                            (artworkIdForColor && artworkIdForColor.toString().toLowerCase().includes('panel'));
+              
+              // For SVG artwork (non-panel), apply default color by modifying SVG fill attributes
+              let finalImageSrc = imageSrc;
+              let appliedColor = element.fill || defaultColor.fillColor;
+              let appliedColorId = element.colorId || defaultColorId;
+              
+              if (isSvgArtwork && !isPanelArtworkForColor) {
+                try {
+                  // Fetch SVG content
+                  const response = await fetch(imageSrc);
+                  if (response.ok) {
+                    const svgText = await response.text();
+                    
+                    // Parse SVG and modify fill attributes
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                    const svgElement = svgDoc.documentElement;
+                    
+                    // Function to recursively set fill on all elements
+                    const setFillRecursive = (el, color) => {
+                      const tagName = el.tagName?.toLowerCase();
+                      if (tagName === 'style' || tagName === 'script' || tagName === 'defs') {
+                        return;
+                      }
+                      
+                      const currentFill = el.getAttribute('fill');
+                      if (currentFill !== null) {
+                        if (!currentFill.startsWith('url(') && currentFill !== 'none') {
+                          el.setAttribute('fill', color);
+                        }
+                      } else {
+                        const shapeElements = ['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line'];
+                        if (shapeElements.includes(tagName)) {
+                          const hasStroke = el.hasAttribute('stroke') && el.getAttribute('stroke') !== 'none';
+                          if (!hasStroke || tagName === 'path' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'rect' || tagName === 'polygon') {
+                            el.setAttribute('fill', color);
+                          }
+                        }
+                      }
+                      
+                      Array.from(el.children).forEach(child => {
+                        setFillRecursive(child, color);
+                      });
+                    };
+                    
+                    // Apply the default color to SVG
+                    setFillRecursive(svgElement, appliedColor);
+                    
+                    // Serialize back to string
+                    const serializer = new XMLSerializer();
+                    const modifiedSvg = serializer.serializeToString(svgElement);
+                    
+                    // Convert SVG to data URL
+                    finalImageSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modifiedSvg);
+                    
+                    console.log('Applied default color to SVG artwork:', {
+                      elementId: element.id,
+                      artworkId: artworkId,
+                      color: appliedColor,
+                      colorId: appliedColorId
+                    });
+                  }
+                } catch (svgModifyError) {
+                  console.warn('Failed to modify SVG fill, using original:', svgModifyError);
+                  // Continue with original imageSrc
+                }
+              }
+              
               let img;
               try {
-                const imgResult = FabricImage.fromURL(imageSrc, { crossOrigin: 'anonymous' });
+                const imgResult = FabricImage.fromURL(finalImageSrc, { crossOrigin: 'anonymous' });
                 
                 if (imgResult && typeof imgResult.then === 'function') {
                   // Promise-based API
@@ -868,22 +984,22 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                   // Callback-based API
                   img = await new Promise((resolve, reject) => {
                     const timeout = setTimeout(() => {
-                      reject(new Error(`Image loading timeout for ${imageSrc}`));
+                      reject(new Error(`Image loading timeout for ${finalImageSrc}`));
                     }, 30000);
                     
-                    FabricImage.fromURL(imageSrc, (loadedImg) => {
+                    FabricImage.fromURL(finalImageSrc, (loadedImg) => {
                       clearTimeout(timeout);
                       if (loadedImg) {
                         resolve(loadedImg);
                       } else {
-                        reject(new Error(`Failed to load image: ${imageSrc}`));
+                        reject(new Error(`Failed to load image: ${finalImageSrc}`));
                       }
                     }, { crossOrigin: 'anonymous' });
                   });
                 }
               } catch (imgError) {
                 console.error(`Failed to load image for element ${element.id}:`, imgError);
-                console.error('Image source:', imageSrc);
+                console.error('Image source:', finalImageSrc);
                 // Skip this element and continue with others
                 loadedCount++;
                 setLoadingState({ 
@@ -986,9 +1102,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                 img.customData = {
                   artworkId: element.artworkId,
                   category: element.category,
-                  currentColor: element.fill || defaultColor.fillColor,
-                  currentColorId: element.colorId || defaultColorId,
-                  imageUrl: imageSrc
+                  currentColor: appliedColor,
+                  currentColorId: appliedColorId,
+                  imageUrl: imageSrc // Store original URL, not modified data URL
                 };
                 
                 fabric.add(img);
