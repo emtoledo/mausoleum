@@ -12,12 +12,16 @@ import { TextCursor, X } from 'lucide-react';
  * @param {Function} onAddText - Callback when Add Text is clicked
  * @param {Function} onToggleArtworkLibrary - Callback when Add Artwork is clicked
  * @param {Function} onClose - Callback when Close is clicked
+ * @param {Function} onSaveAsTemplate - Callback when Save as Template is clicked (master admin only)
+ * @param {Function} onToggleTemplateLibrary - Callback when Add Template is clicked
  * @returns {JSX.Element}
  */
 const DesignStudioToolbar = ({
   onAddText,
   onToggleArtworkLibrary,
-  onClose
+  onClose,
+  onSaveAsTemplate,
+  onToggleTemplateLibrary
 }) => {
   
   /**
@@ -47,6 +51,15 @@ const DesignStudioToolbar = ({
     }
   };
 
+  /**
+   * Handle Add Template button click
+   */
+  const handleToggleTemplateLibrary = () => {
+    if (onToggleTemplateLibrary) {
+      onToggleTemplateLibrary();
+    }
+  };
+
   return (
     <div className="design-studio-toolbar">
       
@@ -73,20 +86,33 @@ const DesignStudioToolbar = ({
           <img src="/images/artwork_icon.png" alt="Artwork" className="toolbar-icon-image" />
           <span className="toolbar-label">Add Artwork</span>
         </button>
-
-      {/* Swap Product Button   
+  
         <button
           className="toolbar-button"
-          onClick={handleAddText}
-          title="Swap Product"
-          aria-label="Swap Product"
+          onClick={handleToggleTemplateLibrary}
+          title="Add Template"
+          aria-label="Add Template"
         >
-          <img src="/images/swap_icon.png" alt="Text" className="toolbar-icon-image" />
-          <span className="toolbar-label">Swap Product</span>
+          <img src="/images/template_icon.png" alt="Template" className="toolbar-icon-image" />
+          <span className="toolbar-label">Add Template</span>
         </button>
-      */}
+     
 
       </div>
+
+      {/* Master Admin Actions */}
+      {onSaveAsTemplate && (
+        <div className="toolbar-group toolbar-group-admin">
+          <button
+            className="toolbar-button toolbar-button-admin"
+            onClick={onSaveAsTemplate}
+            title="Save as Template (Admin Only)"
+            aria-label="Save as Template"
+          >
+            <span className="toolbar-label">Save as Template</span>
+          </button>
+        </div>
+      )}
 
     </div>
   );

@@ -182,3 +182,55 @@ export async function captureCombinedCanvas(fabricInstance, productCanvas, optio
   }
 }
 
+/**
+ * Capture only the Fabric.js canvas (artwork only, no product canvas)
+ * Used for generating artwork template previews
+ * @param {Object} fabricInstance - Fabric.js canvas instance
+ * @param {Object} options - Capture options
+ * @returns {Promise<string>} Base64 encoded image data URL
+ */
+export async function captureArtworkOnly(fabricInstance, options = {}) {
+  const {
+    format = 'image/png',
+    quality = 0.92,
+    multiplier = 1
+  } = options;
+
+  if (!fabricInstance) {
+    throw new Error('Fabric canvas instance is required');
+  }
+
+  // Get dimensions from fabric canvas
+  const fabricElement = fabricInstance.getElement();
+  const fabricWidth = fabricElement.width;
+  const fabricHeight = fabricElement.height;
+
+  // Create canvas for artwork only
+  const artworkCanvas = document.createElement('canvas');
+  artworkCanvas.width = fabricWidth * multiplier;
+  artworkCanvas.height = fabricHeight * multiplier;
+  const ctx = artworkCanvas.getContext('2d');
+
+  // Fill with white background
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, artworkCanvas.width, artworkCanvas.height);
+
+  // Export fabric canvas to image and draw it (artwork only, no product canvas)
+  try {
+    const fabricDataURL = await captureFabricCanvas(fabricInstance, { format, quality, multiplier });
+    const fabricImage = new Image();
+    
+    return new Promise((resolve, reject) => {
+      fabricImage.onload = () => {
+        ctx.drawImage(fabricImage, 0, 0, artworkCanvas.width, artworkCanvas.height);
+        resolve(artworkCanvas.toDataURL(format, quality));
+      };
+      fabricImage.onerror = reject;
+      fabricImage.src = fabricDataURL;
+    });
+  } catch (error) {
+    console.error('Error capturing artwork canvas:', error);
+    throw error;
+  }
+}
+

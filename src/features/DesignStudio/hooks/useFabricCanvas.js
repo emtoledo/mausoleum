@@ -6,7 +6,7 @@
  * selection and modification events.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import * as fabric from 'fabric';
 import { calculateScale, inchesToPixels } from '../utils/unitConverter';
 import { artwork } from '../../../data/ArtworkData';
@@ -178,6 +178,28 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
   /**
    * Draw the product canvas with template image and material fill
    */
+  // Memoize product canvas properties to prevent unnecessary redraws
+  // Only redraw when properties that affect the product canvas change (not designElements)
+  const productCanvasProps = useMemo(() => ({
+    imageUrl: initialData?.imageUrl,
+    overlayUrl: initialData?.overlayUrl,
+    floral: initialData?.floral,
+    productBase: initialData?.productBase,
+    canvasWidth: initialData?.canvas?.width,
+    canvasHeight: initialData?.canvas?.height,
+    realWorldWidth: initialData?.realWorldWidth,
+    realWorldHeight: initialData?.realWorldHeight
+  }), [
+    initialData?.imageUrl,
+    initialData?.overlayUrl,
+    initialData?.floral,
+    initialData?.productBase,
+    initialData?.canvas?.width,
+    initialData?.canvas?.height,
+    initialData?.realWorldWidth,
+    initialData?.realWorldHeight
+  ]);
+
   const drawProductCanvas = useCallback(() => {
     if (!productCanvasRef.current || !initialData) return;
 
@@ -208,12 +230,12 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     
     // Helper function to draw productBase rectangles
     const drawProductBases = () => {
-      if (!initialData || !initialData.productBase || !Array.isArray(initialData.productBase)) {
+      if (!productCanvasProps || !productCanvasProps.productBase || !Array.isArray(productCanvasProps.productBase)) {
         return;
       }
       
       // Draw each productBase rectangle
-      initialData.productBase.forEach((base) => {
+      productCanvasProps.productBase.forEach((base) => {
         if (!base.material || base.x === undefined || base.y === undefined || !base.width || !base.height) {
           return;
         }
@@ -264,12 +286,12 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
     // Helper function to draw floral images (at highest layer)
     const drawFloral = () => {
-      if (!initialData || !initialData.floral || !Array.isArray(initialData.floral)) {
+      if (!productCanvasProps || !productCanvasProps.floral || !Array.isArray(productCanvasProps.floral)) {
         return;
       }
       
       // Draw each floral image
-      initialData.floral.forEach((floralItem) => {
+      productCanvasProps.floral.forEach((floralItem) => {
         if (!floralItem.imageUrl || floralItem.x === undefined || floralItem.y === undefined || !floralItem.width || !floralItem.height) {
           console.warn(`Invalid floral item data:`, floralItem);
           return;
@@ -307,8 +329,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     };
     
     // Calculate template SVG dimensions using realWorldWidth and realWorldHeight
-    const templateWidthInches = initialData.realWorldWidth || 24;
-    const templateHeightInches = initialData.realWorldHeight || 18;
+    const templateWidthInches = productCanvasProps.realWorldWidth || 24;
+    const templateHeightInches = productCanvasProps.realWorldHeight || 18;
     const templateWidth = inchesToPixels(templateWidthInches, scale.current);
     const templateHeight = inchesToPixels(templateHeightInches, scale.current);
     
@@ -317,7 +339,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       // Returns a Promise that resolves when overlay is drawn (or immediately if no overlay)
       const drawOverlay = () => {
         return new Promise((resolve) => {
-          if (initialData && initialData.overlayUrl) {
+          if (productCanvasProps && productCanvasProps.overlayUrl) {
             const overlayImg = new Image();
             overlayImg.crossOrigin = 'anonymous';
             
@@ -357,11 +379,11 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             };
             
             overlayImg.onerror = () => {
-              console.warn('Failed to load overlay image:', initialData.overlayUrl);
+              console.warn('Failed to load overlay image:', productCanvasProps.overlayUrl);
               resolve(); // Resolve even on error so floral can still be drawn
             };
             
-            overlayImg.src = initialData.overlayUrl;
+            overlayImg.src = productCanvasProps.overlayUrl;
           } else {
             // No overlay, resolve immediately
             resolve();
@@ -432,15 +454,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
     };
     
     templateImg.onerror = () => {
-      console.warn('Failed to load template image:', initialData.imageUrl);
+      console.warn('Failed to load template image:', productCanvasProps.imageUrl);
     };
     
-    // Use imageUrl from initialData (template image)
-    if (initialData.imageUrl) {
-      templateImg.src = initialData.imageUrl;
+    // Use imageUrl from productCanvasProps (template image)
+    if (productCanvasProps.imageUrl) {
+      templateImg.src = productCanvasProps.imageUrl;
     }
 
-  }, [productCanvasRef, initialData, scale, activeMaterial, materials]);
+  }, [productCanvasRef, productCanvasProps, scale, activeMaterial, materials]);
 
 
   /**

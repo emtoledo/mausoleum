@@ -9,17 +9,24 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FabricImage, FabricText, IText } from 'fabric';
 import * as fabric from 'fabric';
+// Import fabric namespace with alias to avoid shadowing when 'fabric' is used as canvas variable
+const FabricNamespace = fabric;
 import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { pixelsToInches, calculateScale, inchesToPixels } from './utils/unitConverter';
 import DesignStudioToolbar from './components/DesignStudioToolbar';
 import MaterialPicker from './components/MaterialPicker';
 import ArtworkLibrary from './components/ArtworkLibrary';
+import ArtworkTemplatesLibrary from './components/ArtworkTemplatesLibrary';
 import OptionsPanel from './components/OptionsPanel';
 import exportToDxf, { exportToDxfUnified } from './utils/dxfExporter';
-import { captureCombinedCanvas } from '../../utils/canvasCapture';
+import { captureCombinedCanvas, captureArtworkOnly } from '../../utils/canvasCapture';
 import { uploadPreviewImage } from '../../utils/storageService';
 import AlertMessage from '../../components/ui/AlertMessage';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import Modal from '../../components/ui/Modal';
+import Button from '../../components/ui/Button';
+import productService from '../../services/productService';
+import artworkTemplateService from '../../services/artworkTemplateService';
 import colorData from '../../data/ColorData';
 
 /**
@@ -52,6 +59,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [isExporting, setIsExporting] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
   // Always default to 'front' on initial load, regardless of saved currentView
   // This ensures the front view is always loaded first
   const [currentView, setCurrentView] = useState(() => {
@@ -99,6 +107,24 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   
   const [saveAlert, setSaveAlert] = useState(null);
   const [loadingState, setLoadingState] = useState({ isLoading: false, loaded: 0, total: 0, message: '' });
+  const [isMasterAdmin, setIsMasterAdmin] = useState(false);
+  const [saveTemplateModal, setSaveTemplateModal] = useState({ isOpen: false });
+  const [templateName, setTemplateName] = useState('');
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  // Check if user is master admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const adminStatus = await productService.isMasterAdmin();
+        setIsMasterAdmin(adminStatus);
+      } catch (error) {
+        console.error('Error checking master admin status:', error);
+        setIsMasterAdmin(false);
+      }
+    };
+    checkAdminStatus();
+  }, []);
 
   // Update canvas size when container dimensions change
   useEffect(() => {
@@ -308,6 +334,744 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const handleToggleArtworkLibrary = useCallback(() => {
     setShowArtworkLibrary(prev => !prev);
   }, []);
+
+  /**
+   * Handler: Toggle Template Library Visibility
+   */
+  const handleToggleTemplateLibrary = useCallback(() => {
+    setShowTemplateLibrary(prev => !prev);
+  }, []);
+
+  /**
+   * Handler: Load Template
+   * Clears canvas and loads template design elements with material-based colors
+   * Manually loads elements since the hook only loads on initial mount
+   */
+  const handleLoadTemplate = useCallback(async (template) => {
+    if (!fabricInstance || !template) return;
+
+    try {
+      const fabric = fabricInstance || fabricFromHook;
+      if (!fabric) {
+        console.error('No fabric instance available');
+        return;
+      }
+
+      // Get design elements from template
+      let designElements = [];
+      if (Array.isArray(template.design_elements)) {
+        designElements = template.design_elements;
+      } else if (template.design_elements && typeof template.design_elements === 'object') {
+        // Handle multi-view format - use current view or 'front' as default
+        const viewKey = currentView || 'front';
+        designElements = template.design_elements[viewKey] || template.design_elements.front || [];
+      }
+
+      if (designElements.length === 0) {
+        console.warn('Template has no design elements');
+        setSaveAlert({
+          type: 'warning',
+          message: 'Template has no design elements to load'
+        });
+        setShowTemplateLibrary(false);
+        return;
+      }
+
+      // Apply material-based colors to elements before loading
+      const isGreyGranite = activeMaterial?.name === 'Grey Granite' || activeMaterial?.id === 'mat-002';
+      const defaultColorId = isGreyGranite ? 'black' : 'white';
+      const defaultColor = colorData.find(c => c.id === defaultColorId) || {
+        fillColor: isGreyGranite ? '#000000' : '#FFFFFF',
+        opacity: 1.0
+      };
+
+      // Process design elements to apply default colors where needed
+      const processedElements = designElements.map(element => {
+        const processed = { ...element };
+        
+        // For artwork/group/image elements, apply default color if no color is set
+        // Skip panel artwork (they shouldn't get default colors)
+        const isPanelArtwork = element.category && element.category.toLowerCase() === 'panels';
+        
+        if (!isPanelArtwork) {
+          // If element has no fill or has default black fill, apply material-based color
+          if (!processed.fill || processed.fill === '#000000' || processed.fill === '#000') {
+            processed.fill = defaultColor.fillColor;
+            processed.colorId = defaultColorId;
+            if (processed.opacity === undefined) {
+              processed.opacity = defaultColor.opacity;
+            }
+          }
+        }
+        
+        return processed;
+      });
+
+      // Clear canvas manually (except constraint overlay)
+      const existingObjects = fabric.getObjects();
+      const constraintOverlayObj = existingObjects.find(obj => obj.excludeFromExport === true);
+      const objectsToRemove = existingObjects.filter(obj => obj !== constraintOverlayObj);
+      if (objectsToRemove.length > 0) {
+        fabric.remove(...objectsToRemove);
+        fabric.renderAll();
+        console.log('Canvas cleared for template load');
+      }
+
+      // Show loading state
+      setLoadingState({ isLoading: true, loaded: 0, total: processedElements.length, message: 'Loading template...' });
+
+      // Import necessary utilities for loading
+      const dxfImporterModule = await import('../../utils/dxfImporter');
+      const importDxfToFabric = dxfImporterModule.importDxfToFabric || dxfImporterModule.default;
+      
+      // Calculate scale for loading
+      const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
+        ? initialData.canvas.width 
+        : (initialData.realWorldWidth || 24);
+      const FIXED_CANVAS_WIDTH = 1000;
+      const loadScale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
+
+      // Sort elements by zIndex
+      const sortedElements = [...processedElements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+      // Load each element manually
+      let loadedCount = 0;
+      for (const element of sortedElements) {
+        try {
+          // Use pixel values directly if available
+          const baseLeft = element.xPx !== undefined ? element.xPx : inchesToPixels(element.x || 0, loadScale);
+          const baseTop = element.yPx !== undefined ? element.yPx : inchesToPixels(element.y || 0, loadScale);
+
+          // Debug logging
+          console.log('Loading template element:', {
+            id: element.id,
+            type: element.type,
+            imageUrl: element.imageUrl,
+            content: element.content,
+            artworkId: element.artworkId,
+            isDxfFile: element.isDxfFile
+          });
+
+          if (element.type === 'text' || element.type === 'i-text' || element.type === 'itext' || element.type === 'textbox') {
+            // Load text element
+            const finalFontSizePx = element.fontSizePx !== undefined 
+              ? element.fontSizePx 
+              : inchesToPixels(element.fontSize || 12, loadScale);
+            
+            const textObject = new IText(element.content || 'Text', {
+              left: baseLeft,
+              top: baseTop,
+              fontSize: finalFontSizePx,
+              fontFamily: element.font || 'Arial',
+              fill: element.fill || defaultColor.fillColor,
+              opacity: element.opacity !== undefined ? element.opacity : 1,
+              originX: element.originX || 'center',
+              originY: element.originY || 'center',
+              scaleX: 1,
+              scaleY: 1,
+              angle: element.rotation || 0,
+              editable: true,
+              selectable: true,
+              viewId: currentView,
+              elementId: element.id,
+              zIndex: element.zIndex || 0,
+              customData: {
+                currentColor: element.fill || defaultColor.fillColor,
+                currentColorId: element.colorId || defaultColorId
+              }
+            });
+            
+            fabric.add(textObject);
+          } else if (element.type === 'artwork' || element.type === 'group' || element.type === 'path' || element.type === 'image' || (element.imageUrl && element.artworkId)) {
+            // Load artwork/group element - use the same logic as handleAddArtwork
+            // For DXF files, use importDxfToFabric
+            if (element.isDxfFile && element.dxfData) {
+              // DXF artwork - import using dxfImporter
+              // Note: importDxfToFabric adds the group to the canvas automatically
+              // We need to remove it first, apply properties, then re-add it
+              const textureUrl = element.textureUrl || null;
+              const group = await importDxfToFabric({
+                dxfString: element.dxfData,
+                fabricCanvas: fabric,
+                importUnit: 'Inches',
+                textureUrl: textureUrl
+              });
+              
+              if (group) {
+                // Remove from canvas temporarily to apply properties
+                fabric.remove(group);
+                
+                // Check if group should be flipped (negative scaleX/scaleY indicates flip)
+                const groupScaleX = element.scaleX || 1;
+                const groupScaleY = element.scaleY || 1;
+                const shouldFlipX = groupScaleX < 0;
+                const shouldFlipY = groupScaleY < 0;
+                const absScaleX = Math.abs(groupScaleX);
+                const absScaleY = Math.abs(groupScaleY);
+                
+                // Apply saved properties
+                group.set({
+                  left: baseLeft,
+                  top: baseTop,
+                  scaleX: shouldFlipX ? -absScaleX : absScaleX,
+                  scaleY: shouldFlipY ? -absScaleY : absScaleY,
+                  angle: element.rotation || 0,
+                  opacity: element.opacity !== undefined ? element.opacity : 1,
+                  originX: element.originX || 'center',
+                  originY: element.originY || 'center',
+                  flipX: shouldFlipX, // Set flipX/flipY properties for groups
+                  flipY: shouldFlipY,
+                  viewId: currentView,
+                  elementId: element.id,
+                  zIndex: element.zIndex || 0
+                });
+                
+                group.setCoords(); // Force recalculation of coordinates
+                
+                group.customData = {
+                  artworkId: element.artworkId,
+                  category: element.category,
+                  currentColor: element.fill || defaultColor.fillColor,
+                  currentColorId: element.colorId || defaultColorId,
+                  imageUrl: element.imageUrl,
+                  textureUrl: textureUrl
+                };
+                
+                // Re-add to canvas with updated properties
+                fabric.add(group);
+              }
+            } else if (element.imageUrl || element.content) {
+              // Check if this is panel artwork that needs texture layer
+              const imageSrc = element.imageUrl || element.content;
+              let textureUrl = element.textureUrl || null;
+              const isSvg = imageSrc && imageSrc.toLowerCase().endsWith('.svg');
+              
+              // Detect panel artwork by category or artworkId (even without textureUrl)
+              const isPanelArtwork = (element.category && element.category.toLowerCase() === 'panels') ||
+                                     (element.artworkId && element.artworkId && element.artworkId.toString().toLowerCase().includes('panel'));
+              
+              // If it's panel artwork but no textureUrl, try to resolve it from artwork data
+              if (isPanelArtwork && !textureUrl && element.artworkId) {
+                const artworkItem = artwork.find(a => {
+                  const aId = (a.id || '').toString().trim();
+                  const eId = element.artworkId.toString().trim();
+                  return aId === eId || aId.toLowerCase() === eId.toLowerCase();
+                });
+                if (artworkItem) {
+                  textureUrl = artworkItem.textureUrl || null;
+                  if (!textureUrl && artworkItem.category && artworkItem.category.toLowerCase() === 'panels') {
+                    textureUrl = '/images/materials/panelbg.png';
+                  }
+                }
+              }
+              
+              // If still no textureUrl but it's panel artwork, use default
+              if (isPanelArtwork && !textureUrl) {
+                textureUrl = '/images/materials/panelbg.png';
+              }
+              
+              // Handle panel artwork with texture layer (same logic as project load)
+              if (isSvg && isPanelArtwork && textureUrl) {
+                console.log('Detected panel artwork SVG with texture, loading with texture layer:', {
+                  elementId: element.id,
+                  imageUrl: imageSrc,
+                  textureUrl: textureUrl,
+                  artworkId: element.artworkId
+                });
+                
+                try {
+                  // Get artworkId from element
+                  let artworkId = element.artworkId || null;
+                  
+                  if (!artworkId && imageSrc) {
+                    const imageUrlMatch = imageSrc.match(/artwork\/([^\/]+)\/image-/);
+                    if (imageUrlMatch && imageUrlMatch[1]) {
+                      artworkId = imageUrlMatch[1].trim();
+                    }
+                  }
+                  
+                  // Look up artwork data to get textureUrl if not provided
+                  let resolvedTextureUrl = textureUrl;
+                  if (!resolvedTextureUrl && artworkId) {
+                    const artworkItem = artwork.find(a => {
+                      const aId = (a.id || '').toString().trim();
+                      const eId = artworkId.toString().trim();
+                      return aId === eId || aId.toLowerCase() === eId.toLowerCase();
+                    });
+                    if (artworkItem) {
+                      resolvedTextureUrl = artworkItem.textureUrl || null;
+                      if (!resolvedTextureUrl && artworkItem.category && artworkItem.category.toLowerCase() === 'panels') {
+                        resolvedTextureUrl = '/images/materials/panelbg.png';
+                      }
+                    }
+                  }
+                  
+                  if (!resolvedTextureUrl && element.category && element.category.toLowerCase() === 'panels') {
+                    resolvedTextureUrl = '/images/materials/panelbg.png';
+                  }
+                  
+                  if (!resolvedTextureUrl) {
+                    console.warn('Panel artwork missing textureUrl, skipping texture layer:', {
+                      elementId: element.id,
+                      artworkId: artworkId
+                    });
+                    // Fall through to regular image loading
+                  } else {
+                    // Fetch SVG content
+                    const response = await fetch(imageSrc);
+                    if (!response.ok) {
+                      throw new Error(`Failed to fetch SVG: ${response.statusText}`);
+                    }
+                    const svgString = await response.text();
+                    
+                    // Load SVG into Fabric.js as objects
+                    // Use FabricNamespace (imported at top) to avoid shadowing from 'fabric' canvas variable
+                    let loadResult;
+                    try {
+                      // Try Promise-based API first
+                      loadResult = await FabricNamespace.loadSVGFromString(svgString);
+                    } catch (promiseErr) {
+                      // Fallback to callback-based API
+                      loadResult = await new Promise((resolve, reject) => {
+                        FabricNamespace.loadSVGFromString(svgString, (objects, options) => {
+                          if (objects && objects.length > 0) {
+                            resolve({ objects, options });
+                          } else {
+                            reject(new Error('No objects loaded from SVG (callback)'));
+                          }
+                        }, (err) => {
+                          reject(err || new Error('Failed to load SVG'));
+                        });
+                      });
+                    }
+                    
+                    const svgObjects = loadResult.objects || loadResult;
+                    const svgOptions = loadResult.options || {};
+                    const objectsArray = Array.isArray(svgObjects) ? svgObjects : [svgObjects].filter(Boolean);
+                    
+                    if (objectsArray.length === 0) {
+                      throw new Error('No objects loaded from SVG');
+                    }
+                    
+                    // Create a group from SVG objects
+                    // Use FabricNamespace to avoid shadowing from 'fabric' canvas variable
+                    let svgGroup = objectsArray.length === 1 
+                      ? objectsArray[0] 
+                      : new FabricNamespace.Group(objectsArray, svgOptions || {});
+                    
+                    // Normalize stroke widths
+                    const normalizeStrokes = (obj) => {
+                      if (obj.type === 'path' || obj.type === 'path-group') {
+                        obj.stroke = null;
+                        obj.strokeWidth = 0;
+                      }
+                      if (obj._objects && Array.isArray(obj._objects)) {
+                        obj._objects.forEach(child => normalizeStrokes(child));
+                      }
+                    };
+                    normalizeStrokes(svgGroup);
+                    
+                    // Apply saved fill color
+                    if (element.fill) {
+                      const applyFill = (obj, fillColor) => {
+                        if (obj.type === 'path' || obj.type === 'path-group') {
+                          obj.fill = fillColor;
+                        }
+                        if (obj._objects && Array.isArray(obj._objects)) {
+                          obj._objects.forEach(child => applyFill(child, fillColor));
+                        }
+                      };
+                      applyFill(svgGroup, element.fill);
+                    }
+                    
+                    // Set origin before getting bounds
+                    const finalOriginX = element.originX || 'center';
+                    const finalOriginY = element.originY || 'center';
+                    svgGroup.set({
+                      originX: finalOriginX,
+                      originY: finalOriginY
+                    });
+                    svgGroup.setCoords();
+                    
+                    let finalGroup = svgGroup;
+                    
+                    // Create texture layer if we have a texture URL
+                    if (resolvedTextureUrl) {
+                      try {
+                        const textureImgResult = FabricImage.fromURL(resolvedTextureUrl, { crossOrigin: 'anonymous' });
+                        let textureImg;
+                        
+                        if (textureImgResult && typeof textureImgResult.then === 'function') {
+                          textureImg = await textureImgResult;
+                        } else {
+                          textureImg = await new Promise((resolve, reject) => {
+                            FabricImage.fromURL(resolvedTextureUrl, (loadedImg) => {
+                              if (loadedImg) {
+                                resolve(loadedImg);
+                              } else {
+                                reject(new Error('Failed to load texture image'));
+                              }
+                            }, { crossOrigin: 'anonymous' });
+                          });
+                        }
+                        
+                        if (textureImg) {
+                          const svgBounds = svgGroup.getBoundingRect();
+                          const svgWidth = svgBounds.width;
+                          const svgHeight = svgBounds.height;
+                          
+                          // Scale texture to fit SVG bounds
+                          const scaleX = svgWidth / textureImg.width;
+                          const scaleY = svgHeight / textureImg.height;
+                          const textureScale = Math.min(scaleX, scaleY);
+                          
+                          textureImg.set({
+                            left: svgBounds.left,
+                            top: svgBounds.top,
+                            scaleX: textureScale,
+                            scaleY: textureScale,
+                            originX: 'left',
+                            originY: 'top',
+                            selectable: false,
+                            evented: false
+                          });
+                          
+                          // Create group with texture first, then SVG on top
+                          // Use FabricNamespace to avoid shadowing from 'fabric' canvas variable
+                          finalGroup = new FabricNamespace.Group([textureImg, svgGroup], {
+                            originX: finalOriginX,
+                            originY: finalOriginY
+                          });
+                        }
+                      } catch (textureErr) {
+                        console.error('Error creating texture layer for panel artwork:', textureErr);
+                        // Continue with SVG group only
+                      }
+                    }
+                    
+                    // Ensure object dimensions are calculated before applying position
+                    finalGroup.setCoords();
+                    
+                    // Check if flip state was saved (negative scaleX/scaleY indicates flip)
+                    const savedScaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                    const savedScaleY = element.scaleY !== undefined ? element.scaleY : 1;
+                    const shouldFlipX = savedScaleX < 0;
+                    const shouldFlipY = savedScaleY < 0;
+                    const absScaleX = Math.abs(savedScaleX);
+                    const absScaleY = Math.abs(savedScaleY);
+                    
+                    // Recalculate scale if widthPx/heightPx are available
+                    let finalScaleX = absScaleX;
+                    let finalScaleY = absScaleY;
+                    
+                    if (element.widthPx && element.heightPx) {
+                      const groupBounds = finalGroup.getBoundingRect();
+                      if (groupBounds.width > 0 && groupBounds.height > 0) {
+                        finalScaleX = element.widthPx / groupBounds.width;
+                        finalScaleY = element.heightPx / groupBounds.height;
+                      }
+                    }
+                    
+                    // Apply saved properties - set scale/origin first, then position
+                    finalGroup.set({
+                      scaleX: shouldFlipX ? -finalScaleX : finalScaleX,
+                      scaleY: shouldFlipY ? -finalScaleY : finalScaleY,
+                      angle: element.rotation || 0,
+                      opacity: element.opacity !== undefined ? element.opacity : 1,
+                      originX: finalOriginX,
+                      originY: finalOriginY,
+                      flipX: shouldFlipX,
+                      flipY: shouldFlipY
+                    });
+                    
+                    // Update coordinates after setting scale/origin
+                    finalGroup.setCoords();
+                    
+                    // Now set position after dimensions are calculated
+                    finalGroup.set({
+                      left: baseLeft,
+                      top: baseTop
+                    });
+                    
+                    // Final coordinate update to ensure position is correct
+                    finalGroup.setCoords();
+                    
+                    // Set metadata
+                    finalGroup.elementId = element.id;
+                    finalGroup.artworkId = artworkId;
+                    finalGroup.imageUrl = imageSrc;
+                    finalGroup.viewId = currentView;
+                    finalGroup.zIndex = element.zIndex || 0;
+                    
+                    finalGroup.customData = {
+                      artworkId: artworkId,
+                      category: element.category,
+                      currentColor: element.fill || defaultColor.fillColor,
+                      currentColorId: element.colorId || defaultColorId,
+                      imageUrl: imageSrc,
+                      textureUrl: resolvedTextureUrl
+                    };
+                    
+                    fabric.add(finalGroup);
+                    console.log('Panel artwork with texture loaded successfully:', {
+                      elementId: element.id,
+                      artworkId: artworkId,
+                      hasTexture: !!resolvedTextureUrl
+                    });
+                    
+                    // Skip to next element (don't load as regular image)
+                    loadedCount++;
+                    setLoadingState({ 
+                      isLoading: true, 
+                      loaded: loadedCount, 
+                      total: processedElements.length, 
+                      message: `Loading template... (${loadedCount}/${processedElements.length})` 
+                    });
+                    continue;
+                  }
+                } catch (panelErr) {
+                  console.error('Error loading panel artwork with texture:', panelErr);
+                  // Fall through to regular image loading as fallback
+                }
+              }
+              
+              // Regular image/artwork - load as image
+              // imageSrc is already declared above, so we can use it here
+              console.log('Loading artwork element:', {
+                elementId: element.id,
+                type: element.type,
+                imageSrc: imageSrc,
+                artworkId: element.artworkId,
+                category: element.category
+              });
+              
+              if (!imageSrc) {
+                console.warn('No imageUrl or content found for artwork element:', element);
+                loadedCount++;
+                setLoadingState({ 
+                  isLoading: true, 
+                  loaded: loadedCount, 
+                  total: processedElements.length, 
+                  message: `Loading template... (${loadedCount}/${processedElements.length})` 
+                });
+                continue;
+              }
+              
+              let img;
+              try {
+                const imgResult = FabricImage.fromURL(imageSrc, { crossOrigin: 'anonymous' });
+                
+                if (imgResult && typeof imgResult.then === 'function') {
+                  // Promise-based API
+                  img = await imgResult;
+                } else {
+                  // Callback-based API
+                  img = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                      reject(new Error(`Image loading timeout for ${imageSrc}`));
+                    }, 30000);
+                    
+                    FabricImage.fromURL(imageSrc, (loadedImg) => {
+                      clearTimeout(timeout);
+                      if (loadedImg) {
+                        resolve(loadedImg);
+                      } else {
+                        reject(new Error(`Failed to load image: ${imageSrc}`));
+                      }
+                    }, { crossOrigin: 'anonymous' });
+                  });
+                }
+              } catch (imgError) {
+                console.error(`Failed to load image for element ${element.id}:`, imgError);
+                console.error('Image source:', imageSrc);
+                // Skip this element and continue with others
+                loadedCount++;
+                setLoadingState({ 
+                  isLoading: true, 
+                  loaded: loadedCount, 
+                  total: processedElements.length, 
+                  message: `Loading template... (${loadedCount}/${processedElements.length})` 
+                });
+                continue;
+              }
+              
+              if (img) {
+                // Get saved scale values FIRST (may be negative to indicate flip)
+                const savedScaleX = element.scaleX !== undefined ? element.scaleX : 1;
+                const savedScaleY = element.scaleY !== undefined ? element.scaleY : 1;
+                
+                // Check if image should be flipped BEFORE recalculating scale
+                // Negative scaleX/scaleY indicates flip state
+                const shouldFlipX = savedScaleX < 0;
+                const shouldFlipY = savedScaleY < 0;
+                
+                // Calculate scale if widthPx/heightPx are available
+                // Use absolute values for calculation, then apply flip state
+                let absScaleX = Math.abs(savedScaleX);
+                let absScaleY = Math.abs(savedScaleY);
+                
+                if (element.widthPx && element.heightPx) {
+                  // Recalculate scale but preserve flip state from saved values
+                  absScaleX = element.widthPx / img.width;
+                  absScaleY = element.heightPx / img.height;
+                }
+                
+                console.log('Loading artwork image with flip state:', {
+                  elementId: element.id,
+                  savedScaleX: savedScaleX,
+                  savedScaleY: savedScaleY,
+                  shouldFlipX: shouldFlipX,
+                  shouldFlipY: shouldFlipY,
+                  absScaleX: absScaleX,
+                  absScaleY: absScaleY,
+                  finalScaleX: shouldFlipX ? -absScaleX : absScaleX,
+                  finalScaleY: shouldFlipY ? -absScaleY : absScaleY
+                });
+                
+                img.set({
+                  left: baseLeft,
+                  top: baseTop,
+                  scaleX: shouldFlipX ? -absScaleX : absScaleX,
+                  scaleY: shouldFlipY ? -absScaleY : absScaleY,
+                  angle: element.rotation || 0,
+                  opacity: element.opacity !== undefined ? element.opacity : 1,
+                  originX: element.originX || 'center',
+                  originY: element.originY || 'center',
+                  flipX: shouldFlipX, // Set flipX/flipY properties
+                  flipY: shouldFlipY,
+                  viewId: currentView,
+                  elementId: element.id,
+                  zIndex: element.zIndex || 0
+                });
+                
+                img.setCoords(); // Force recalculation of coordinates
+                
+                // Verify flip state was applied correctly
+                const verifyScaleX = img.scaleX || img.get('scaleX');
+                const verifyScaleY = img.scaleY || img.get('scaleY');
+                const verifyFlipX = img.flipX || img.get('flipX');
+                const verifyFlipY = img.flipY || img.get('flipY');
+                
+                console.log('Image flip state after set:', {
+                  elementId: element.id,
+                  scaleX: verifyScaleX,
+                  scaleY: verifyScaleY,
+                  flipX: verifyFlipX,
+                  flipY: verifyFlipY,
+                  isFlippedX: verifyFlipX || verifyScaleX < 0,
+                  isFlippedY: verifyFlipY || verifyScaleY < 0
+                });
+                
+                // If Fabric.js normalized the negative scale, apply CSS transform as fallback
+                if (shouldFlipX && verifyScaleX > 0 && !verifyFlipX) {
+                  console.warn('Fabric.js normalized negative scaleX, applying CSS transform fallback');
+                  const imgElement = img._element || img.getElement();
+                  if (imgElement) {
+                    imgElement.style.transform = `scaleX(-1)`;
+                  }
+                  // Also try setting flipX again
+                  img.set({ flipX: true });
+                }
+                if (shouldFlipY && verifyScaleY > 0 && !verifyFlipY) {
+                  console.warn('Fabric.js normalized negative scaleY, applying CSS transform fallback');
+                  const imgElement = img._element || img.getElement();
+                  if (imgElement) {
+                    const currentTransform = imgElement.style.transform || '';
+                    imgElement.style.transform = currentTransform ? `${currentTransform} scaleY(-1)` : `scaleY(-1)`;
+                  }
+                  // Also try setting flipY again
+                  img.set({ flipY: true });
+                }
+                
+                img.customData = {
+                  artworkId: element.artworkId,
+                  category: element.category,
+                  currentColor: element.fill || defaultColor.fillColor,
+                  currentColorId: element.colorId || defaultColorId,
+                  imageUrl: imageSrc
+                };
+                
+                fabric.add(img);
+              }
+            }
+          }
+          
+          loadedCount++;
+          setLoadingState({ 
+            isLoading: true, 
+            loaded: loadedCount, 
+            total: processedElements.length, 
+            message: `Loading template... (${loadedCount}/${processedElements.length})` 
+          });
+        } catch (err) {
+          console.error(`Error loading element ${element.id}:`, err);
+          console.error('Element data:', {
+            type: element.type,
+            id: element.id,
+            imageUrl: element.imageUrl,
+            content: element.content,
+            artworkId: element.artworkId,
+            isDxfFile: element.isDxfFile,
+            scaleX: element.scaleX,
+            scaleY: element.scaleY
+          });
+          // Continue loading other elements even if one fails
+        }
+      }
+
+      // Reorder by zIndex - remove all objects, sort, then re-add in order
+      const allObjects = fabric.getObjects().filter(obj => !obj.excludeFromExport);
+      const constraintOverlay = fabric.getObjects().find(obj => obj.excludeFromExport === true);
+      
+      // Remove all design objects (keep constraint overlay)
+      if (allObjects.length > 0) {
+        fabric.remove(...allObjects);
+      }
+      
+      // Sort by zIndex
+      allObjects.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+      
+      // Re-add objects in sorted order (constraint overlay stays at bottom)
+      allObjects.forEach((obj) => {
+        fabric.add(obj);
+      });
+
+      fabric.renderAll();
+
+      // Update local design elements state
+      setLocalDesignElements({ [currentView]: processedElements });
+
+      // Update hookInitialData for consistency
+      // IMPORTANT: Preserve original initialData properties (imageUrl, floral, etc.) to prevent product canvas redraw
+      // Only update designElements, don't change other properties that would trigger product canvas redraw
+      const updatedHookInitialData = {
+        ...initialData, // Preserve original initialData (template image, floral, etc.)
+        ...hookInitialData, // Preserve any existing hook state
+        designElements: { [currentView]: processedElements }, // Update only design elements
+        canvasDimensions: template.customizations?.canvasDimensions || initialData?.canvasDimensions || hookInitialData?.canvasDimensions || null
+      };
+      setHookInitialData(updatedHookInitialData);
+
+      // Close template library
+      setShowTemplateLibrary(false);
+
+      // Clear loading state
+      setLoadingState({ isLoading: false, loaded: 0, total: 0, message: '' });
+
+      setSaveAlert({
+        type: 'success',
+        message: `Template "${template.name}" loaded successfully`
+      });
+
+    } catch (error) {
+      console.error('Error loading template:', error);
+      setLoadingState({ isLoading: false, loaded: 0, total: 0, message: '' });
+      setSaveAlert({
+        type: 'danger',
+        message: 'Failed to load template. Please try again.'
+      });
+    }
+  }, [fabricInstance, fabricFromHook, activeMaterial, currentView, hookInitialData, initialData, calculateScale, inchesToPixels, artwork]);
 
   /**
    * Handler: Add Artwork
@@ -1619,6 +2383,112 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   }, [fabricInstance, initialData, activeMaterial, canvasSize, isSaving, onSave, currentProjectId, currentView, localDesignElements, serializeCanvasState]);
 
   /**
+   * Handler: Save as Template (Master Admin Only)
+   * Saves current canvas artwork as a reusable template
+   */
+  const handleSaveAsTemplate = useCallback(async () => {
+    if (!fabricInstance || isSavingTemplate || canvasSize.width === 0) return;
+
+    if (!templateName.trim()) {
+      setSaveAlert({
+        type: 'danger',
+        message: 'Please enter a template name'
+      });
+      return;
+    }
+
+    setIsSavingTemplate(true);
+
+    try {
+      // FIXED CANVAS SIZE: Always use 1000px for consistent scaling
+      const FIXED_CANVAS_WIDTH = 1000;
+      
+      // Use canvas dimensions from template if available, otherwise fall back to realWorld dimensions
+      const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
+        ? initialData.canvas.width 
+        : (initialData.realWorldWidth || 24);
+      
+      // Calculate scale for display purposes only
+      const scale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
+
+      // Serialize current view's design elements (artwork only, no project context)
+      const designElements = serializeCanvasState(fabricInstance, scale, canvasWidthInches, currentView);
+      
+      // Capture artwork-only preview (no product canvas)
+      let previewBlob = null;
+      try {
+        const dataURL = await captureArtworkOnly(fabricInstance, {
+          format: 'image/png',
+          quality: 0.9,
+          multiplier: 1
+        });
+        
+        // Convert data URL to blob
+        const response = await fetch(dataURL);
+        previewBlob = await response.blob();
+      } catch (previewError) {
+        console.warn('Failed to capture artwork preview:', previewError);
+        // Continue without preview if capture fails
+      }
+
+      // Save template
+      const result = await artworkTemplateService.createTemplate(
+        {
+          name: templateName.trim(),
+          designElements: designElements,
+          customizations: {
+            canvasDimensions: {
+              width: FIXED_CANVAS_WIDTH,
+              height: (FIXED_CANVAS_WIDTH / canvasWidthInches) * (initialData.canvas?.height || initialData.realWorldHeight || 18),
+              canvasWidth: canvasWidthInches,
+              canvasHeight: initialData.canvas?.height || initialData.realWorldHeight || 18
+            }
+          }
+        },
+        previewBlob
+      );
+
+      if (result.success) {
+        setSaveAlert({
+          type: 'success',
+          message: 'Template saved successfully!'
+        });
+        setSaveTemplateModal({ isOpen: false });
+        setTemplateName('');
+      } else {
+        setSaveAlert({
+          type: 'danger',
+          message: result.error || 'Failed to save template'
+        });
+      }
+    } catch (error) {
+      console.error('Error saving template:', error);
+      setSaveAlert({
+        type: 'danger',
+        message: 'Failed to save template. Please try again.'
+      });
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }, [fabricInstance, templateName, canvasSize, isSavingTemplate, currentView, initialData, serializeCanvasState]);
+
+  /**
+   * Handler: Open Save as Template modal
+   */
+  const handleOpenSaveTemplate = useCallback(() => {
+    setSaveTemplateModal({ isOpen: true });
+    setTemplateName('');
+  }, []);
+
+  /**
+   * Handler: Close Save as Template modal
+   */
+  const handleCloseSaveTemplate = useCallback(() => {
+    setSaveTemplateModal({ isOpen: false });
+    setTemplateName('');
+  }, []);
+
+  /**
    * Handler: Export to DXF
    */
   const handleExport = useCallback(async () => {
@@ -2056,6 +2926,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         onAddText={handleAddText}
         onToggleArtworkLibrary={handleToggleArtworkLibrary}
         onClose={handleClose}
+        onSaveAsTemplate={isMasterAdmin ? handleOpenSaveTemplate : null}
+        onToggleTemplateLibrary={handleToggleTemplateLibrary}
       />
 
         {/* Left Panel: Artwork (only show when toggled) */}
@@ -2067,6 +2939,14 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               onClose={handleToggleArtworkLibrary}
             />
           
+        )}
+
+        {/* Left Panel: Template Library (only show when toggled) */}
+        {showTemplateLibrary && (
+            <ArtworkTemplatesLibrary
+              onSelectTemplate={handleLoadTemplate}
+              onClose={handleToggleTemplateLibrary}
+            />
         )}
 
         {/* Main/Center: Canvas */}
@@ -2154,6 +3034,58 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           onClose={() => setSaveAlert(null)}
         />
       )}
+
+      {/* Save as Template Modal */}
+      <Modal
+        isOpen={saveTemplateModal.isOpen}
+        onClose={handleCloseSaveTemplate}
+        className="save-template-modal"
+      >
+        <div className="save-template-modal-content">
+          <h3 className="save-template-modal-title">Save as Template</h3>
+          <p className="save-template-modal-description">
+            Save the current artwork design as a reusable template. This will save only the artwork elements (text and artwork), not the product template.
+          </p>
+          
+          <div className="save-template-form">
+            <div className="form-group">
+              <label htmlFor="template-name" className="form-label">Template Name</label>
+              <input
+                id="template-name"
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                className="form-input"
+                placeholder="Enter template name"
+                autoFocus
+                disabled={isSavingTemplate}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && templateName.trim() && !isSavingTemplate) {
+                    handleSaveAsTemplate();
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="save-template-modal-actions">
+            <Button
+              variant="secondary"
+              onClick={handleCloseSaveTemplate}
+              disabled={isSavingTemplate}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveAsTemplate}
+              disabled={isSavingTemplate || !templateName.trim()}
+            >
+              {isSavingTemplate ? 'Saving...' : 'Save Template'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

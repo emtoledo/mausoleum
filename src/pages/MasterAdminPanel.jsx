@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import productService from '../services/productService';
 import ProductsManagement from '../components/admin/ProductsManagement';
 import ArtworkManagement from '../components/admin/ArtworkManagement';
+import ArtworkTemplatesManagement from '../components/admin/ArtworkTemplatesManagement';
 import './MasterAdminPanel.css';
 
 // Expose productService to window for console access (development only)
@@ -134,11 +135,10 @@ const MasterAdminPanel = () => {
           Admin Users
         </button>
         <button
-          className={`admin-tab ${activeTab === 'hierarchy' ? 'active' : ''}`}
-          onClick={() => setActiveTab('hierarchy')}
-          disabled
+          className={`admin-tab ${activeTab === 'templates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('templates')}
         >
-          Templates 
+          Artwork Templates 
         </button>     
         <button
           className={`admin-tab ${activeTab === 'hierarchy' ? 'active' : ''}`}
@@ -153,6 +153,7 @@ const MasterAdminPanel = () => {
       <div className="admin-content">
         {activeTab === 'products' && <ProductsManagement />}
         {activeTab === 'artwork' && <ArtworkManagement />}
+        {activeTab === 'templates' && <ArtworkTemplatesManagement />}
         {activeTab === 'hierarchy' && (
           <div className="coming-soon">Hierarchy management coming soon...</div>
         )}
