@@ -87,11 +87,13 @@ const DesignStudioToolbar = ({
           <span className="toolbar-label">Add Artwork</span>
         </button>
   
+        {/* Add Template - Available to all users */}
         <button
           className="toolbar-button"
           onClick={handleToggleTemplateLibrary}
           title="Add Template"
           aria-label="Add Template"
+          disabled={!onToggleTemplateLibrary}
         >
           <img src="/images/template_icon.png" alt="Template" className="toolbar-icon-image" />
           <span className="toolbar-label">Add Template</span>
