@@ -272,21 +272,20 @@ const AppHeader = ({
         <div className="header-center">
           <div className="canvas-controls">
             <div className="control-group">
-              {/* Cloud icon hidden for later use */}
-              {/* <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('cloud')}>
-                <img src="/images/cloud_icon.png" alt="Cloud" className="control-icon cloud" />
-              </div> */}
-              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('undo')}>
+              {/* Implement undo and redo later */}
+           
+              {/* <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('undo')}>
                 <img src="/images/undo_icon.png" alt="Undo" className="control-icon undo" />
               </div>
               <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('redo')}>
                 <img src="/images/redo_icon.png" alt="Redo" className="control-icon redo" />
-              </div>
-            </div>
+              </div>*/}
+            </div> 
             
+            {/* People buy views */}
             {availableViews && availableViews.length > 0 && (
               <div className="control-group">
-                <div className="control-separator">|</div>
+                {/* <div className="control-separator">|</div> */}
                 {availableViews.length === 1 ? (
                   // Single view: just show it without selection
                   <div className="control-item active">
@@ -320,17 +319,20 @@ const AppHeader = ({
                     )}
                   </div>
                 )}
-                <div className="control-separator">|</div>
+                {/* <div className="control-separator">|</div> */}
               </div>
             )}
             
             <div className="control-group">
+              {/* Implement zoom in function later */}
               {/* <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-in')}>
                 <img src="/images/zoom_icon.png" alt="Zoom In" className="control-icon" />
               </div> */}
-              <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-out')}>
+
+              {/* Implement background function later */}
+              {/* <div className="control-item" onClick={() => (onCanvasControl || defaultCanvasControl)('zoom-out')}>
                 <img src="/images/background_icon.png" alt="Zoom Out" className="control-icon" />
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

@@ -74,14 +74,14 @@ const CanvasActions = ({
         onClick={handleApproval}
         disabled={!isCanvasReady}
         title={!isCanvasReady ? 'Canvas is loading...' : 'Create Approval Proof'}
-        aria-label="Approval"
+        aria-label="Submit for Approval"
       >
-        <span>Approval</span>
+        <span>Submit for Approval</span>
       </button>
 
 
       {/* Export to DXF */}
-      <button
+      {/* <button
         className="button-secondary"
         onClick={handleExport}
         disabled={isExporting || !isCanvasReady}
@@ -91,7 +91,7 @@ const CanvasActions = ({
         <span>
           {isExporting ? 'Exporting...' : !isCanvasReady ? 'Loading Canvas...' : 'Export DXF'}
         </span>
-      </button>
+      </button> */}
 
       {/* Save Project */}
       <button

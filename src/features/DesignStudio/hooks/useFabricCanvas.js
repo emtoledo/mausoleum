@@ -9,7 +9,6 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import * as fabric from 'fabric';
 import { calculateScale, inchesToPixels } from '../utils/unitConverter';
-import { artwork } from '../../../data/ArtworkData';
 import { colorData } from '../../../data/ColorData';
 
 // Set global selection color for all Fabric.js objects
@@ -1125,8 +1124,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           if (imageUrl && imageUrl.trim() === '') imageUrl = null;
           if (textureUrl && textureUrl.trim() === '') textureUrl = null;
           
-          // Combine artworkData (from Supabase) with static artwork for lookups
-          const allArtwork = [...(artworkData || []), ...artwork];
+          // Use artworkData from Supabase
+          const allArtwork = artworkData || [];
           
           // Fallback: If imageUrl or textureUrl is missing but we have artworkId, look it up from artwork data
           // Also check if we can infer artworkId from category or other properties
@@ -1187,7 +1186,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 });
               }
             } else {
-              console.warn('Artwork not found in ArtworkData for artworkId:', artworkId);
+              console.warn('Artwork not found in artworkData for artworkId:', artworkId);
             }
           }
           
@@ -1949,9 +1948,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               continue;
             }
             
-            // Look up artwork from passed artworkData (from Supabase) or fallback to static ArtworkData
-            // Combine both sources: artworkData first (from Supabase), then static artwork
-            const allArtwork = [...(artworkData || []), ...artwork];
+            // Look up artwork from passed artworkData (from Supabase)
+            const allArtwork = artworkData || [];
             
             // Try exact match first (with original artworkId, preserving spaces)
             let artworkItem = allArtwork.find(a => a.id === artworkId);

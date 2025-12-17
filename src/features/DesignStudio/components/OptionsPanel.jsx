@@ -10,7 +10,6 @@ import * as fabric from 'fabric';
 import { FabricImage } from 'fabric';
 import { pixelsToInches, inchesToPixels, calculateScale } from '../utils/unitConverter';
 import { colorData } from '../../../data/ColorData';
-import { artwork } from '../../../data/ArtworkData';
 
 /**
  * @param {fabric.Object} selectedElement - Currently selected Fabric.js object
@@ -24,9 +23,10 @@ import { artwork } from '../../../data/ArtworkData';
  * @param {Function} onSendToBack - Callback to send object to back of z-index stack
  * @param {number} realWorldWidth - Real world width in inches for scale calculations
  * @param {Object} canvasSize - Canvas size in pixels {width, height}
+ * @param {Array} artwork - Array of artwork objects from Supabase
  * @returns {JSX.Element}
  */
-const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical, onBringToFront, onSendToBack, realWorldWidth = 24, canvasSize = { width: 800 }, initialData = null }) => {
+const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCenterHorizontal, onCenterVertical, onFlipHorizontal, onFlipVertical, onBringToFront, onSendToBack, realWorldWidth = 24, canvasSize = { width: 800 }, initialData = null, artwork = [] }) => {
   // Text properties state
   const [content, setContent] = useState('');
   const [fontSize, setFontSize] = useState(12);
@@ -344,7 +344,7 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       
       // Look up artwork item with more robust matching (handle whitespace/trimming)
       let artworkItem = null;
-      if (artworkId) {
+      if (artworkId && artwork && artwork.length > 0) {
         const trimmedId = typeof artworkId === 'string' ? artworkId.trim() : artworkId;
         artworkItem = artwork.find(a => {
           const aId = a.id ? String(a.id).trim() : '';
@@ -1749,20 +1749,12 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     return (
       <div className="options-panel">
         <div className="options-panel-header">
-          <h3 className="options-panel-title">Multiple Selection</h3>
-          <button
-            type="button"
-            className="options-panel-delete-button"
-            onClick={handleDelete}
-            title="Delete selected elements"
-          >
-            <img src="/images/delete_icon.png" alt="Delete" className="options-panel-icon" style={{ width: '12px', height: '14px' }} />
-          </button>
+          <h3 className="options-panel-title">Align</h3>
+
         </div>
         
         <div className="options-panel-actions">
           <div className="options-panel-section">
-            <label className="options-panel-label">Alignment</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
               <button
                 type="button"

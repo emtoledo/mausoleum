@@ -36,7 +36,7 @@ const EditModeView = ({ onHandlersReady }) => {
     try {
       const result = await artworkService.getAllArtwork(false); // Only active artwork
       if (result.success) {
-        // Transform database format to match ArtworkData.js format
+        // Transform database format to match expected artwork format
         const transformedArtwork = (result.data || []).map(item => {
           // Default texture for panel artwork if not specified
           let textureUrl = item.texture_url || null;

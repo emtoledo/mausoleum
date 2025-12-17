@@ -1540,6 +1540,7 @@ body:has(.canvas-layout) .footer-branding {
     align-items: center;
     justify-content: center;
     flex: 1;
+    padding-left: 160px;
 }
 
 .canvas-controls {

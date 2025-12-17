@@ -111,7 +111,7 @@ const DesignStudioToolbar = ({
             title="Save as Template (Admin Only)"
             aria-label="Save as Template"
           >
-            <img src="/images/savetemplate_icon.png" alt="Template" className="toolbar-icon-image" style={{width: '22px'}}/>
+            <img src="/images/savetemplate_icon.png" alt="Template" className="toolbar-icon-image" style={{width: '20px', height: '22px'}}/>
             <span className="toolbar-label">Save as Template</span>
           </button>
         </div>

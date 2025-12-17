@@ -32,7 +32,7 @@ import colorData from '../../data/ColorData';
 /**
  * @param {Object} initialData - Template/product data with dimensions, editZones, and designElements
  * @param {Array} materials - Array of material objects from MaterialsData
- * @param {Array} artwork - Array of artwork objects from ArtworkData
+ * @param {Array} artwork - Array of artwork objects from Supabase
  * @param {Function} onSave - Callback when user saves (receives updated project data)
  * @param {Function} onClose - Callback when user closes the studio
  * @param {Function} onHandlersReady - Optional callback to expose handlers to parent (for AppHeader integration)
@@ -3114,6 +3114,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               realWorldWidth={initialData?.realWorldWidth || 24}
               canvasSize={canvasSize}
               initialData={initialData}
+              artwork={artwork}
             />
      
         )}

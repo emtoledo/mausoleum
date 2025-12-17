@@ -126,26 +126,27 @@ const MasterAdminPanel = () => {
         >
           Artwork
         </button>
+        <button
+          className={`admin-tab ${activeTab === 'templates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+        >
+          Artwork Templates 
+        </button>  
 
         <button
           className={`admin-tab ${activeTab === 'hierarchy' ? 'active' : ''}`}
           onClick={() => setActiveTab('hierarchy')}
           disabled
         >
-          Admin Users
+          Admin Users (coming soon)
         </button>
-        <button
-          className={`admin-tab ${activeTab === 'templates' ? 'active' : ''}`}
-          onClick={() => setActiveTab('templates')}
-        >
-          Artwork Templates 
-        </button>     
+
         <button
           className={`admin-tab ${activeTab === 'hierarchy' ? 'active' : ''}`}
           onClick={() => setActiveTab('hierarchy')}
           disabled
         >
-          Locations
+          Locations (coming soon)
         </button>   
 
       </div>
