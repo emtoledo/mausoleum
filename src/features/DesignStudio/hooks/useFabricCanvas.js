@@ -715,6 +715,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           // Create Fabric.js Image object
           const imageSrc = element.content || element.imageUrl || '';
           
+          // Use artworkData from Supabase (define at function scope so it's accessible)
+          const allArtwork = artworkData || [];
+          
           console.log('Loading image element:', {
             elementId: element.id,
             elementType: element.type,
@@ -764,6 +767,20 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 height: img.height,
                 imageSrc: imageSrc
               });
+              
+              // Look up artwork metadata if available (must be done before using imageMinWidthInches)
+              let imageMinWidthInches = null;
+              if (element.artworkId) {
+                // Look up artwork item to get minWidth
+                const imageArtworkItem = allArtwork.find(a => a.id === element.artworkId);
+                if (imageArtworkItem && imageArtworkItem.minWidth) {
+                  imageMinWidthInches = imageArtworkItem.minWidth;
+                  console.log('Found minWidth for image artwork:', {
+                    artworkId: element.artworkId,
+                    minWidthInches: imageMinWidthInches
+                  });
+                }
+              }
               
               // LOAD DIMENSIONS FROM PIXELS DIRECTLY (preferred) or fall back to inches conversion
               const savedWidth = element.width || 0;
@@ -904,19 +921,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                     img.originalOpacity = img.opacity !== undefined ? img.opacity : 1;
                   }
               
-              // Store artwork metadata if available
-              let imageMinWidthInches = null;
+              // Store artwork metadata if available (imageMinWidthInches already set above)
               if (element.artworkId) {
                 img.artworkId = element.artworkId;
-                // Look up artwork item to get minWidth
-                const imageArtworkItem = allArtwork.find(a => a.id === element.artworkId);
-                if (imageArtworkItem && imageArtworkItem.minWidth) {
-                  imageMinWidthInches = imageArtworkItem.minWidth;
-                  console.log('Found minWidth for image artwork:', {
-                    artworkId: element.artworkId,
-                    minWidthInches: imageMinWidthInches
-                  });
-                }
               }
               if (element.category) {
                 img.category = element.category;

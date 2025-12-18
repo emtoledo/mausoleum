@@ -330,6 +330,8 @@ CREATE TABLE IF NOT EXISTS products (
   floral JSONB DEFAULT '[]'::jsonb,
   dimensions_for_display TEXT,
   available_views JSONB DEFAULT '["front"]'::jsonb,
+  available_templates JSONB DEFAULT '[]'::jsonb,
+  default_template_id UUID REFERENCES artwork_templates(id) ON DELETE SET NULL,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

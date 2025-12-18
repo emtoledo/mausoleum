@@ -463,7 +463,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             imageUrl: element.imageUrl,
             content: element.content,
             artworkId: element.artworkId,
-            isDxfFile: element.isDxfFile
+            isDxfFile: element.isDxfFile,
+            hasImageUrl: !!element.imageUrl,
+            hasContent: !!element.content,
+            allKeys: Object.keys(element)
           });
 
           if (element.type === 'text' || element.type === 'i-text' || element.type === 'itext' || element.type === 'textbox') {
@@ -507,10 +510,97 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                 }
               }
               
+              // If we have artworkId but no imageUrl/content, look up the artwork to get imageUrl
+              let resolvedImageUrl = element.imageUrl || element.content || null;
+              if (!resolvedImageUrl && artworkId && artwork && artwork.length > 0) {
+                // Trim artworkId to handle whitespace issues
+                const trimmedArtworkId = artworkId.toString().trim();
+                console.log('🔍 Looking up artwork:', {
+                  elementId: element.id,
+                  artworkId: artworkId,
+                  trimmedArtworkId: trimmedArtworkId,
+                  artworkArrayLength: artwork.length,
+                  sampleArtworkIds: artwork.slice(0, 5).map(a => a.id)
+                });
+                
+                const artworkItem = artwork.find(a => {
+                  const aId = (a.id || '').toString().trim();
+                  return aId === trimmedArtworkId || aId.toLowerCase() === trimmedArtworkId.toLowerCase();
+                });
+                
+                if (artworkItem) {
+                  // Check for both camelCase (imageUrl) and snake_case (image_url) properties
+                  const imageUrl = artworkItem.imageUrl || artworkItem.image_url;
+                  
+                  console.log('✓ Found artwork item:', {
+                    artworkId: artworkItem.id,
+                    hasImageUrl: !!imageUrl,
+                    imageUrl: imageUrl,
+                    availableProperties: Object.keys(artworkItem)
+                  });
+                  
+                  if (imageUrl) {
+                    resolvedImageUrl = imageUrl;
+                    console.log('✓ Resolved imageUrl from artwork lookup:', {
+                      elementId: element.id,
+                      artworkId: trimmedArtworkId,
+                      resolvedImageUrl: resolvedImageUrl
+                    });
+                  } else {
+                    console.warn('⚠ Artwork item found but has no imageUrl/image_url:', {
+                      elementId: element.id,
+                      artworkId: trimmedArtworkId,
+                      artworkItem: artworkItem,
+                      availableProperties: Object.keys(artworkItem)
+                    });
+                  }
+                } else {
+                  console.warn('⚠ Artwork not found in array:', {
+                    elementId: element.id,
+                    searchedArtworkId: trimmedArtworkId,
+                    availableIds: artwork.map(a => (a.id || '').toString().trim()).slice(0, 10)
+                  });
+                }
+              } else if (!resolvedImageUrl && artworkId) {
+                console.warn('⚠ Cannot lookup artwork - missing artwork array or artworkId:', {
+                  elementId: element.id,
+                  artworkId: artworkId,
+                  hasArtworkArray: !!artwork,
+                  artworkArrayLength: artwork ? artwork.length : 0
+                });
+              }
+              
+              // Check if element has imageUrl or content - if not, skip this element (but allow DXF)
+              if (!resolvedImageUrl && !element.isDxfFile) {
+                console.warn('⚠ Skipping artwork element - no imageUrl, content, or dxfData:', {
+                  elementId: element.id,
+                  type: element.type,
+                  artworkId: artworkId,
+                  allKeys: Object.keys(element)
+                });
+                loadedCount++;
+                setLoadingState({ 
+                  isLoading: true, 
+                  loaded: loadedCount, 
+                  total: processedElements.length, 
+                  message: `Loading template... (${loadedCount}/${processedElements.length})` 
+                });
+                continue;
+              }
+              
+              console.log('✓ Artwork element passed initial check, proceeding to load:', {
+                elementId: element.id,
+                type: element.type,
+                hasImageUrl: !!resolvedImageUrl,
+                hasContent: !!element.content,
+                isDxfFile: !!element.isDxfFile,
+                artworkId: artworkId
+              });
+              
               // Load artwork/group element - use the same logic as handleAddArtwork
               // For DXF files, use importDxfToFabric
               if (element.isDxfFile && element.dxfData) {
-              // DXF artwork - import using dxfImporter
+                // DXF artwork - import using dxfImporter
               // Note: importDxfToFabric adds the group to the canvas automatically
               // We need to remove it first, apply properties, then re-add it
               const textureUrl = element.textureUrl || null;
@@ -564,9 +654,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                 // Re-add to canvas with updated properties
                 fabric.add(group);
               }
-            } else if (element.imageUrl || element.content) {
+            } else if (resolvedImageUrl || element.imageUrl || element.content) {
               // Check if this is panel artwork that needs texture layer
-              const imageSrc = element.imageUrl || element.content;
+              const imageSrc = resolvedImageUrl || element.imageUrl || element.content;
               let textureUrl = element.textureUrl || null;
               const isSvg = imageSrc && imageSrc.toLowerCase().endsWith('.svg');
               
@@ -907,7 +997,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                                             (artworkIdForColor && artworkIdForColor.toString().toLowerCase().includes('panel'));
               
               // For SVG artwork (non-panel), apply default color by modifying SVG fill attributes
-              let finalImageSrc = imageSrc;
+              // Use resolvedImageUrl if available, otherwise fall back to imageSrc
+              let finalImageSrc = resolvedImageUrl || imageSrc;
               let appliedColor = element.fill || defaultColor.fillColor;
               let appliedColorId = element.colorId || defaultColorId;
               
@@ -3062,6 +3153,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
             <ArtworkTemplatesLibrary
               onSelectTemplate={handleLoadTemplate}
               onClose={handleToggleTemplateLibrary}
+              availableTemplateIds={Array.isArray(initialData?.availableTemplates) ? initialData.availableTemplates : []}
+              defaultTemplateId={initialData?.defaultTemplateId || null}
             />
         )}
 

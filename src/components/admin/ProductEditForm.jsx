@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { uploadProductImage } from '../../utils/storageService';
+import artworkTemplateService from '../../services/artworkTemplateService';
 import './ProductEditForm.css';
 
 const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
@@ -21,7 +22,9 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     productBase: [],
     floral: [],
     dimensionsForDisplay: '',
-    availableViews: ['front']
+    availableViews: ['front'],
+    availableTemplates: [],
+    defaultTemplateId: ''
   });
 
   const [materialsInput, setMaterialsInput] = useState('');
@@ -38,6 +41,33 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     product: null,
     overlay: null
   });
+  const [allTemplates, setAllTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  // Load all artwork templates on mount
+  useEffect(() => {
+    const loadTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        console.log('ProductEditForm: Loading templates...');
+        const result = await artworkTemplateService.getAllTemplates();
+        console.log('ProductEditForm: Template load result:', result);
+        if (result.success) {
+          console.log('ProductEditForm: Loaded templates:', result.data?.length || 0);
+          setAllTemplates(result.data || []);
+        } else {
+          console.error('ProductEditForm: Failed to load templates:', result.error);
+          setAllTemplates([]);
+        }
+      } catch (err) {
+        console.error('ProductEditForm: Error loading templates:', err);
+        setAllTemplates([]);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    loadTemplates();
+  }, []);
 
   useEffect(() => {
     if (product) {
@@ -60,7 +90,9 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         productBase: product.product_base || [],
         floral: product.floral || [],
         dimensionsForDisplay: product.dimensions_for_display || '',
-        availableViews: product.available_views || ['front']
+        availableViews: product.available_views || ['front'],
+        availableTemplates: product.available_templates || [],
+        defaultTemplateId: product.default_template_id || ''
       });
 
       setMaterialsInput((product.available_materials || []).join(', '));
@@ -133,7 +165,9 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         productBase: defaultProductBase,
         floral: defaultFloral,
         dimensionsForDisplay: defaultDimensionsForDisplay,
-        availableViews: ['front']
+        availableViews: ['front'],
+        availableTemplates: [],
+        defaultTemplateId: ''
       });
       setMaterialsInput('mat-001, mat-002, mat-003, mat-004, mat-005');
       setEditZonesJson(JSON.stringify(defaultEditZones, null, 2));
@@ -214,7 +248,9 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       productBase,
       floral,
       dimensionsForDisplay: formData.dimensionsForDisplay || null,
-      availableViews: formData.availableViews || ['front']
+      availableViews: formData.availableViews || ['front'],
+      availableTemplates: formData.availableTemplates || [],
+      defaultTemplateId: formData.defaultTemplateId || null
     };
 
     onSave(productData);
@@ -590,6 +626,194 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                 onChange={handleChange}
                 placeholder="mat-002"
               />
+            </div>
+          </div>
+
+          <div className="form-section full-width">
+            <h4>Available Templates</h4>
+            <div className="form-group">
+              <label>Select which artwork templates are available for this product</label>
+              {loadingTemplates ? (
+                <div style={{ padding: '20px', textAlign: 'center' }}>Loading templates...</div>
+              ) : allTemplates.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                  No templates available. Create templates using "Save as Template" in the design studio.
+                </div>
+              ) : (
+                <>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
+                    gap: '16px', 
+                    marginTop: '12px',
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    padding: '8px'
+                  }}>
+                    {allTemplates.map((template) => {
+                      const isSelected = formData.availableTemplates.includes(template.id);
+                      const isDefault = formData.defaultTemplateId === template.id;
+                      
+                      return (
+                        <div
+                          key={template.id}
+                          style={{
+                            border: isSelected ? '2px solid #008FF0' : '2px solid #ddd',
+                            borderRadius: '8px',
+                            padding: '8px',
+                            cursor: 'pointer',
+                            backgroundColor: isSelected ? '#f0f8ff' : '#fff',
+                            position: 'relative',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const newAvailableTemplates = isSelected
+                              ? formData.availableTemplates.filter(id => id !== template.id)
+                              : [...formData.availableTemplates, template.id];
+                            
+                            // If unselecting the default template, clear default
+                            const newDefaultTemplateId = (isDefault && !isSelected) 
+                              ? '' 
+                              : formData.defaultTemplateId;
+                            
+                            setFormData(prev => ({
+                              ...prev,
+                              availableTemplates: newAvailableTemplates,
+                              defaultTemplateId: newDefaultTemplateId
+                            }));
+                          }}
+                        >
+                          {isDefault && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              backgroundColor: '#008FF0',
+                              color: 'white',
+                              fontSize: '10px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 'bold'
+                            }}>
+                              DEFAULT
+                            </div>
+                          )}
+                          <div style={{ 
+                            width: '100%', 
+                            aspectRatio: '1',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                            marginBottom: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {template.preview_image_url ? (
+                              <img 
+                                src={template.preview_image_url} 
+                                alt={template.name}
+                                style={{ 
+                                  width: '100%', 
+                                  height: '100%', 
+                                  objectFit: 'contain' 
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.innerHTML = '<div style="color: #999; font-size: 12px;">No Preview</div>';
+                                }}
+                              />
+                            ) : (
+                              <div style={{ color: '#999', fontSize: '12px' }}>No Preview</div>
+                            )}
+                          </div>
+                          <div style={{ 
+                            fontSize: '12px', 
+                            fontWeight: isSelected ? '600' : '400',
+                            textAlign: 'center',
+                            wordBreak: 'break-word'
+                          }}>
+                            {template.name}
+                          </div>
+                          <div style={{
+                            marginTop: '4px',
+                            textAlign: 'center'
+                          }}>
+                            <label style={{ 
+                              fontSize: '11px', 
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px'
+                            }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  const newAvailableTemplates = e.target.checked
+                                    ? [...formData.availableTemplates, template.id]
+                                    : formData.availableTemplates.filter(id => id !== template.id);
+                                  
+                                  // If unchecking default template, clear default
+                                  const newDefaultTemplateId = (isDefault && !e.target.checked) 
+                                    ? '' 
+                                    : formData.defaultTemplateId;
+                                  
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    availableTemplates: newAvailableTemplates,
+                                    defaultTemplateId: newDefaultTemplateId
+                                  }));
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <span>Available</span>
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {formData.availableTemplates.length > 0 && (
+                    <div style={{ marginTop: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                        Default Template
+                      </label>
+                      <select
+                        value={formData.defaultTemplateId || ''}
+                        onChange={(e) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            defaultTemplateId: e.target.value || ''
+                          }));
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          border: '1px solid #ddd',
+                          fontSize: '14px'
+                        }}
+                      >
+                        <option value="">-- Select Default Template --</option>
+                        {allTemplates
+                          .filter(t => formData.availableTemplates.includes(t.id))
+                          .map(template => (
+                            <option key={template.id} value={template.id}>
+                              {template.name}
+                            </option>
+                          ))}
+                      </select>
+                      <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                        The default template will be automatically loaded when users click "Add Template" for this product.
+                      </small>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 

@@ -172,7 +172,9 @@ const EditModeView = ({ onHandlersReady }) => {
               productBase: dbProduct.product_base || [],
               floral: normalizedFloral,
               vaseDimensions: dbProduct.vase_dimensions || {},
-              availableViews: dbProduct.available_views || ['front']
+              availableViews: dbProduct.available_views || ['front'],
+              available_templates: dbProduct.available_templates || [],
+              default_template_id: dbProduct.default_template_id || null
             };
             setProductConfig(config);
           } else {
@@ -284,6 +286,8 @@ const EditModeView = ({ onHandlersReady }) => {
       designElements, // Pass full object with view keys, not just current view
       currentView,
       availableViews: productConfig.availableViews || ['front'], // Include available views from product
+      availableTemplates: Array.isArray(productConfig.available_templates) ? productConfig.available_templates : [], // Include available templates from product (default to empty array)
+      defaultTemplateId: productConfig.default_template_id || null, // Include default template ID from product
       canvasDimensions: selectedProduct.customizations?.canvasDimensions || null, // Include saved canvas dimensions
       material: savedMaterial // Include saved material in initial data
     };

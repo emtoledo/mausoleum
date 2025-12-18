@@ -119,6 +119,8 @@ class ProductService {
         floral: product.floral || [],
         dimensions_for_display: product.dimensionsForDisplay || null,
         available_views: product.availableViews || ['front'],
+        available_templates: product.availableTemplates || [],
+        default_template_id: product.defaultTemplateId || null,
         is_active: product.isActive !== undefined ? product.isActive : true,
         updated_at: new Date().toISOString()
       };
@@ -159,6 +161,8 @@ class ProductService {
         floral: updates.floral || [],
         dimensions_for_display: updates.dimensionsForDisplay || null,
         available_views: updates.availableViews || ['front'],
+        available_templates: updates.availableTemplates || [],
+        default_template_id: updates.defaultTemplateId || null,
         is_active: updates.isActive !== undefined ? updates.isActive : true,
         updated_at: new Date().toISOString()
       };
