@@ -2250,6 +2250,24 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         zIndex: index
       };
       
+      // Debug logging for image elements to track position saving
+      if (obj.type === 'image' || obj.type === 'imagebox') {
+        const objOriginX = obj.get ? obj.get('originX') : (obj.originX || 'center');
+        const objOriginY = obj.get ? obj.get('originY') : (obj.originY || 'center');
+        console.log('Saving image element position:', {
+          elementId: element.id,
+          artworkId: obj.artworkId || (obj.customData && obj.customData.artworkId),
+          left: actualLeft,
+          top: actualTop,
+          xPx: element.xPx,
+          yPx: element.yPx,
+          originX: objOriginX,
+          originY: objOriginY,
+          scaleX: actualScaleX,
+          scaleY: actualScaleY
+        });
+      }
+      
       // Add stroke properties if they exist
       if (actualStroke !== undefined && actualStroke !== null) {
         element.stroke = actualStroke;
@@ -2307,17 +2325,43 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         element.charSpacing = actualCharSpacing;
       } else if (obj.type === 'image' || obj.type === 'imagebox') {
         const imgCustomData = obj.customData || {};
-        if (imgCustomData.originalSource) {
-          element.content = imgCustomData.originalSource;
-          element.imageUrl = imgCustomData.originalSource;
+        
+        // Prioritize imageUrl from customData (set when loading from templates)
+        // Then check originalSource, then fall back to getSrc/src
+        let imageSource = null;
+        if (imgCustomData.imageUrl && !imgCustomData.imageUrl.startsWith('data:')) {
+          // Prefer imageUrl if it's not a data URL
+          imageSource = imgCustomData.imageUrl;
+        } else if (imgCustomData.originalSource && !imgCustomData.originalSource.startsWith('data:')) {
+          // Use originalSource if it's not a data URL
+          imageSource = imgCustomData.originalSource;
         } else if (typeof obj.getSrc === 'function') {
-          element.content = obj.getSrc();
-        } else if (obj.src) {
-          element.content = obj.src;
-        } else if (obj._element && obj._element.src) {
-          element.content = obj._element.src;
+          const src = obj.getSrc();
+          // Only use if it's not a data URL
+          if (src && !src.startsWith('data:')) {
+            imageSource = src;
+          }
+        } else if (obj.src && !obj.src.startsWith('data:')) {
+          imageSource = obj.src;
+        } else if (obj._element && obj._element.src && !obj._element.src.startsWith('data:')) {
+          imageSource = obj._element.src;
+        }
+        
+        // Set both content and imageUrl to preserve the URL
+        if (imageSource) {
+          element.content = imageSource;
+          element.imageUrl = imageSource;
         } else {
-          element.content = '';
+          // Fallback: use whatever is available (even if data URL)
+          const fallbackSrc = imgCustomData.imageUrl || imgCustomData.originalSource || 
+                             (typeof obj.getSrc === 'function' ? obj.getSrc() : null) || 
+                             obj.src || 
+                             (obj._element && obj._element.src) || '';
+          element.content = fallbackSrc;
+          // Only set imageUrl if it's not a data URL
+          if (fallbackSrc && !fallbackSrc.startsWith('data:')) {
+            element.imageUrl = fallbackSrc;
+          }
         }
         
         const objWidth = obj.get ? obj.get('width') : (obj.width ?? 0);
@@ -2329,6 +2373,15 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         element.width = pixelsToInches(actualWidth, scale);
         element.height = pixelsToInches(actualHeight, scale);
         
+        // Preserve artworkId if available (important for template artwork)
+        // Check both customData and direct property (for backward compatibility)
+        if (imgCustomData.artworkId || obj.artworkId) {
+          element.artworkId = imgCustomData.artworkId || obj.artworkId;
+        }
+        if (imgCustomData.category || obj.category) {
+          element.category = imgCustomData.category || obj.category;
+        }
+        
         if (imgCustomData.currentColor) {
           element.fill = imgCustomData.currentColor;
           element.colorId = imgCustomData.currentColorId;
@@ -2339,6 +2392,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.strokeWidthPx = imgCustomData.currentStrokeWidth;
           element.strokeWidth = pixelsToInches(imgCustomData.currentStrokeWidth, scale);
         }
+        
+        // Save origin point for image elements (important for correct positioning)
+        const imgOriginX = obj.get ? obj.get('originX') : (obj.originX || 'center');
+        const imgOriginY = obj.get ? obj.get('originY') : (obj.originY || 'center');
+        element.originX = imgOriginX;
+        element.originY = imgOriginY;
       } else if (obj.type === 'group') {
         const groupCustomData = (obj.get ? obj.get('customData') : obj.customData) || {};
         element.content = obj.name || groupCustomData.artworkName || groupCustomData.artworkId || obj.artworkId || '';

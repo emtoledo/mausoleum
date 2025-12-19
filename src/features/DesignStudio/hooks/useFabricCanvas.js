@@ -584,14 +584,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         console.log('Calculated position:', { baseLeft, baseTop });
         
         // Get saved origin point (defaults vary by object type)
-        // For groups/artwork/path, default to 'center' (matches how they're created)
-        // For other objects default to 'left'/'top'
+        // For groups/artwork/path/images, default to 'center' (matches how they're created)
+        // For text objects default to 'left'/'top'
         const savedOriginX = element.originX !== undefined 
           ? element.originX 
-          : (element.type === 'group' || element.type === 'artwork' || element.type === 'path' || element.type === 'path-group' ? 'center' : 'left');
+          : (element.type === 'group' || element.type === 'artwork' || element.type === 'path' || element.type === 'path-group' || element.type === 'image' || element.type === 'imagebox' ? 'center' : 'left');
         const savedOriginY = element.originY !== undefined 
           ? element.originY 
-          : (element.type === 'group' || element.type === 'artwork' || element.type === 'path' || element.type === 'path-group' ? 'center' : 'top');
+          : (element.type === 'group' || element.type === 'artwork' || element.type === 'path' || element.type === 'path-group' || element.type === 'image' || element.type === 'imagebox' ? 'center' : 'top');
         
         // Initialize baseProps with saved values
         // IMPORTANT: Use saved scaleX/scaleY directly (preserves flip state: negative = flipped)
@@ -618,7 +618,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           angle: baseProps.angle,
           savedScaleX: element.scaleX,
           savedScaleY: element.scaleY,
-          savedRotation: element.rotation
+          savedRotation: element.rotation,
+          left: baseProps.left,
+          top: baseProps.top,
+          originX: baseProps.originX,
+          originY: baseProps.originY,
+          elementType: element.type,
+          hasSavedOriginX: element.originX !== undefined,
+          hasSavedOriginY: element.originY !== undefined
         });
 
         // Add stroke properties if they exist
@@ -720,17 +727,54 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
           });
         } else if (element.type === 'image' || element.type === 'imagebox') {
           // Create Fabric.js Image object
-          const imageSrc = element.content || element.imageUrl || '';
-          
           // Use artworkData from Supabase (define at function scope so it's accessible)
           const allArtwork = artworkData || [];
+          
+          // If we have artworkId but no imageUrl (or only data URL), look up the artwork
+          let resolvedImageUrl = element.imageUrl || null;
+          if ((!resolvedImageUrl || resolvedImageUrl.startsWith('data:')) && element.artworkId && allArtwork.length > 0) {
+            const artworkItem = allArtwork.find(a => {
+              const aId = (a.id || '').toString().trim();
+              const eId = element.artworkId.toString().trim();
+              return aId === eId || aId.toLowerCase() === eId.toLowerCase();
+            });
+            if (artworkItem && (artworkItem.imageUrl || artworkItem.image_url)) {
+              resolvedImageUrl = artworkItem.imageUrl || artworkItem.image_url;
+              console.log('✓ Resolved imageUrl from artwork lookup for image element:', {
+                elementId: element.id,
+                artworkId: element.artworkId,
+                resolvedImageUrl: resolvedImageUrl
+              });
+            }
+          }
+          
+          // Prioritize imageUrl over content to avoid using data URLs when we have a proper URL
+          // Only use content if imageUrl is not available or is a data URL
+          let imageSrc = null;
+          if (resolvedImageUrl && !resolvedImageUrl.startsWith('data:')) {
+            // Prefer resolved imageUrl if it's a proper URL (not a data URL)
+            imageSrc = resolvedImageUrl;
+          } else if (element.imageUrl && !element.imageUrl.startsWith('data:')) {
+            // Prefer imageUrl if it's a proper URL (not a data URL)
+            imageSrc = element.imageUrl;
+          } else if (element.content && !element.content.startsWith('data:')) {
+            // Use content if it's a proper URL
+            imageSrc = element.content;
+          } else {
+            // Fallback to whatever is available (even if data URL)
+            imageSrc = resolvedImageUrl || element.imageUrl || element.content || '';
+          }
           
           console.log('Loading image element:', {
             elementId: element.id,
             elementType: element.type,
             imageSrc: imageSrc,
             hasImageSrc: !!imageSrc,
-            isSvg: imageSrc.toLowerCase().endsWith('.svg'),
+            isSvg: imageSrc && imageSrc.toLowerCase().endsWith('.svg'),
+            elementImageUrl: element.imageUrl,
+            elementContent: element.content ? element.content.substring(0, 50) + '...' : null,
+            elementArtworkId: element.artworkId,
+            resolvedImageUrl: resolvedImageUrl,
             elementKeys: Object.keys(element)
           });
           
@@ -920,7 +964,7 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               }
               
                   img.elementId = element.id;
-                  img.viewId = viewId; // Tag with view ID for show/hide management
+                  img.viewId = viewId || null; // Tag with view ID for show/hide management
                   img.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
                   
                   // Store original opacity for visibility toggling
@@ -935,6 +979,14 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               if (element.category) {
                 img.category = element.category;
               }
+              
+              // Store in customData for proper serialization when saving
+              img.customData = {
+                artworkId: element.artworkId || null,
+                category: element.category || null,
+                imageUrl: imageSrc, // Store original URL, not modified data URL
+                originalSource: imageSrc // Also store as originalSource for backward compatibility
+              };
               
               // Apply color modifications if saved (for SVG images)
               if (element.fill && imageSrc.toLowerCase().endsWith('.svg')) {
@@ -1016,18 +1068,38 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                       canvas.remove(img);
                       
                       // Apply all properties to the colored image
+                      // Use the original image's position and flip state if available, otherwise use baseProps
+                      const finalLeft = (img.left !== undefined && img.left !== null) ? img.left : baseProps.left;
+                      const finalTop = (img.top !== undefined && img.top !== null) ? img.top : baseProps.top;
+                      const finalScaleX = (img.scaleX !== undefined && img.scaleX !== null) ? img.scaleX : baseProps.scaleX;
+                      const finalScaleY = (img.scaleY !== undefined && img.scaleY !== null) ? img.scaleY : baseProps.scaleY;
+                      const finalFlipX = img.flipX !== undefined ? img.flipX : false;
+                      const finalFlipY = img.flipY !== undefined ? img.flipY : false;
+                      
+                      // Preserve origin point from original image or use baseProps
+                      const finalOriginX = (img.originX !== undefined && img.originX !== null) 
+                        ? (img.get ? img.get('originX') : img.originX)
+                        : (baseProps.originX || 'center');
+                      const finalOriginY = (img.originY !== undefined && img.originY !== null)
+                        ? (img.get ? img.get('originY') : img.originY)
+                        : (baseProps.originY || 'center');
+                      
                       coloredImg.set({
-                        left: baseProps.left,
-                        top: baseProps.top,
+                        left: finalLeft,
+                        top: finalTop,
                         angle: baseProps.angle,
-                        scaleX: baseProps.scaleX,
-                        scaleY: baseProps.scaleY,
+                        scaleX: finalScaleX,
+                        scaleY: finalScaleY,
+                        flipX: finalFlipX,
+                        flipY: finalFlipY,
                         opacity: baseProps.opacity,
-                        originX: baseProps.originX || 'center',
-                        originY: baseProps.originY || 'center'
+                        originX: finalOriginX,
+                        originY: finalOriginY
                       });
                       coloredImg.setCoords();
                       coloredImg.elementId = element.id;
+                      coloredImg.viewId = viewId || null; // Tag with view ID for show/hide management
+                      coloredImg.zIndex = element.zIndex !== undefined ? element.zIndex : 0;
                       
                       // Store metadata
                       if (element.artworkId) {
@@ -1039,6 +1111,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                       
                       // Store color in customData
                       coloredImg.set('customData', {
+                        artworkId: element.artworkId || null,
+                        category: element.category || null,
+                        imageUrl: imageSrc, // Store original URL, not modified data URL
                         originalSource: imageSrc,
                         currentColor: element.fill,
                         currentColorId: element.colorId,
@@ -1058,7 +1133,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                         elementId: element.id,
                         color: element.fill,
                         left: coloredImg.left,
-                        top: coloredImg.top
+                        top: coloredImg.top,
+                        scaleX: coloredImg.scaleX,
+                        scaleY: coloredImg.scaleY,
+                        flipX: coloredImg.flipX,
+                        flipY: coloredImg.flipY,
+                        originalImgLeft: img.left,
+                        originalImgTop: img.top,
+                        basePropsLeft: baseProps.left,
+                        basePropsTop: baseProps.top
                       });
                       
                       // Update loading progress
@@ -1085,6 +1168,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
               
               // Store color in customData if available (even if not SVG)
               const imageCustomData = {
+                artworkId: element.artworkId || null,
+                category: element.category || null,
+                imageUrl: imageSrc, // Store original URL, not modified data URL
                 originalSource: imageSrc
               };
               if (element.fill) {
