@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import DesignStudio from '../features/DesignStudio/DesignStudio';
@@ -10,6 +10,7 @@ import productService from '../services/productService';
 const EditModeView = ({ onHandlersReady }) => {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getProject, updateProject } = useProjectMutations();
   
   const [project, setProject] = useState(null);
@@ -289,7 +290,8 @@ const EditModeView = ({ onHandlersReady }) => {
       availableTemplates: Array.isArray(productConfig.available_templates) ? productConfig.available_templates : [], // Include available templates from product (default to empty array)
       defaultTemplateId: productConfig.default_template_id || null, // Include default template ID from product
       canvasDimensions: selectedProduct.customizations?.canvasDimensions || null, // Include saved canvas dimensions
-      material: savedMaterial // Include saved material in initial data
+      material: savedMaterial, // Include saved material in initial data
+      isNewProject: location.state?.isNewProject || false // Flag to indicate this is a new project creation
     };
     
     console.log('EditModeView: getInitialData - availableViews:', data.availableViews, 'from productConfig:', productConfig.availableViews);

@@ -1302,6 +1302,48 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     }
   }, [fabricInstance, fabricFromHook, activeMaterial, currentView, hookInitialData, initialData, calculateScale, inchesToPixels, artwork]);
 
+  // Auto-load default template for new projects (only when created via wizard)
+  // This effect runs after handleLoadTemplate is defined
+  const hasAutoLoadedDefaultTemplate = useRef(false);
+  useEffect(() => {
+    // Only auto-load if:
+    // 1. We haven't already auto-loaded
+    // 2. Fabric instance is ready
+    // 3. Initial data is loaded
+    // 4. Default template ID exists
+    // 5. This is a new project creation (isNewProject flag from navigation state)
+    // 6. handleLoadTemplate is available
+    if (hasAutoLoadedDefaultTemplate.current) return;
+    if (!fabricInstance) return;
+    if (!initialData) return;
+    if (!initialData.defaultTemplateId) return;
+    if (!initialData.isNewProject) return; // Only auto-load for new projects created via wizard
+    if (!handleLoadTemplate) return;
+
+    // Project is new (from wizard) - auto-load the default template
+    const loadDefaultTemplate = async () => {
+      try {
+        console.log('Auto-loading default template for new project:', initialData.defaultTemplateId);
+        hasAutoLoadedDefaultTemplate.current = true; // Set immediately to prevent duplicate loads
+        
+        const result = await artworkTemplateService.getTemplateById(initialData.defaultTemplateId);
+        if (result.success && result.data) {
+          console.log('Default template loaded successfully:', result.data.name);
+          // Use handleLoadTemplate to load the template
+          await handleLoadTemplate(result.data);
+        } else {
+          console.warn('Failed to load default template:', result.error);
+          hasAutoLoadedDefaultTemplate.current = false; // Reset on failure so it can retry
+        }
+      } catch (error) {
+        console.error('Error auto-loading default template:', error);
+        hasAutoLoadedDefaultTemplate.current = false; // Reset on error so it can retry
+      }
+    };
+
+    loadDefaultTemplate();
+  }, [fabricInstance, initialData, handleLoadTemplate]); // Depend on fabricInstance, initialData, and handleLoadTemplate
+
   /**
    * Handler: Add Artwork
    */

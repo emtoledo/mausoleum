@@ -87,7 +87,10 @@ const ProjectCreationWizard = () => {
         closeWizard();
         
         // Navigate directly to DesignStudio (no templateId needed since each project has one product)
-        navigate(`/projects/${result.data.id}/edit`);
+        // Pass flag to indicate this is a new project creation (for auto-loading default template)
+        navigate(`/projects/${result.data.id}/edit`, { 
+          state: { isNewProject: true } 
+        });
       } else {
         console.error('Failed to create project:', result.error);
         // Show the actual error message from the service
