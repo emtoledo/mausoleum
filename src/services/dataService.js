@@ -129,7 +129,9 @@ class DataService {
   // Get a project by ID (from Supabase or localStorage)
   async getProjectById(id) {
     if (this.useSupabase) {
-      return await supabaseService.getProjectById(id);
+      // Pass allowRetry=true to allow legitimate calls even if there's an in-flight request
+      // This prevents blocking legitimate calls from EditModeView
+      return await supabaseService.getProjectById(id, true);
     }
     
     // Fallback to localStorage

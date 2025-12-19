@@ -85,18 +85,52 @@ class SupabaseService {
 
   /**
    * Get a single project by ID
+   * @param {string} projectId - The project ID to fetch
+   * @param {boolean} allowRetry - If true, allows retry even if request is in-flight (for legitimate retries from dataService)
    */
-  async getProjectById(projectId) {
-    // Fallback to localStorage if Supabase not configured
-    if (!this.isConfigured()) {
-      return dataService.getProjectById(projectId);
+  async getProjectById(projectId, allowRetry = false) {
+    // Prevent infinite loops by tracking in-flight requests
+    if (!this._projectRequests) {
+      this._projectRequests = new Map();
     }
-
+    
+    // If there's already a request in flight for this project
+    if (this._projectRequests.has(projectId)) {
+      if (allowRetry) {
+        // If allowRetry is true (from dataService), wait for the in-flight request to complete
+        // This prevents blocking legitimate calls while still preventing circular dependencies
+        console.log('Waiting for in-flight request to complete for:', projectId);
+        let waitCount = 0;
+        while (this._projectRequests.has(projectId) && waitCount < 10) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          waitCount++;
+        }
+        // If still in flight after waiting, proceed anyway (might be a legitimate separate call)
+        if (this._projectRequests.has(projectId)) {
+          console.warn('In-flight request still active, proceeding with new request for:', projectId);
+        }
+      } else {
+        // If not allowing retry, prevent the recursive call
+        console.warn('Preventing recursive call to getProjectById for:', projectId);
+        return null;
+      }
+    }
+    
+    // Mark request as in-flight
+    this._projectRequests.set(projectId, true);
+    
     try {
+      // Fallback to localStorage if Supabase not configured
+      if (!this.isConfigured()) {
+        this._projectRequests.delete(projectId);
+        return dataService.getProjectById(projectId);
+      }
+
       // Use getSession instead of getUser for more reliable auth check
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session || !session.user) {
+        this._projectRequests.delete(projectId);
         return dataService.getProjectById(projectId);
       }
 
@@ -112,9 +146,33 @@ class SupabaseService {
         .eq('user_account_id', user.id)
         .single();
 
+      // Clear the in-flight flag after query completes (success or error)
+      this._projectRequests.delete(projectId);
+
       if (error) {
         console.error('Supabase error loading project:', error);
-        return await dataService.getProjectById(projectId);
+        
+        // Handle 406 (Not Acceptable) errors specifically - often RLS or timing issues
+        if (error.code === 'PGRST116' || error.status === 406 || error.message?.includes('406')) {
+          console.warn('Project not accessible (406/RLS issue) - may be newly created or permission issue:', projectId);
+          // For newly created projects, they might not be immediately available
+          // Return null instead of trying fallbacks to prevent infinite loops
+          return null;
+        }
+        
+        // Don't fall back to dataService as it will create a circular dependency
+        // Instead, try localStorage directly or return null
+        try {
+          const projects = JSON.parse(localStorage.getItem('valhalla_memorial_projects') || '[]');
+          const project = projects.find(p => p.id === projectId);
+          if (project) {
+            console.log('Found project in localStorage fallback');
+            return project;
+          }
+        } catch (localStorageError) {
+          console.error('Error accessing localStorage:', localStorageError);
+        }
+        return null;
       }
 
       if (!data) {
@@ -127,8 +185,22 @@ class SupabaseService {
       console.log('Transformed project:', transformed);
       return transformed;
     } catch (error) {
+      // Clear the in-flight flag
+      this._projectRequests.delete(projectId);
       console.error('Error fetching project from Supabase:', error);
-      return dataService.getProjectById(projectId);
+      // Don't fall back to dataService as it will create a circular dependency
+      // Instead, try localStorage directly or return null
+      try {
+        const projects = JSON.parse(localStorage.getItem('valhalla_memorial_projects') || '[]');
+        const project = projects.find(p => p.id === projectId);
+        if (project) {
+          console.log('Found project in localStorage fallback (catch block)');
+          return project;
+        }
+      } catch (localStorageError) {
+        console.error('Error accessing localStorage:', localStorageError);
+      }
+      return null;
     }
   }
 
@@ -226,7 +298,45 @@ class SupabaseService {
       }
 
       // Return the created project
-      return await this.getProjectById(project.id);
+      // Add a small delay to ensure the project is fully committed before fetching
+      // This helps avoid 406 errors when immediately navigating to edit view
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Use allowRetry=true to allow this call even if there's an in-flight request
+      // (which shouldn't happen here, but ensures it works if EditModeView loads simultaneously)
+      const createdProject = await this.getProjectById(project.id, true);
+      
+      // If getProjectById fails (e.g., 406 error), construct the project object manually
+      // This ensures we can still navigate to edit view even if there's a timing issue
+      if (!createdProject) {
+        console.warn('getProjectById failed after creation, constructing project manually');
+        return {
+          id: project.id,
+          title: project.title,
+          status: project.status || 'draft',
+          createdAt: project.created_at,
+          updatedAt: project.updated_at,
+          lastEdited: project.last_edited || project.created_at,
+          template: projectData.selectedTemplate ? {
+            templateId: projectData.selectedTemplate.id,
+            templateName: projectData.selectedTemplate.name,
+            previewImage: projectData.selectedTemplate.previewImage,
+            imageUrl: projectData.selectedTemplate.imageUrl,
+            overlayUrl: projectData.selectedTemplate.overlayUrl,
+            realWorldWidth: projectData.selectedTemplate.realWorldWidth,
+            realWorldHeight: projectData.selectedTemplate.realWorldHeight,
+            availableMaterials: projectData.selectedTemplate.availableMaterials || [],
+            defaultMaterialId: projectData.selectedTemplate.defaultMaterialId,
+            canvas: projectData.selectedTemplate.canvas,
+            editZones: projectData.selectedTemplate.editZones || [],
+            productBase: projectData.selectedTemplate.productBase || [],
+            floral: projectData.selectedTemplate.floral || [],
+            configured: false
+          } : null
+        };
+      }
+      
+      return createdProject;
     } catch (error) {
       console.error('Error creating project in Supabase:', error);
       // Re-throw the error if it's an email confirmation error

@@ -76,7 +76,7 @@ const EditModeView = ({ onHandlersReady }) => {
       setError(null);
       
       const result = await getProject(projectId);
-      if (result.success) {
+      if (result.success && result.data) {
         setProject(result.data);
         
         // If project is approved, redirect to approved view (cannot edit approved projects)
@@ -185,16 +185,32 @@ const EditModeView = ({ onHandlersReady }) => {
         } else {
           setError('Product ID not found in project data');
         }
-      } else {
-        setError(result.error);
+        } else {
+          // Handle case where project might not exist yet (newly created)
+          const errorMessage = result.error || 'Failed to load project';
+          console.error('EditModeView - Failed to load project:', errorMessage);
+          
+          // If it's a 406 or "not found" error, it might be a timing issue with newly created projects
+          if (errorMessage.includes('406') || errorMessage.includes('not found') || errorMessage.includes('Not found') || errorMessage.includes('Project not found')) {
+            setError('Project not found. It may still be creating. Please try refreshing the page.');
+          } else {
+            setError(errorMessage);
+          }
+        }
+      } catch (err) {
+        const errorMessage = err.message || 'Failed to load project';
+        console.error('Error loading project:', err);
+        
+        // Handle 406 errors specifically
+        if (errorMessage.includes('406') || err.status === 406) {
+          setError('Project not accessible. It may still be creating. Please try refreshing the page.');
+        } else {
+          setError(errorMessage);
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError('Failed to load project');
-      console.error('Error loading project:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   const handleBack = () => {
     navigate('/projects');

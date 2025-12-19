@@ -146,6 +146,8 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         }
       ];
 
+      const defaultDimensionsForDisplay = ''; // Default empty string for dimensions display
+
       // Reset form for new product with default values
       setFormData({
         id: '',

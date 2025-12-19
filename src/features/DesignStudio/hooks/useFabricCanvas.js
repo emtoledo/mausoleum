@@ -2867,10 +2867,114 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         }
       });
 
+      // Handle text changes during editing - anchor position based on alignment
+      // Track anchor position and width for each text object
+      const textAnchorCache = new Map();
+      
+      // Initialize anchor cache when text editing starts
+      canvas.on('editing:entered', (e) => {
+        const textObject = e.target;
+        if (textObject && (textObject.type === 'i-text' || textObject.type === 'text' || textObject.type === 'itext')) {
+          const textAlign = textObject.textAlign || 'left';
+          const initialWidth = textObject.getScaledWidth();
+          const initialLeft = textObject.left;
+          
+          // Calculate the anchor point position based on text alignment
+          // This is the position we want to keep fixed as text changes
+          let anchorX;
+          if (textAlign === 'left') {
+            // Left edge of text
+            anchorX = initialLeft;
+          } else if (textAlign === 'center') {
+            // Center of text
+            anchorX = initialLeft; // For center, left IS the center
+          } else if (textAlign === 'right') {
+            // Right edge of text
+            anchorX = initialLeft + initialWidth; // For right, left + width = right edge
+          }
+          
+          // Store anchor position and initial width
+          textAnchorCache.set(textObject, {
+            anchorX: anchorX,
+            initialWidth: initialWidth,
+            textAlign: textAlign
+          });
+        }
+      });
+      
+      canvas.on('text:changed', (e) => {
+        const textObject = e.target;
+        if (textObject && (textObject.type === 'i-text' || textObject.type === 'text' || textObject.type === 'itext')) {
+          const cacheData = textAnchorCache.get(textObject);
+          
+          // Only proceed if we have cached anchor data
+          if (!cacheData) {
+            // If cache is missing, initialize it now (shouldn't happen, but safety check)
+            const textAlign = textObject.textAlign || 'left';
+            const currentWidth = textObject.getScaledWidth();
+            const currentLeft = textObject.left;
+            
+            let anchorX;
+            if (textAlign === 'left') {
+              anchorX = currentLeft;
+            } else if (textAlign === 'center') {
+              anchorX = currentLeft;
+            } else if (textAlign === 'right') {
+              anchorX = currentLeft + currentWidth;
+            }
+            
+            textAnchorCache.set(textObject, {
+              anchorX: anchorX,
+              initialWidth: currentWidth,
+              textAlign: textAlign
+            });
+            return;
+          }
+          
+          const { anchorX, textAlign } = cacheData;
+          const currentWidth = textObject.getScaledWidth();
+          
+          // Calculate new left position to maintain the anchor point
+          let newLeft;
+          if (textAlign === 'left') {
+            // Anchor is at left edge, so left position stays at anchor
+            newLeft = anchorX;
+          } else if (textAlign === 'center') {
+            // Anchor is at center, so left position is anchor (center)
+            newLeft = anchorX;
+          } else if (textAlign === 'right') {
+            // Anchor is at right edge, so left = anchor - width
+            newLeft = anchorX - currentWidth;
+          }
+          
+          // Update position to maintain anchor point
+          const currentLeft = textObject.left;
+          if (Math.abs(newLeft - currentLeft) > 0.1) {
+            textObject.set('left', newLeft);
+            textObject.setCoords();
+            // Don't call renderAll() here as it's called frequently during typing
+            // The canvas will render on its own during editing
+          }
+        }
+      });
+      
+      // Clean up cache when object is removed or editing exits
+      canvas.on('object:removed', (e) => {
+        const removedObject = e.target;
+        if (textWidthCache.has(removedObject)) {
+          textWidthCache.delete(removedObject);
+        }
+      });
+      
       // Handle text editing completion - preserve properties when editing ends
       canvas.on('text:editing:exited', (e) => {
         const textObject = e.target;
         if (textObject && (textObject.type === 'i-text' || textObject.type === 'text')) {
+          // Clear width cache when editing exits
+          if (textWidthCache.has(textObject)) {
+            textWidthCache.delete(textObject);
+          }
+          
           // Ensure alignment, line height, and char spacing are preserved
           // These should already be preserved, but we'll ensure they're set
           console.log('Text editing exited:', {

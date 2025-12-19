@@ -119,8 +119,8 @@ class ProductService {
         floral: product.floral || [],
         dimensions_for_display: product.dimensionsForDisplay || null,
         available_views: product.availableViews || ['front'],
-        available_templates: product.availableTemplates || [],
-        default_template_id: product.defaultTemplateId || null,
+        available_templates: Array.isArray(product.availableTemplates) ? product.availableTemplates : [],
+        default_template_id: product.defaultTemplateId && product.defaultTemplateId.trim() ? product.defaultTemplateId.trim() : null,
         is_active: product.isActive !== undefined ? product.isActive : true,
         updated_at: new Date().toISOString()
       };
