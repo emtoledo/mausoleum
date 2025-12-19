@@ -1490,36 +1490,56 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       // Set z-index for layer ordering (place at top)
       clonedObj.zIndex = canvas.getObjects().length;
 
-      // Preserve artwork metadata for groups (needed for saving/reloading)
-      if (selectedElement.type === 'group') {
-        // Copy imageUrl and artworkId if they exist on the original
-        if (selectedElement.imageUrl) {
-          clonedObj.imageUrl = selectedElement.imageUrl;
-        }
-        if (selectedElement.artworkId) {
-          clonedObj.artworkId = selectedElement.artworkId;
-        }
-        if (selectedElement.textureUrl) {
-          clonedObj.textureUrl = selectedElement.textureUrl;
-        }
-        if (selectedElement.category) {
-          clonedObj.category = selectedElement.category;
-        }
-        
-        // Also preserve customData if it exists
-        const originalCustomData = selectedElement.customData || selectedElement.get?.('customData') || {};
-        if (Object.keys(originalCustomData).length > 0) {
-          clonedObj.set('customData', { ...originalCustomData });
-        }
-        
-        console.log('Cloned group with preserved metadata:', {
-          elementId: clonedObj.elementId,
-          imageUrl: clonedObj.imageUrl,
-          artworkId: clonedObj.artworkId,
-          textureUrl: clonedObj.textureUrl,
-          category: clonedObj.category
-        });
+      // Preserve artwork metadata for ALL types (groups, paths, images, etc.)
+      // This ensures cloned artwork can be properly saved and reloaded
+      const originalCustomData = selectedElement.customData || selectedElement.get?.('customData') || {};
+      
+      // Get artworkId from multiple sources (direct property or customData)
+      let originalArtworkId = selectedElement.artworkId || originalCustomData.artworkId || null;
+      
+      // Copy all artwork-related properties from original
+      if (selectedElement.imageUrl || originalCustomData.imageUrl) {
+        clonedObj.imageUrl = selectedElement.imageUrl || originalCustomData.imageUrl;
       }
+      if (originalArtworkId) {
+        clonedObj.artworkId = originalArtworkId;
+      }
+      if (selectedElement.textureUrl) {
+        clonedObj.textureUrl = selectedElement.textureUrl;
+      }
+      if (selectedElement.category) {
+        clonedObj.category = selectedElement.category;
+      }
+      
+      // Preserve customData and ensure artworkId is included
+      const clonedCustomData = { ...originalCustomData };
+      if (originalArtworkId) {
+        clonedCustomData.artworkId = originalArtworkId;
+      }
+      // Also preserve other important metadata
+      if (originalCustomData.imageUrl) {
+        clonedCustomData.imageUrl = originalCustomData.imageUrl;
+      }
+      if (originalCustomData.originalSource) {
+        clonedCustomData.originalSource = originalCustomData.originalSource;
+      }
+      if (originalCustomData.category) {
+        clonedCustomData.category = originalCustomData.category;
+      }
+      
+      if (Object.keys(clonedCustomData).length > 0) {
+        clonedObj.set('customData', clonedCustomData);
+      }
+      
+      console.log('Cloned object with preserved metadata:', {
+        elementId: clonedObj.elementId,
+        type: clonedObj.type,
+        imageUrl: clonedObj.imageUrl,
+        artworkId: clonedObj.artworkId || clonedCustomData.artworkId,
+        textureUrl: clonedObj.textureUrl,
+        category: clonedObj.category,
+        customData: clonedCustomData
+      });
 
       // Add to canvas (this automatically places it at the end/top of the layer stack)
       canvas.add(clonedObj);

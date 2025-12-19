@@ -588,13 +588,48 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                 continue;
               }
               
+              // Set imageSrc here so it's available in all code paths below
+              // Use resolvedImageUrl (from artwork lookup) if available, otherwise fall back to element properties
+              let imageSrc = resolvedImageUrl || element.imageUrl || element.content;
+              
+              // Validate that imageSrc is a valid URL, not just an artworkId
+              // If imageSrc looks like an artworkId (not a URL), try to resolve it
+              if (imageSrc && !imageSrc.startsWith('http') && !imageSrc.startsWith('data:') && !imageSrc.startsWith('/') && artworkId && artwork && artwork.length > 0) {
+                console.warn('⚠ imageSrc appears to be artworkId, not URL. Attempting to resolve:', {
+                  elementId: element.id,
+                  imageSrc: imageSrc,
+                  artworkId: artworkId
+                });
+                
+                // Try to resolve again if we have artworkId but imageSrc is not a URL
+                const trimmedArtworkId = artworkId.toString().trim();
+                const artworkItem = artwork.find(a => {
+                  const aId = (a.id || '').toString().trim();
+                  return aId === trimmedArtworkId || aId.toLowerCase() === trimmedArtworkId.toLowerCase();
+                });
+                
+                if (artworkItem) {
+                  const imageUrl = artworkItem.imageUrl || artworkItem.image_url;
+                  if (imageUrl) {
+                    resolvedImageUrl = imageUrl;
+                    imageSrc = imageUrl; // Update imageSrc to the resolved URL
+                    console.log('✓ Resolved imageUrl for cloned artwork:', {
+                      elementId: element.id,
+                      artworkId: trimmedArtworkId,
+                      resolvedImageUrl: imageUrl
+                    });
+                  }
+                }
+              }
+              
               console.log('✓ Artwork element passed initial check, proceeding to load:', {
                 elementId: element.id,
                 type: element.type,
                 hasImageUrl: !!resolvedImageUrl,
                 hasContent: !!element.content,
                 isDxfFile: !!element.isDxfFile,
-                artworkId: artworkId
+                artworkId: artworkId,
+                imageSrc: imageSrc
               });
               
               // Load artwork/group element - use the same logic as handleAddArtwork
@@ -656,7 +691,39 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               }
             } else if (resolvedImageUrl || element.imageUrl || element.content) {
               // Check if this is panel artwork that needs texture layer
-              const imageSrc = resolvedImageUrl || element.imageUrl || element.content;
+              // Set imageSrc here (may be different from first branch)
+              let imageSrc = resolvedImageUrl || element.imageUrl || element.content;
+              
+              // Validate that imageSrc is a valid URL, not just an artworkId
+              // If imageSrc looks like an artworkId (not a URL), try to resolve it
+              if (imageSrc && !imageSrc.startsWith('http') && !imageSrc.startsWith('data:') && !imageSrc.startsWith('/') && artworkId && artwork && artwork.length > 0) {
+                console.warn('⚠ imageSrc appears to be artworkId, not URL. Attempting to resolve:', {
+                  elementId: element.id,
+                  imageSrc: imageSrc,
+                  artworkId: artworkId
+                });
+                
+                // Try to resolve again if we have artworkId but imageSrc is not a URL
+                const trimmedArtworkId = artworkId.toString().trim();
+                const artworkItem = artwork.find(a => {
+                  const aId = (a.id || '').toString().trim();
+                  return aId === trimmedArtworkId || aId.toLowerCase() === trimmedArtworkId.toLowerCase();
+                });
+                
+                if (artworkItem) {
+                  const imageUrl = artworkItem.imageUrl || artworkItem.image_url;
+                  if (imageUrl) {
+                    resolvedImageUrl = imageUrl;
+                    imageSrc = imageUrl; // Update imageSrc to the resolved URL
+                    console.log('✓ Resolved imageUrl for artwork in second branch:', {
+                      elementId: element.id,
+                      artworkId: trimmedArtworkId,
+                      resolvedImageUrl: imageUrl
+                    });
+                  }
+                }
+              }
+              
               let textureUrl = element.textureUrl || null;
               const isSvg = imageSrc && imageSrc.toLowerCase().endsWith('.svg');
               
@@ -2546,6 +2613,20 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         element.heightPx = pathBounds.height;
         element.width = pixelsToInches(pathBounds.width, scale);
         element.height = pixelsToInches(pathBounds.height, scale);
+        
+        // Preserve artworkId for path elements (important for cloned artwork and templates)
+        // Check both customData and direct property (for backward compatibility)
+        const pathCustomData = (obj.get ? obj.get('customData') : obj.customData) || {};
+        if (pathCustomData.artworkId || obj.artworkId) {
+          element.artworkId = pathCustomData.artworkId || obj.artworkId;
+        }
+        if (pathCustomData.category || obj.category) {
+          element.category = pathCustomData.category || obj.category;
+        }
+        // Also preserve imageUrl if available
+        if (pathCustomData.imageUrl || obj.imageUrl) {
+          element.imageUrl = pathCustomData.imageUrl || obj.imageUrl;
+        }
         
         // Save origin point for path elements (defaults to 'center' to match how they're created)
         const pathOriginX = obj.get ? obj.get('originX') : (obj.originX || 'center');
