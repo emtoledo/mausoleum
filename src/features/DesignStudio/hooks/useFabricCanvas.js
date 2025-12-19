@@ -343,8 +343,12 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
             overlayImg.crossOrigin = 'anonymous';
             
             overlayImg.onload = () => {
+              // Always save context state before modifying it
               ctx.save();
-              ctx.globalAlpha = 0.5;
+              
+              // Consistently set overlay opacity to 0.5
+              const OVERLAY_OPACITY = 0.5;
+              ctx.globalAlpha = OVERLAY_OPACITY;
               
               // If activeMaterial has overlayFill, fill the overlay SVG with that color
               if (activeMaterial && activeMaterial.overlayFill) {
@@ -367,12 +371,15 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
                 overlayCtx.globalCompositeOperation = 'source-over';
                 
                 // Draw the filled overlay onto the main canvas at template position
+                // The globalAlpha (0.5) will be applied when drawing the temporary canvas
                 ctx.drawImage(overlayCanvas, 0, 0, templateWidth, templateHeight);
               } else {
                 // No overlayFill specified, just draw the overlay as-is at template size
+                // The globalAlpha (0.5) will be applied when drawing the image
                 ctx.drawImage(overlayImg, 0, 0, templateWidth, templateHeight);
               }
               
+              // Always restore context state to ensure opacity doesn't affect subsequent draws
               ctx.restore();
               resolve(); // Resolve after overlay is drawn
             };

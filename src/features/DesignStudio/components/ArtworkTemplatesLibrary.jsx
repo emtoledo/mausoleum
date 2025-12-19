@@ -102,14 +102,11 @@ const ArtworkTemplatesLibrary = ({ onSelectTemplate, onClose, availableTemplateI
         {/* Search Bar */}
         <div className="artwork-library-controls">
           <div className="control-group">
-            <label htmlFor="search-templates" className="control-label">
-              Search
-            </label>
             <input
               id="search-templates"
               type="text"
-              className="control-input"
-              placeholder="Search templates..."
+              className="control-input default-input"
+              placeholder="Search"
               value={searchTerm}
               onChange={handleSearchChange}
               disabled={loading}
@@ -159,27 +156,8 @@ const ArtworkTemplatesLibrary = ({ onSelectTemplate, onClose, availableTemplateI
                     handleTemplateClick(template);
                   }
                 }}
-                style={{
-                  border: isDefault ? '2px solid #008FF0' : undefined,
-                  position: 'relative'
-                }}
               >
-                {isDefault && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    backgroundColor: '#008FF0',
-                    color: 'white',
-                    fontSize: '10px',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    zIndex: 10
-                  }}>
-                    DEFAULT
-                  </div>
-                )}
+
                 <div className="artwork-item-image">
                   {template.preview_image_url ? (
                     <img 
