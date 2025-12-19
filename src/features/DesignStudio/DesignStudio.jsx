@@ -2767,8 +2767,19 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         canvasDimensions, // Save canvas dimensions for accurate reloading
         material: currentMaterial, // Use ref value to ensure we have the latest
         previewImageUrl, // Include preview image URL if captured
-        currentView // Save the current view
+        currentView, // Save the current view
+        isNewProject: false // Mark project as no longer new after first save
       };
+
+      // Update hookInitialData to reflect that this is no longer a new project
+      // This prevents auto-loading default template on subsequent loads
+      setHookInitialData(prev => ({
+        ...prev,
+        isNewProject: false
+      }));
+
+      // Mark that we've handled the new project flag (prevents auto-load on next render)
+      hasAutoLoadedDefaultTemplate.current = true;
 
       // Call parent's onSave callback
       if (onSave) {
