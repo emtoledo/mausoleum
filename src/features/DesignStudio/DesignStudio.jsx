@@ -996,101 +996,121 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               const isPanelArtworkForColor = (element.category && element.category.toLowerCase() === 'panels') ||
                                             (artworkIdForColor && artworkIdForColor.toString().toLowerCase().includes('panel'));
               
-              // For SVG artwork (non-panel), apply default color by modifying SVG fill attributes
-              // Use resolvedImageUrl if available, otherwise fall back to imageSrc
-              let finalImageSrc = resolvedImageUrl || imageSrc;
               let appliedColor = element.fill || defaultColor.fillColor;
               let appliedColorId = element.colorId || defaultColorId;
               
-              if (isSvgArtwork && !isPanelArtworkForColor) {
-                try {
+              let img;
+              try {
+                // For SVG files, load as SVG objects (same as handleAddArtwork) to avoid rectangular border
+                if (isSvgArtwork) {
+                  console.log('Loading SVG artwork as SVG objects (template):', imageSrc);
+                  
                   // Fetch SVG content
                   const response = await fetch(imageSrc);
-                  if (response.ok) {
-                    const svgText = await response.text();
-                    
-                    // Parse SVG and modify fill attributes
-                    const parser = new DOMParser();
-                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
-                    const svgElement = svgDoc.documentElement;
-                    
-                    // Function to recursively set fill on all elements
-                    const setFillRecursive = (el, color) => {
-                      const tagName = el.tagName?.toLowerCase();
-                      if (tagName === 'style' || tagName === 'script' || tagName === 'defs') {
-                        return;
-                      }
-                      
-                      const currentFill = el.getAttribute('fill');
-                      if (currentFill !== null) {
-                        if (!currentFill.startsWith('url(') && currentFill !== 'none') {
-                          el.setAttribute('fill', color);
+                  if (!response.ok) {
+                    throw new Error(`Failed to fetch SVG: ${response.statusText}`);
+                  }
+                  const svgString = await response.text();
+                  
+                  // Load SVG into Fabric.js as objects (same as handleAddArtwork)
+                  let loadResult;
+                  try {
+                    loadResult = await FabricNamespace.loadSVGFromString(svgString);
+                  } catch (promiseErr) {
+                    // Fallback to callback-based API
+                    loadResult = await new Promise((resolve, reject) => {
+                      FabricNamespace.loadSVGFromString(svgString, (objects, options) => {
+                        if (objects && objects.length > 0) {
+                          resolve({ objects, options });
+                        } else {
+                          reject(new Error('No objects loaded from SVG (callback)'));
                         }
-                      } else {
-                        const shapeElements = ['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line'];
-                        if (shapeElements.includes(tagName)) {
-                          const hasStroke = el.hasAttribute('stroke') && el.getAttribute('stroke') !== 'none';
-                          if (!hasStroke || tagName === 'path' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'rect' || tagName === 'polygon') {
-                            el.setAttribute('fill', color);
-                          }
-                        }
-                      }
-                      
-                      Array.from(el.children).forEach(child => {
-                        setFillRecursive(child, color);
+                      }, (err) => {
+                        reject(err || new Error('Failed to load SVG'));
                       });
+                    });
+                  }
+                  
+                  const svgObjects = loadResult.objects || loadResult;
+                  const svgOptions = loadResult.options || {};
+                  const objectsArray = Array.isArray(svgObjects) ? svgObjects : [svgObjects].filter(Boolean);
+                  
+                  if (objectsArray.length === 0) {
+                    throw new Error('No objects loaded from SVG');
+                  }
+                  
+                  // Create a group from SVG objects
+                  const svgGroup = objectsArray.length === 1 
+                    ? objectsArray[0] 
+                    : new FabricNamespace.Group(objectsArray, svgOptions || {});
+                  
+                  // Normalize stroke widths on all paths (remove strokes, set strokeWidth to 0)
+                  // This prevents thick strokes on SVG paths
+                  const normalizeStrokes = (obj) => {
+                    if (obj.type === 'group' && obj._objects) {
+                      obj._objects.forEach(child => normalizeStrokes(child));
+                    } else if (obj.type === 'path' || obj.type === 'polyline' || obj.type === 'polygon') {
+                      obj.set({
+                        stroke: null,
+                        strokeWidth: 0
+                      });
+                    }
+                  };
+                  normalizeStrokes(svgGroup);
+                  
+                  // Apply default color to non-panel SVG artwork (same as handleAddArtwork)
+                  if (!isPanelArtworkForColor) {
+                    const applyDefaultColor = (obj) => {
+                      if (obj.type === 'group' && obj._objects) {
+                        obj._objects.forEach(child => applyDefaultColor(child));
+                      } else if (obj.type === 'path' || obj.type === 'polyline' || obj.type === 'polygon') {
+                        obj.set({
+                          fill: appliedColor,
+                          opacity: element.opacity !== undefined ? element.opacity : 1,
+                          stroke: null,
+                          strokeWidth: 0
+                        });
+                      }
                     };
                     
-                    // Apply the default color to SVG
-                    setFillRecursive(svgElement, appliedColor);
-                    
-                    // Serialize back to string
-                    const serializer = new XMLSerializer();
-                    const modifiedSvg = serializer.serializeToString(svgElement);
-                    
-                    // Convert SVG to data URL
-                    finalImageSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modifiedSvg);
-                    
-                    console.log('Applied default color to SVG artwork:', {
+                    applyDefaultColor(svgGroup);
+                    console.log('Applied default color to SVG artwork (template):', {
                       elementId: element.id,
                       artworkId: artworkId,
                       color: appliedColor,
                       colorId: appliedColorId
                     });
                   }
-                } catch (svgModifyError) {
-                  console.warn('Failed to modify SVG fill, using original:', svgModifyError);
-                  // Continue with original imageSrc
-                }
-              }
-              
-              let img;
-              try {
-                const imgResult = FabricImage.fromURL(finalImageSrc, { crossOrigin: 'anonymous' });
-                
-                if (imgResult && typeof imgResult.then === 'function') {
-                  // Promise-based API
-                  img = await imgResult;
+                  
+                  img = svgGroup; // Use the SVG group instead of rasterized image
                 } else {
-                  // Callback-based API
-                  img = await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                      reject(new Error(`Image loading timeout for ${finalImageSrc}`));
-                    }, 30000);
-                    
-                    FabricImage.fromURL(finalImageSrc, (loadedImg) => {
-                      clearTimeout(timeout);
-                      if (loadedImg) {
-                        resolve(loadedImg);
-                      } else {
-                        reject(new Error(`Failed to load image: ${finalImageSrc}`));
-                      }
-                    }, { crossOrigin: 'anonymous' });
-                  });
+                  // Load regular image files (PNG, JPG, etc.) as rasterized images
+                  const imgResult = FabricImage.fromURL(imageSrc, { crossOrigin: 'anonymous' });
+                  
+                  if (imgResult && typeof imgResult.then === 'function') {
+                    // Promise-based API
+                    img = await imgResult;
+                  } else {
+                    // Callback-based API
+                    img = await new Promise((resolve, reject) => {
+                      const timeout = setTimeout(() => {
+                        reject(new Error(`Image loading timeout for ${imageSrc}`));
+                      }, 30000);
+                      
+                      FabricImage.fromURL(imageSrc, (loadedImg) => {
+                        clearTimeout(timeout);
+                        if (loadedImg) {
+                          resolve(loadedImg);
+                        } else {
+                          reject(new Error(`Failed to load image: ${imageSrc}`));
+                        }
+                      }, { crossOrigin: 'anonymous' });
+                    });
+                  }
                 }
               } catch (imgError) {
                 console.error(`Failed to load image for element ${element.id}:`, imgError);
-                console.error('Image source:', finalImageSrc);
+                console.error('Image source:', imageSrc);
                 // Skip this element and continue with others
                 loadedCount++;
                 setLoadingState({ 
@@ -1117,7 +1137,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                 let absScaleX = Math.abs(savedScaleX);
                 let absScaleY = Math.abs(savedScaleY);
                 
-                if (element.widthPx && element.heightPx) {
+                if (element.widthPx && element.heightPx && img.width && img.height) {
                   // Recalculate scale but preserve flip state from saved values
                   absScaleX = element.widthPx / img.width;
                   absScaleY = element.heightPx / img.height;
@@ -1132,7 +1152,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                   absScaleX: absScaleX,
                   absScaleY: absScaleY,
                   finalScaleX: shouldFlipX ? -absScaleX : absScaleX,
-                  finalScaleY: shouldFlipY ? -absScaleY : absScaleY
+                  finalScaleY: shouldFlipY ? -absScaleY : absScaleY,
+                  isSvgGroup: img.type === 'group'
                 });
                 
                 img.set({
@@ -1195,7 +1216,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
                   category: element.category,
                   currentColor: appliedColor,
                   currentColorId: appliedColorId,
-                  imageUrl: imageSrc // Store original URL, not modified data URL
+                  imageUrl: imageSrc, // Store original URL, not modified data URL
+                  originalSource: imageSrc // Also store as originalSource for backward compatibility
                 };
                 
                 fabric.add(img);
