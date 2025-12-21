@@ -288,35 +288,77 @@ const ApprovalProofView = () => {
     designElements.forEach(element => {
       if (!element) return;
       
+      // Skip certain element types that shouldn't contribute to color names
+      // - Panel artwork (has texture layers, not actual colors)
+      // - Floral images (decorative, not part of design colors)
+      const isPanelArtwork = element.category && element.category.toLowerCase() === 'panels';
+      const isFloral = element.category && element.category.toLowerCase() === 'floral';
+      const isTextureLayer = element.textureUrl || element.isTextureLayer;
+      
+      if (isPanelArtwork || isFloral || isTextureLayer) {
+        return; // Skip these elements
+      }
+      
       // Try to get color by colorId first (most reliable)
       if (element.colorId) {
         const colorItem = colorData.find(c => c.id === element.colorId);
         if (colorItem) {
           colorNames.add(colorItem.name);
+          return; // If we found color by colorId, don't check hex matches (avoid duplicates)
         }
       }
       
-      // Also check fill color by hex match
+      // Also check fill color by hex match (only if no colorId was found)
       if (element.fill) {
-        const fillHex = element.fill.toUpperCase();
-        const colorItem = colorData.find(c => {
-          const colorHex = c.fillColor.toUpperCase();
-          return colorHex === fillHex;
-        });
-        if (colorItem) {
-          colorNames.add(colorItem.name);
+        // Normalize fill color - handle rgb(), rgba(), and hex formats
+        let fillHex = element.fill.toUpperCase();
+        if (fillHex.startsWith('RGB')) {
+          // Convert rgb/rgba to hex if needed
+          const rgbMatch = fillHex.match(/\d+/g);
+          if (rgbMatch && rgbMatch.length >= 3) {
+            const r = parseInt(rgbMatch[0]).toString(16).padStart(2, '0');
+            const g = parseInt(rgbMatch[1]).toString(16).padStart(2, '0');
+            const b = parseInt(rgbMatch[2]).toString(16).padStart(2, '0');
+            fillHex = `#${r}${g}${b}`;
+          }
+        }
+        
+        if (fillHex.startsWith('#')) {
+          const colorItem = colorData.find(c => {
+            const colorHex = c.fillColor.toUpperCase();
+            return colorHex === fillHex;
+          });
+          if (colorItem) {
+            colorNames.add(colorItem.name);
+            return; // Found by fill, don't check stroke
+          }
         }
       }
       
-      // Check stroke color
-      if (element.stroke) {
-        const strokeHex = element.stroke.toUpperCase();
-        const colorItem = colorData.find(c => {
-          const strokeColorHex = c.strokeColor.toUpperCase();
-          return strokeColorHex === strokeHex && c.strokeWidth > 0;
-        });
-        if (colorItem) {
-          colorNames.add(colorItem.name);
+      // Check stroke color ONLY if element has a visible stroke (strokeWidth > 0)
+      // This prevents matching colors based on default black strokes
+      if (element.stroke && element.strokeWidth && element.strokeWidth > 0) {
+        let strokeHex = element.stroke.toUpperCase();
+        if (strokeHex.startsWith('RGB')) {
+          // Convert rgb/rgba to hex if needed
+          const rgbMatch = strokeHex.match(/\d+/g);
+          if (rgbMatch && rgbMatch.length >= 3) {
+            const r = parseInt(rgbMatch[0]).toString(16).padStart(2, '0');
+            const g = parseInt(rgbMatch[1]).toString(16).padStart(2, '0');
+            const b = parseInt(rgbMatch[2]).toString(16).padStart(2, '0');
+            strokeHex = `#${r}${g}${b}`;
+          }
+        }
+        
+        if (strokeHex.startsWith('#')) {
+          // Only match if the color data has a stroke width > 0 (indicating it's meant to be a stroke color)
+          const colorItem = colorData.find(c => {
+            const strokeColorHex = c.strokeColor.toUpperCase();
+            return strokeColorHex === strokeHex && c.strokeWidth > 0;
+          });
+          if (colorItem) {
+            colorNames.add(colorItem.name);
+          }
         }
       }
     });
