@@ -294,6 +294,18 @@ const EditModeView = ({ onHandlersReady }) => {
       console.log('EditModeView: No design elements found, initializing empty object');
     }
     
+    // Check if project has saved design elements
+    // If it has elements, it's not a new project (even if isNewProject flag is set)
+    const hasSavedElements = Object.keys(designElements).some(viewKey => {
+      const elements = designElements[viewKey];
+      return Array.isArray(elements) && elements.length > 0;
+    });
+    
+    // Determine if this is a new project:
+    // 1. Must come from navigation state (wizard creation)
+    // 2. Must NOT have any saved design elements
+    const isNewProject = (location.state?.isNewProject || false) && !hasSavedElements;
+    
     // Merge product config with any saved customizations
     const data = {
       ...productConfig,
@@ -307,7 +319,7 @@ const EditModeView = ({ onHandlersReady }) => {
       defaultTemplateId: productConfig.default_template_id || null, // Include default template ID from product
       canvasDimensions: selectedProduct.customizations?.canvasDimensions || null, // Include saved canvas dimensions
       material: savedMaterial, // Include saved material in initial data
-      isNewProject: location.state?.isNewProject || false // Flag to indicate this is a new project creation
+      isNewProject: isNewProject // Flag to indicate this is a new project creation (only true if no saved elements)
     };
     
     console.log('EditModeView: getInitialData - availableViews:', data.availableViews, 'from productConfig:', productConfig.availableViews);

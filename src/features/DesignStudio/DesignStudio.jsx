@@ -1380,14 +1380,29 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     // 4. Default template ID exists
     // 5. This is a new project creation (isNewProject flag from navigation state)
     // 6. handleLoadTemplate is available
+    // 7. There are NO existing design elements (project hasn't been saved yet)
     if (hasAutoLoadedDefaultTemplate.current) return;
     if (!fabricInstance) return;
     if (!initialData) return;
     if (!initialData.defaultTemplateId) return;
     if (!initialData.isNewProject) return; // Only auto-load for new projects created via wizard
     if (!handleLoadTemplate) return;
+    
+    // Check if there are any existing design elements
+    // If there are saved elements, don't auto-load (project has been saved before)
+    const designElements = initialData.designElements || {};
+    const hasExistingElements = Object.keys(designElements).some(viewKey => {
+      const elements = designElements[viewKey];
+      return Array.isArray(elements) && elements.length > 0;
+    });
+    
+    if (hasExistingElements) {
+      console.log('Skipping auto-load: Project already has saved design elements');
+      hasAutoLoadedDefaultTemplate.current = true; // Mark as handled to prevent future attempts
+      return;
+    }
 
-    // Project is new (from wizard) - auto-load the default template
+    // Project is new (from wizard) and has no saved elements - auto-load the default template
     const loadDefaultTemplate = async () => {
       try {
         console.log('Auto-loading default template for new project:', initialData.defaultTemplateId);
