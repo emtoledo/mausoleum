@@ -1878,13 +1878,26 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       const realWorldWidth = initialData.realWorldWidth || 24;
       const realWorldHeight = initialData.realWorldHeight || 18;
       
+      // Use canvas.height (in inches) for vertical scale, not realWorldHeight
+      // canvas.height includes the base, while realWorldHeight is just the product
+      const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+        ? initialData.canvas.height 
+        : (initialData.realWorldHeight || 18);
+      
       // Calculate scale for converting inches to pixels
       const scaleX = canvasWidth / realWorldWidth;
-      const scaleY = canvasHeight / realWorldHeight;
+      const scaleY = canvasHeight / canvasHeightInches;
       
       // Convert editZone coordinates from inches to pixels
-      const editZoneLeft = editZone.x * scaleX;
       const editZoneWidth = editZone.width * scaleX;
+      
+      // If X position is not defined or set to "center", center horizontally relative to canvas width
+      let editZoneLeft;
+      if (editZone.x === undefined || editZone.x === null || editZone.x === 'center') {
+        editZoneLeft = (canvasWidth - editZoneWidth) / 2;
+      } else {
+        editZoneLeft = editZone.x * scaleX;
+      }
       
       // Calculate center X of the edit zone
       centerX = editZoneLeft + (editZoneWidth / 2);
@@ -1920,11 +1933,15 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     if (initialData.editZones && initialData.editZones.length > 0) {
       const editZone = initialData.editZones[0];
       const realWorldWidth = initialData.realWorldWidth || 24;
-      const realWorldHeight = initialData.realWorldHeight || 18;
+      // Use canvas.height (in inches) for vertical scale, not realWorldHeight
+      // canvas.height includes the base, while realWorldHeight is just the product
+      const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+        ? initialData.canvas.height 
+        : (initialData.realWorldHeight || 18);
       
       // Calculate scale for converting inches to pixels
       const scaleX = canvasWidth / realWorldWidth;
-      const scaleY = canvasHeight / realWorldHeight;
+      const scaleY = canvasHeight / canvasHeightInches;
       
       // Convert editZone coordinates from inches to pixels
       const editZoneTop = editZone.y * scaleY;
@@ -2241,15 +2258,28 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         if (initialData.editZones && initialData.editZones.length > 0) {
           const editZone = initialData.editZones[0];
           const realWorldWidth = initialData.realWorldWidth || 24;
-          const realWorldHeight = initialData.realWorldHeight || 18;
+          // Use canvas.height (in inches) for vertical scale, not realWorldHeight
+          // canvas.height includes the base, while realWorldHeight is just the product
+          const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+            ? initialData.canvas.height 
+            : (initialData.realWorldHeight || 18);
           
           const scaleX = canvasWidth / realWorldWidth;
-          const scaleY = canvasHeight / realWorldHeight;
+          const scaleY = canvasHeight / canvasHeightInches;
           
-          constraintLeft = editZone.x * scaleX;
+          const editZoneWidthPx = editZone.width * scaleX;
+          const editZoneHeightPx = editZone.height * scaleY;
+          
+          // If X position is not defined or set to "center", center horizontally relative to canvas width
+          if (editZone.x === undefined || editZone.x === null || editZone.x === 'center') {
+            constraintLeft = (canvasWidth - editZoneWidthPx) / 2;
+          } else {
+            constraintLeft = editZone.x * scaleX;
+          }
+          
           constraintTop = editZone.y * scaleY;
-          constraintRight = constraintLeft + (editZone.width * scaleX);
-          constraintBottom = constraintTop + (editZone.height * scaleY);
+          constraintRight = constraintLeft + editZoneWidthPx;
+          constraintBottom = constraintTop + editZoneHeightPx;
         }
         
         // Get object dimensions

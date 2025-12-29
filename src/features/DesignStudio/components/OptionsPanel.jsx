@@ -1427,17 +1427,29 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
       if (initialData && initialData.editZones && initialData.editZones.length > 0) {
         const editZone = initialData.editZones[0];
         const realWorldWidth = initialData.realWorldWidth || 24;
-        const realWorldHeight = initialData.realWorldHeight || 18;
+        // Use canvas.height (in inches) for vertical scale, not realWorldHeight
+        // canvas.height includes the base, while realWorldHeight is just the product
+        const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+          ? initialData.canvas.height 
+          : (initialData.realWorldHeight || 18);
         
         // Calculate scale for converting inches to pixels
         const scaleX = canvasWidth / realWorldWidth;
-        const scaleY = canvasHeight / realWorldHeight;
+        const scaleY = canvasHeight / canvasHeightInches;
         
         // Convert editZone coordinates from inches to pixels
-        const editZoneLeft = editZone.x * scaleX;
-        const editZoneTop = editZone.y * scaleY;
         const editZoneWidth = editZone.width * scaleX;
         const editZoneHeight = editZone.height * scaleY;
+        
+        // If X position is not defined or set to "center", center horizontally relative to canvas width
+        let editZoneLeft;
+        if (editZone.x === undefined || editZone.x === null || editZone.x === 'center') {
+          editZoneLeft = (canvasWidth - editZoneWidth) / 2;
+        } else {
+          editZoneLeft = editZone.x * scaleX;
+        }
+        
+        const editZoneTop = editZone.y * scaleY;
         
         // Calculate center of the edit zone
         centerX = editZoneLeft + (editZoneWidth / 2);

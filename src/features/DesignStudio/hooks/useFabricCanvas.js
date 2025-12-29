@@ -68,17 +68,30 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       // Use the first editZone (or could combine multiple zones)
       const editZone = initialData.editZones[0];
       const realWorldWidth = initialData.realWorldWidth || 24;
-      const realWorldHeight = initialData.realWorldHeight || 18;
+      // Use canvas.height (in inches) for vertical scale, not realWorldHeight
+      // canvas.height includes the base, while realWorldHeight is just the product
+      const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+        ? initialData.canvas.height 
+        : (initialData.realWorldHeight || 18);
       
       // Calculate scale for converting inches to pixels
       const scaleX = canvasWidth / realWorldWidth;
-      const scaleY = canvasHeight / realWorldHeight;
+      const scaleY = canvasHeight / canvasHeightInches;
       
       // Convert editZone coordinates from inches to pixels
-      constraintLeft = editZone.x * scaleX;
+      const editZoneWidthPx = editZone.width * scaleX;
+      const editZoneHeightPx = editZone.height * scaleY;
+      
+      // If X position is not defined or set to "center", center horizontally relative to canvas width
+      if (editZone.x === undefined || editZone.x === null || editZone.x === 'center') {
+        constraintLeft = (canvasWidth - editZoneWidthPx) / 2;
+      } else {
+        constraintLeft = editZone.x * scaleX;
+      }
+      
       constraintTop = editZone.y * scaleY;
-      constraintRight = constraintLeft + (editZone.width * scaleX);
-      constraintBottom = constraintTop + (editZone.height * scaleY);
+      constraintRight = constraintLeft + editZoneWidthPx;
+      constraintBottom = constraintTop + editZoneHeightPx;
     } else {
       // Fall back to canvas boundaries
       constraintLeft = 0;
@@ -2970,17 +2983,29 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
         if (initialData.editZones && initialData.editZones.length > 0) {
           const editZone = initialData.editZones[0];
           const realWorldWidth = initialData.realWorldWidth || 24;
-          const realWorldHeight = initialData.realWorldHeight || 18;
+          // Use canvas.height (in inches) for vertical scale, not realWorldHeight
+          // canvas.height includes the base, while realWorldHeight is just the product
+          const canvasHeightInches = (initialData.canvas && initialData.canvas.height) 
+            ? initialData.canvas.height 
+            : (initialData.realWorldHeight || 18);
           
           // Calculate scale for converting inches to pixels
           const scaleX = canvas.width / realWorldWidth;
-          const scaleY = canvas.height / realWorldHeight;
+          const scaleY = canvas.height / canvasHeightInches;
           
           // Convert editZone coordinates from inches to pixels
-          const x = editZone.x * scaleX;
-          const y = editZone.y * scaleY;
           const width = editZone.width * scaleX;
           const height = editZone.height * scaleY;
+          
+          // If X position is not defined or set to "center", center horizontally relative to canvas width
+          let x;
+          if (editZone.x === undefined || editZone.x === null || editZone.x === 'center') {
+            x = (canvas.width - width) / 2;
+          } else {
+            x = editZone.x * scaleX;
+          }
+          
+          const y = editZone.y * scaleY;
           
           // Create rectangle overlay for constraint border
           const borderRect = new fabric.Rect({
