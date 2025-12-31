@@ -533,8 +533,8 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       console.log('Skipping canvas clear - loading additional view:', viewId);
     }
 
-    // FIXED CANVAS SIZE: Always use 1000px width
-    const FIXED_CANVAS_WIDTH = 1000;
+    // Use actual canvas width (may be scaled down for portrait products)
+    const actualCanvasWidth = canvas.width || 1000;
     
     // Sort by zIndex to maintain layer order
     const sortedElements = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
@@ -2579,8 +2579,9 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
 
     const container = fabricCanvasRef.current;
     
-    // FIXED CANVAS SIZE: Always use 1000px width for consistent scaling
+    // FIXED CANVAS SIZE: Start with 1000px width for consistent scaling
     const FIXED_CANVAS_WIDTH = 1000;
+    const MAX_CANVAS_HEIGHT = 550;
     
     // Use canvas dimensions from template if available, otherwise fall back to realWorld dimensions
     // canvas.width/height includes the base, while realWorldWidth/Height is just the product
@@ -2591,12 +2592,19 @@ export const useFabricCanvas = (fabricCanvasRef, productCanvasRef, initialData, 
       ? initialData.canvas.height 
       : (initialData.realWorldHeight || 18);
     
-    // Calculate canvas height to maintain aspect ratio based on canvas dimensions
-    const canvasWidth = FIXED_CANVAS_WIDTH;
-    const canvasHeight = (canvasWidth / canvasWidthInches) * canvasHeightInches;
+    // Calculate initial canvas dimensions maintaining aspect ratio
+    let canvasWidth = FIXED_CANVAS_WIDTH;
+    let canvasHeight = (canvasWidth / canvasWidthInches) * canvasHeightInches;
+    
+    // If height exceeds max, scale both dimensions proportionally to constrain height
+    if (canvasHeight > MAX_CANVAS_HEIGHT) {
+      const scaleFactor = MAX_CANVAS_HEIGHT / canvasHeight;
+      canvasWidth = canvasWidth * scaleFactor;
+      canvasHeight = MAX_CANVAS_HEIGHT;
+    }
 
     // Calculate scale for display purposes (converting pixels to inches in UI)
-    // Use canvas width for scale calculation to match the actual canvas dimensions
+    // Use final canvas width for scale calculation to match the actual canvas dimensions
     scale.current = calculateScale(canvasWidthInches, canvasWidth);
 
     // Create or update Fabric.js canvas

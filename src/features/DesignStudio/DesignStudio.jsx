@@ -438,12 +438,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       const dxfImporterModule = await import('../../utils/dxfImporter');
       const importDxfToFabric = dxfImporterModule.importDxfToFabric || dxfImporterModule.default;
       
-      // Calculate scale for loading
+      // Calculate scale for loading - use actual fabric canvas width (may be scaled down for portrait products)
       const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
         ? initialData.canvas.width 
         : (initialData.realWorldWidth || 24);
-      const FIXED_CANVAS_WIDTH = 1000;
-      const loadScale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
+      const actualCanvasWidth = fabricInstance.width || 1000; // Use actual canvas width (may be < 1000 for portrait)
+      const loadScale = calculateScale(canvasWidthInches, actualCanvasWidth);
 
       // Sort elements by zIndex
       const sortedElements = [...processedElements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
@@ -2706,8 +2706,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     setIsSaving(true);
 
     try {
-      // FIXED CANVAS SIZE: Always use 1000px for consistent scaling
+      // FIXED CANVAS SIZE: Start with 1000px width, but may scale down for portrait products
       const FIXED_CANVAS_WIDTH = 1000;
+      const MAX_CANVAS_HEIGHT = 550;
       
       // Use canvas dimensions from template if available, otherwise fall back to realWorld dimensions
       const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
@@ -2717,9 +2718,20 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         ? initialData.canvas.height 
         : (initialData.realWorldHeight || 18);
       
+      // Calculate initial canvas dimensions maintaining aspect ratio
+      let canvasWidth = FIXED_CANVAS_WIDTH;
+      let canvasHeight = (canvasWidth / canvasWidthInches) * canvasHeightInches;
+      
+      // If height exceeds max, scale both dimensions proportionally to constrain height
+      if (canvasHeight > MAX_CANVAS_HEIGHT) {
+        const scaleFactor = MAX_CANVAS_HEIGHT / canvasHeight;
+        canvasWidth = canvasWidth * scaleFactor;
+        canvasHeight = MAX_CANVAS_HEIGHT;
+      }
+      
       // Calculate scale for display purposes only (converting pixels to inches in UI)
-      // Use canvas width for scale calculation to match the actual canvas dimensions
-      const scale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
+      // Use final canvas width for scale calculation to match the actual canvas dimensions
+      const scale = calculateScale(canvasWidthInches, canvasWidth);
 
       // Serialize only visible elements (current view) to local state
       const currentDesignElements = serializeCanvasState(fabricInstance, scale, canvasWidthInches, currentView);
@@ -2755,11 +2767,13 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         console.warn('WARNING: No active material set when saving!');
       }
 
-      // Save fixed canvas dimensions (always 1000px width)
-      // Calculate height based on canvas dimensions (not realWorld dimensions)
+      // Save actual canvas dimensions (may be scaled down for portrait products)
+      // Use actual fabric canvas dimensions to preserve the constrained size
+      const actualCanvasWidth = fabricInstance.width || 1000;
+      const actualCanvasHeight = fabricInstance.height || 550;
       const canvasDimensions = {
-        width: FIXED_CANVAS_WIDTH,
-        height: (FIXED_CANVAS_WIDTH / canvasWidthInches) * canvasHeightInches,
+        width: actualCanvasWidth,
+        height: actualCanvasHeight,
         realWorldWidth: initialData.realWorldWidth || 24,
         realWorldHeight: initialData.realWorldHeight || 18,
         canvasWidth: canvasWidthInches,
@@ -2867,16 +2881,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     setIsSavingTemplate(true);
 
     try {
-      // FIXED CANVAS SIZE: Always use 1000px for consistent scaling
-      const FIXED_CANVAS_WIDTH = 1000;
+      // Use actual fabric canvas dimensions (may be scaled down for portrait products)
+      const actualCanvasWidth = fabricInstance.width || 1000;
       
       // Use canvas dimensions from template if available, otherwise fall back to realWorld dimensions
       const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
         ? initialData.canvas.width 
         : (initialData.realWorldWidth || 24);
       
-      // Calculate scale for display purposes only
-      const scale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
+      // Calculate scale for display purposes only - use actual canvas width
+      const scale = calculateScale(canvasWidthInches, actualCanvasWidth);
 
       // Serialize current view's design elements (artwork only, no project context)
       const designElements = serializeCanvasState(fabricInstance, scale, canvasWidthInches, currentView);
@@ -2905,8 +2919,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           designElements: designElements,
           customizations: {
             canvasDimensions: {
-              width: FIXED_CANVAS_WIDTH,
-              height: (FIXED_CANVAS_WIDTH / canvasWidthInches) * (initialData.canvas?.height || initialData.realWorldHeight || 18),
+              width: fabricInstance.width || 1000,
+              height: fabricInstance.height || 550,
               canvasWidth: canvasWidthInches,
               canvasHeight: initialData.canvas?.height || initialData.realWorldHeight || 18
             }
@@ -3220,11 +3234,12 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     // Save current canvas state to local storage before switching
     // Only serialize visible elements (current view)
     if (fabricInstance && canvasSize.width > 0) {
-      const FIXED_CANVAS_WIDTH = 1000;
+      // Use actual fabric canvas width (may be scaled down for portrait products)
+      const actualCanvasWidth = fabricInstance.width || 1000;
       const canvasWidthInches = (initialData.canvas && initialData.canvas.width) 
         ? initialData.canvas.width 
         : (initialData.realWorldWidth || 24);
-      const scale = calculateScale(canvasWidthInches, FIXED_CANVAS_WIDTH);
+      const scale = calculateScale(canvasWidthInches, actualCanvasWidth);
       
       // Serialize only visible elements (current view)
       const currentDesignElements = serializeCanvasState(fabricInstance, scale, canvasWidthInches, currentView);
