@@ -82,25 +82,21 @@ const ProductsManagement = () => {
 
   const handleSaveProduct = async (productData) => {
     try {
-      let result;
+      // ProductEditForm now handles saving internally and shows its own alert message
+      // Just refresh the products list to show updated data, but keep form open
+      await loadProducts();
+      
+      // Update selectedProduct if editing to reflect any changes
       if (selectedProduct) {
-        // Update existing
-        result = await productService.updateProduct(selectedProduct.id, productData);
-      } else {
-        // Create new
-        result = await productService.createProduct(productData);
+        const updatedResult = await productService.getProductById(selectedProduct.id);
+        if (updatedResult.success) {
+          setSelectedProduct(updatedResult.data);
+        }
       }
-
-      if (result.success) {
-        await loadProducts();
-        setSelectedProduct(null);
-        setShowAddForm(false);
-        setError(null);
-      } else {
-        setError(result.error || 'Failed to save product');
-      }
+      
+      setError(null);
     } catch (err) {
-      setError('Error saving product');
+      setError('Error refreshing products');
       console.error(err);
     }
   };

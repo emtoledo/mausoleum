@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { uploadProductImage } from '../../utils/storageService';
 import artworkTemplateService from '../../services/artworkTemplateService';
+import productService from '../../services/productService';
+import AlertMessage from '../ui/AlertMessage';
 import './ProductEditForm.css';
 
 const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
@@ -43,6 +45,8 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
   });
   const [allTemplates, setAllTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [alertMessage, setAlertMessage] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load all artwork templates on mount
   useEffect(() => {
@@ -202,7 +206,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate JSON fields
@@ -210,21 +214,21 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     try {
       editZones = JSON.parse(editZonesJson);
     } catch (e) {
-      alert('Invalid JSON in Edit Zones');
+      setAlertMessage({ type: 'danger', message: 'Invalid JSON in Edit Zones' });
       return;
     }
 
     try {
       productBase = JSON.parse(productBaseJson);
     } catch (e) {
-      alert('Invalid JSON in Product Base');
+      setAlertMessage({ type: 'danger', message: 'Invalid JSON in Product Base' });
       return;
     }
 
     try {
       floral = JSON.parse(floralJson);
     } catch (e) {
-      alert('Invalid JSON in Floral');
+      setAlertMessage({ type: 'danger', message: 'Invalid JSON in Floral' });
       return;
     }
 
@@ -255,19 +259,96 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       defaultTemplateId: formData.defaultTemplateId || null
     };
 
-    onSave(productData);
+    setIsSaving(true);
+    setAlertMessage(null);
+
+    try {
+      let result;
+      if (product) {
+        // Update existing product
+        result = await productService.updateProduct(product.id, productData);
+      } else {
+        // Create new product
+        result = await productService.createProduct(productData);
+      }
+
+      if (result.success) {
+        const successMessage = product ? 'Product updated successfully!' : 'Product created successfully!';
+        console.log('Setting success alert:', successMessage);
+        
+        // Set alert message first
+        setAlertMessage({ 
+          type: 'success', 
+          message: successMessage
+        });
+        
+        // Then call onSave for parent component to refresh list (don't await to avoid blocking)
+        // Delay parent update to ensure alert renders and stays visible
+        if (onSave) {
+          // Use setTimeout to ensure alert is rendered before parent updates
+          // Longer delay to prevent parent re-render from affecting alert
+          setTimeout(() => {
+            onSave(productData).catch(err => {
+              console.error('Error in onSave callback:', err);
+            });
+          }, 500);
+        }
+      } else {
+        const errorMessage = result.error || 'Failed to save product';
+        console.log('Setting error alert:', errorMessage);
+        setAlertMessage({ 
+          type: 'danger', 
+          message: errorMessage
+        });
+      }
+    } catch (err) {
+      console.error('Error saving product:', err);
+      setAlertMessage({ 
+        type: 'danger', 
+        message: 'Error saving product. Please try again.' 
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  // Memoize the onClose callback to prevent AlertMessage from resetting timers on re-render
+  const handleAlertClose = useCallback(() => {
+    console.log('Alert onClose called');
+    setAlertMessage(null);
+  }, []);
+
+  // Debug: Log alertMessage state
+  useEffect(() => {
+    if (alertMessage) {
+      console.log('AlertMessage state updated:', alertMessage);
+    }
+  }, [alertMessage]);
+
   return (
-    <div className="product-edit-form">
+    <>
+      {alertMessage && (
+        <AlertMessage
+          type={alertMessage.type}
+          message={alertMessage.message}
+          duration={11000}
+          onClose={handleAlertClose}
+        />
+      )}
+      <div className="product-edit-form">
       <div className="form-header">
         <h3>{product ? 'Edit Product' : 'Add New Product'}</h3>
         <div className="form-actions-header">
           <button type="button" className="cancel-button" onClick={onCancel}>
             Cancel
           </button>
-          <button type="submit" form="product-form" className="save-button">
-            Save
+          <button 
+            type="submit" 
+            form="product-form" 
+            className="save-button"
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
@@ -885,9 +966,14 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       </form>
 
       <div className="form-actions-footer">   
-      <button type="submit" form="product-form" className="save-button">
-            Save
-          </button>         
+      <button 
+        type="submit" 
+        form="product-form" 
+        className="save-button"
+        disabled={isSaving}
+      >
+        {isSaving ? 'Saving...' : 'Save'}
+      </button>         
       {product && onDelete && (
             <button
               type="button"
@@ -898,8 +984,8 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             </button>
           )}
           </div>
-      
-    </div>
+      </div>
+    </>
   );
 };
 

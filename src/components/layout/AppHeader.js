@@ -288,7 +288,7 @@ const AppHeader = ({
                 {/* <div className="control-separator">|</div> */}
                 {availableViews.length === 1 ? (
                   // Single view: just show it without selection
-                  <div className="control-item active">
+                  <div className="control-item view active">
                     <span className="control-text">{formatViewName(availableViews[0])}</span>
                   </div>
                 ) : (
