@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import artworkTemplateService from '../../services/artworkTemplateService';
+import productService from '../../services/productService';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import ConfirmModal from '../ui/ConfirmModal';
 
 const ArtworkTemplatesManagement = () => {
   const [templates, setTemplates] = useState([]);
+  const [allTemplates, setAllTemplates] = useState([]); // Store all templates for filtering
+  const [products, setProducts] = useState([]); // Products that have templates
+  const [selectedProductId, setSelectedProductId] = useState('all'); // Filter state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editModal, setEditModal] = useState({ isOpen: false, template: null });
@@ -18,13 +22,68 @@ const ArtworkTemplatesManagement = () => {
     loadTemplates();
   }, []);
 
+  // Load products that have associated templates
+  useEffect(() => {
+    const loadProducts = async () => {
+      if (allTemplates.length === 0) {
+        setProducts([]);
+        return;
+      }
+
+      // Get unique product IDs from templates
+      const productIds = [...new Set(
+        allTemplates
+          .map(t => t.product_id)
+          .filter(id => id !== null && id !== undefined)
+      )];
+
+      if (productIds.length === 0) {
+        setProducts([]);
+        return;
+      }
+
+      try {
+        // Load all products and filter to only those with templates
+        const result = await productService.getAllProducts(true); // Include inactive products
+        if (result.success && result.data) {
+          const productsWithTemplates = result.data.filter(p => productIds.includes(p.id));
+          // Sort by name
+          productsWithTemplates.sort((a, b) => a.name.localeCompare(b.name));
+          setProducts(productsWithTemplates);
+        }
+      } catch (err) {
+        console.error('Error loading products:', err);
+        setProducts([]);
+      }
+    };
+
+    loadProducts();
+  }, [allTemplates]);
+
+  // Filter templates based on selected product
+  useEffect(() => {
+    if (selectedProductId === 'all') {
+      setTemplates(allTemplates);
+    } else {
+      const filtered = allTemplates.filter(t => t.product_id === selectedProductId);
+      setTemplates(filtered);
+    }
+  }, [selectedProductId, allTemplates]);
+
   const loadTemplates = async () => {
     try {
       setLoading(true);
       setError(null);
       const result = await artworkTemplateService.getAllTemplates();
       if (result.success) {
-        setTemplates(result.data || []);
+        const loadedTemplates = result.data || [];
+        setAllTemplates(loadedTemplates);
+        // Apply current filter
+        if (selectedProductId === 'all') {
+          setTemplates(loadedTemplates);
+        } else {
+          setTemplates(loadedTemplates.filter(t => t.product_id === selectedProductId));
+        }
       } else {
         setError(result.error || 'Failed to load templates');
       }
@@ -122,11 +181,52 @@ const ArtworkTemplatesManagement = () => {
         </p>
       </div>
 
+      {/* Product Filter Dropdown */}
+      {products.length > 0 && (
+        <div className="artwork-templates-filter" style={{ marginBottom: '20px' }}>
+          <label htmlFor="product-filter" style={{ marginRight: '10px', fontWeight: '500' }}>
+            Filter by Product:
+          </label>
+          <select
+            id="product-filter"
+            value={selectedProductId}
+            onChange={(e) => setSelectedProductId(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid #ddd',
+              fontSize: '14px',
+              minWidth: '200px',
+              backgroundColor: '#fff',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="all">All Products</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name}
+              </option>
+            ))}
+          </select>
+          {selectedProductId !== 'all' && (
+            <span style={{ marginLeft: '10px', color: '#666', fontSize: '14px' }}>
+              ({templates.length} template{templates.length !== 1 ? 's' : ''})
+            </span>
+          )}
+        </div>
+      )}
+
       {templates.length === 0 ? (
         <div className="admin-empty-state">
-          <p>No artwork templates found.</p>
+          <p>
+            {selectedProductId === 'all' 
+              ? 'No artwork templates found.'
+              : `No templates found for the selected product.`}
+          </p>
           <p className="admin-empty-hint">
-            Create templates by using "Save as Template" in the design studio.
+            {selectedProductId === 'all'
+              ? 'Create templates by using "Save as Template" in the design studio.'
+              : 'Try selecting a different product or create templates for this product.'}
           </p>
         </div>
       ) : (
@@ -146,6 +246,11 @@ const ArtworkTemplatesManagement = () => {
               </div>
               <div className="artwork-template-info">
                 <h3 className="artwork-template-name">{template.name}</h3>
+                {template.product_id && (
+                  <p className="artwork-template-meta" style={{ fontWeight: '500', color: '#008FF0' }}>
+                    Product: {products.find(p => p.id === template.product_id)?.name || template.product_id}
+                  </p>
+                )}
                 <p className="artwork-template-meta">
                   Created: {new Date(template.created_at).toLocaleDateString()}
                 </p>
