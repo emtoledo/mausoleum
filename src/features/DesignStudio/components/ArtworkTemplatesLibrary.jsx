@@ -13,19 +13,20 @@ import artworkTemplateService from '../../../services/artworkTemplateService';
  * @param {Function} onClose - Callback fired when the close button is clicked
  * @param {Array} availableTemplateIds - Optional array of template IDs to filter by (from product)
  * @param {string} defaultTemplateId - Optional default template ID to highlight
+ * @param {string} productId - Optional product ID to filter templates by
  * @returns {JSX.Element}
  */
-const ArtworkTemplatesLibrary = ({ onSelectTemplate, onClose, availableTemplateIds = null, defaultTemplateId = null }) => {
+const ArtworkTemplatesLibrary = ({ onSelectTemplate, onClose, availableTemplateIds = null, defaultTemplateId = null, productId = null }) => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Load templates on mount
+  // Load templates on mount - filter by productId if provided
   useEffect(() => {
     const loadTemplates = async () => {
       setLoading(true);
       try {
-        const result = await artworkTemplateService.getAllTemplates();
+        const result = await artworkTemplateService.getAllTemplates(productId);
         if (result.success) {
           setTemplates(result.data || []);
         } else {
@@ -41,7 +42,7 @@ const ArtworkTemplatesLibrary = ({ onSelectTemplate, onClose, availableTemplateI
     };
 
     loadTemplates();
-  }, []);
+  }, [productId]);
 
   /**
    * Filter templates based on search term and available template IDs

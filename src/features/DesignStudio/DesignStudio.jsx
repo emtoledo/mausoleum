@@ -357,6 +357,15 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         return;
       }
 
+      // Change material if template has a material_id
+      if (template.material_id) {
+        const templateMaterial = materials.find(m => m.id === template.material_id);
+        if (templateMaterial) {
+          setActiveMaterial(templateMaterial);
+          console.log('Changed material to template material:', templateMaterial.name);
+        }
+      }
+
       // Get design elements from template
       let designElements = [];
       if (Array.isArray(template.design_elements)) {
@@ -377,15 +386,16 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         return;
       }
 
-      // Apply material-based colors to elements before loading
-      const isGreyGranite = activeMaterial?.name === 'Grey Granite' || activeMaterial?.id === 'mat-002';
+      // Use template's material for color defaults, or fall back to current active material
+      const templateMaterial = template.material_id ? materials.find(m => m.id === template.material_id) : activeMaterial;
+      const isGreyGranite = templateMaterial?.name === 'Grey Granite' || templateMaterial?.id === 'mat-002';
       const defaultColorId = isGreyGranite ? 'black' : 'white';
       const defaultColor = colorData.find(c => c.id === defaultColorId) || {
         fillColor: isGreyGranite ? '#000000' : '#FFFFFF',
         opacity: 1.0
       };
 
-      // Process design elements to apply default colors where needed
+      // Process design elements to preserve saved colors, only applying defaults if colors are missing
       const processedElements = designElements.map(element => {
         const processed = { ...element };
         
@@ -393,26 +403,32 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         const isTextElement = element.type === 'text' || element.type === 'i-text' || 
                               element.type === 'itext' || element.type === 'textbox';
         
-        // For artwork/group/image/path elements, always apply material-based default color
+        // For artwork/group/image/path elements, check if they need default colors
         // Skip panel artwork (they shouldn't get default colors)
         const isPanelArtwork = element.category && element.category.toLowerCase() === 'panels';
         const isArtworkElement = element.type === 'artwork' || element.type === 'group' || 
                                   element.type === 'image' || element.type === 'path' ||
                                   (element.imageUrl && element.artworkId);
         
-        // Apply material-based default color to text elements (honor Grey Granite rule)
+        // For text elements: preserve saved colors, only apply defaults if missing
         if (isTextElement) {
-          processed.fill = defaultColor.fillColor;
-          processed.colorId = defaultColorId;
+          // Only apply default color if element doesn't have a saved color
+          if (!processed.fill || !processed.colorId) {
+            processed.fill = processed.fill || defaultColor.fillColor;
+            processed.colorId = processed.colorId || defaultColorId;
+          }
           if (processed.opacity === undefined) {
             processed.opacity = defaultColor.opacity;
           }
         }
         
-        // Apply material-based default color to artwork elements (honor Grey Granite rule)
+        // For artwork elements: preserve saved colors, only apply defaults if missing
         if (isArtworkElement && !isPanelArtwork) {
-          processed.fill = defaultColor.fillColor;
-          processed.colorId = defaultColorId;
+          // Only apply default color if element doesn't have a saved color
+          if (!processed.fill || !processed.colorId) {
+            processed.fill = processed.fill || defaultColor.fillColor;
+            processed.colorId = processed.colorId || defaultColorId;
+          }
           if (processed.opacity === undefined) {
             processed.opacity = defaultColor.opacity;
           }
@@ -1367,7 +1383,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         message: 'Failed to load template. Please try again.'
       });
     }
-  }, [fabricInstance, fabricFromHook, activeMaterial, currentView, hookInitialData, initialData, calculateScale, inchesToPixels, artwork]);
+  }, [fabricInstance, fabricFromHook, activeMaterial, materials, setActiveMaterial, currentView, hookInitialData, initialData, calculateScale, inchesToPixels, artwork]);
 
   // Auto-load default template for new projects (only when created via wizard)
   // This effect runs after handleLoadTemplate is defined
@@ -2456,14 +2472,18 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       // Capture customData properties
       const customData = (obj.get ? obj.get('customData') : obj.customData) || {};
       
-      // Use customData.currentColor if it exists and is not default black
-      // Otherwise, we'll check paths for groups below
-      if (customData.currentColor && customData.currentColor !== '#000000') {
+      // Always save color information from customData if available (prioritize customData over direct fill)
+      // This ensures colors set via OptionsPanel are preserved
+      if (customData.currentColor !== undefined && customData.currentColor !== null) {
         element.fill = customData.currentColor;
       }
-      if (customData.currentColorId) element.colorId = customData.currentColorId;
+      if (customData.currentColorId !== undefined && customData.currentColorId !== null) {
+        element.colorId = customData.currentColorId;
+      }
       if (customData.currentOpacity !== undefined) element.opacity = customData.currentOpacity;
-      if (customData.currentStrokeColor) element.stroke = customData.currentStrokeColor;
+      if (customData.currentStrokeColor !== undefined && customData.currentStrokeColor !== null) {
+        element.stroke = customData.currentStrokeColor;
+      }
       if (customData.currentStrokeWidth !== undefined) {
         element.strokeWidthPx = customData.currentStrokeWidth;
         element.strokeWidth = pixelsToInches(customData.currentStrokeWidth, scale);
@@ -2558,12 +2578,18 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
           element.category = imgCustomData.category || obj.category;
         }
         
-        if (imgCustomData.currentColor) {
+        // Always save color information for images/artwork (prioritize customData)
+        // This ensures colors set via OptionsPanel are preserved in templates
+        if (imgCustomData.currentColor !== undefined && imgCustomData.currentColor !== null) {
           element.fill = imgCustomData.currentColor;
+        }
+        if (imgCustomData.currentColorId !== undefined && imgCustomData.currentColorId !== null) {
           element.colorId = imgCustomData.currentColorId;
         }
         if (imgCustomData.currentOpacity !== undefined) element.opacity = imgCustomData.currentOpacity;
-        if (imgCustomData.currentStrokeColor) element.stroke = imgCustomData.currentStrokeColor;
+        if (imgCustomData.currentStrokeColor !== undefined && imgCustomData.currentStrokeColor !== null) {
+          element.stroke = imgCustomData.currentStrokeColor;
+        }
         if (imgCustomData.currentStrokeWidth !== undefined) {
           element.strokeWidthPx = imgCustomData.currentStrokeWidth;
           element.strokeWidth = pixelsToInches(imgCustomData.currentStrokeWidth, scale);
@@ -2612,8 +2638,25 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         }
         if (groupCustomData.defaultWidthInches) element.defaultWidthInches = groupCustomData.defaultWidthInches;
         
-        // Capture color from group's paths if customData doesn't have it
-        // This ensures we save the actual color applied to the artwork
+        // Always save color information for groups (prioritize customData)
+        // This ensures colors set via OptionsPanel are preserved in templates
+        if (groupCustomData.currentColor !== undefined && groupCustomData.currentColor !== null) {
+          element.fill = groupCustomData.currentColor;
+        }
+        if (groupCustomData.currentColorId !== undefined && groupCustomData.currentColorId !== null) {
+          element.colorId = groupCustomData.currentColorId;
+        }
+        if (groupCustomData.currentOpacity !== undefined) element.opacity = groupCustomData.currentOpacity;
+        if (groupCustomData.currentStrokeColor !== undefined && groupCustomData.currentStrokeColor !== null) {
+          element.stroke = groupCustomData.currentStrokeColor;
+        }
+        if (groupCustomData.currentStrokeWidth !== undefined) {
+          element.strokeWidthPx = groupCustomData.currentStrokeWidth;
+          element.strokeWidth = pixelsToInches(groupCustomData.currentStrokeWidth, scale);
+        }
+        
+        // Capture color from group's paths if customData doesn't have it (fallback)
+        // This ensures we save the actual color applied to the artwork even if customData wasn't set
         if ((!element.fill || element.fill === '#000000') && obj._objects && obj._objects.length > 0) {
           // Check if this is a texture layer group (2 children: texture + artwork)
           let targetGroup = obj;
@@ -2671,6 +2714,23 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         // Also preserve imageUrl if available
         if (pathCustomData.imageUrl || obj.imageUrl) {
           element.imageUrl = pathCustomData.imageUrl || obj.imageUrl;
+        }
+        
+        // Always save color information for path elements (prioritize customData)
+        // This ensures colors set via OptionsPanel are preserved in templates
+        if (pathCustomData.currentColor !== undefined && pathCustomData.currentColor !== null) {
+          element.fill = pathCustomData.currentColor;
+        }
+        if (pathCustomData.currentColorId !== undefined && pathCustomData.currentColorId !== null) {
+          element.colorId = pathCustomData.currentColorId;
+        }
+        if (pathCustomData.currentOpacity !== undefined) element.opacity = pathCustomData.currentOpacity;
+        if (pathCustomData.currentStrokeColor !== undefined && pathCustomData.currentStrokeColor !== null) {
+          element.stroke = pathCustomData.currentStrokeColor;
+        }
+        if (pathCustomData.currentStrokeWidth !== undefined) {
+          element.strokeWidthPx = pathCustomData.currentStrokeWidth;
+          element.strokeWidth = pixelsToInches(pathCustomData.currentStrokeWidth, scale);
         }
         
         // Save origin point for path elements (defaults to 'center' to match how they're created)
@@ -2892,13 +2952,17 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       // Calculate scale for display purposes only - use actual canvas width
       const scale = calculateScale(canvasWidthInches, actualCanvasWidth);
 
-      // Serialize current view's design elements (artwork only, no project context)
+      // Serialize current view's design elements (includes all canvas objects)
       const designElements = serializeCanvasState(fabricInstance, scale, canvasWidthInches, currentView);
       
-      // Capture artwork-only preview (no product canvas)
+      // Capture full canvas preview (product + overlay + artwork/text)
       let previewBlob = null;
       try {
-        const dataURL = await captureArtworkOnly(fabricInstance, {
+        if (!productCanvasRef.current) {
+          throw new Error('Product canvas not available');
+        }
+        
+        const dataURL = await captureCombinedCanvas(fabricInstance, productCanvasRef.current, {
           format: 'image/png',
           quality: 0.9,
           multiplier: 1
@@ -2908,15 +2972,21 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         const response = await fetch(dataURL);
         previewBlob = await response.blob();
       } catch (previewError) {
-        console.warn('Failed to capture artwork preview:', previewError);
+        console.warn('Failed to capture full canvas preview:', previewError);
         // Continue without preview if capture fails
       }
 
-      // Save template
+      // Get current product ID and material ID
+      const productId = initialData.productId || initialData.id || null;
+      const materialId = activeMaterial?.id || null;
+
+      // Save template with product and material association
       const result = await artworkTemplateService.createTemplate(
         {
           name: templateName.trim(),
           designElements: designElements,
+          productId: productId,
+          materialId: materialId,
           customizations: {
             canvasDimensions: {
               width: fabricInstance.width || 1000,
@@ -3430,6 +3500,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
               onClose={handleToggleTemplateLibrary}
               availableTemplateIds={Array.isArray(initialData?.availableTemplates) ? initialData.availableTemplates : []}
               defaultTemplateId={initialData?.defaultTemplateId || null}
+              productId={initialData?.productId || initialData?.id || null}
             />
         )}
 

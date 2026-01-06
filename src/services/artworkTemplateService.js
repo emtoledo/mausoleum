@@ -8,14 +8,21 @@ import productService from './productService';
 
 class ArtworkTemplateService {
   /**
-   * Get all artwork templates
+   * Get all artwork templates, optionally filtered by product_id
+   * @param {string} productId - Optional product ID to filter templates by
    */
-  async getAllTemplates() {
+  async getAllTemplates(productId = null) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('artwork_templates')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+      
+      // Filter by product_id if provided
+      if (productId) {
+        query = query.eq('product_id', productId);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       return { success: true, data: data || [] };
@@ -49,6 +56,8 @@ class ArtworkTemplateService {
    * @param {Object} templateData - Template data
    * @param {string} templateData.name - Template name
    * @param {Array} templateData.designElements - Design elements array
+   * @param {string} templateData.productId - Product ID to associate template with
+   * @param {string} templateData.materialId - Material ID used in the template
    * @param {Object} templateData.customizations - Customizations object
    * @param {Blob} previewBlob - Preview image blob
    */
@@ -74,6 +83,8 @@ class ArtworkTemplateService {
           preview_image_url: null, // Will be updated after upload
           design_elements: templateData.designElements || [],
           customizations: templateData.customizations || {},
+          product_id: templateData.productId || null,
+          material_id: templateData.materialId || null,
           created_by: user.id
         })
         .select()
@@ -114,6 +125,55 @@ class ArtworkTemplateService {
           if (updateError) {
             console.error('Error updating template with preview URL:', updateError);
           }
+        }
+      }
+
+      // If product_id is provided, automatically add this template to the product's available_templates
+      if (templateData.productId && templateRecord?.id) {
+        try {
+          // Fetch current product to get existing available_templates
+          const { data: product, error: productError } = await supabase
+            .from('products')
+            .select('available_templates')
+            .eq('id', templateData.productId)
+            .single();
+
+          if (productError) {
+            console.warn('Error fetching product to update available_templates:', productError);
+            // Don't throw - template is already created, just log the warning
+          } else {
+            // Get current available_templates array (default to empty array)
+            const currentTemplates = Array.isArray(product.available_templates) 
+              ? product.available_templates 
+              : [];
+            
+            // Add template ID if it's not already in the array
+            if (!currentTemplates.includes(templateRecord.id)) {
+              const updatedTemplates = [...currentTemplates, templateRecord.id];
+              
+              // Update product with new available_templates array
+              const { error: updateProductError } = await supabase
+                .from('products')
+                .update({ 
+                  available_templates: updatedTemplates,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', templateData.productId);
+
+              if (updateProductError) {
+                console.warn('Error updating product available_templates:', updateProductError);
+                // Don't throw - template is already created, just log the warning
+              } else {
+                console.log('Automatically added template to product available_templates:', {
+                  productId: templateData.productId,
+                  templateId: templateRecord.id
+                });
+              }
+            }
+          }
+        } catch (updateError) {
+          console.warn('Error updating product available_templates:', updateError);
+          // Don't throw - template is already created, just log the warning
         }
       }
 

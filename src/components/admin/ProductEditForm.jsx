@@ -48,13 +48,14 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
   const [alertMessage, setAlertMessage] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load all artwork templates on mount
+  // Load artwork templates associated with this product
   useEffect(() => {
     const loadTemplates = async () => {
       setLoadingTemplates(true);
       try {
-        console.log('ProductEditForm: Loading templates...');
-        const result = await artworkTemplateService.getAllTemplates();
+        console.log('ProductEditForm: Loading templates for product:', formData.id);
+        // Only load templates associated with this product
+        const result = await artworkTemplateService.getAllTemplates(formData.id);
         console.log('ProductEditForm: Template load result:', result);
         if (result.success) {
           console.log('ProductEditForm: Loaded templates:', result.data?.length || 0);
@@ -70,8 +71,15 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
         setLoadingTemplates(false);
       }
     };
-    loadTemplates();
-  }, []);
+    
+    // Only load templates if we have a product ID
+    if (formData.id) {
+      loadTemplates();
+    } else {
+      setAllTemplates([]);
+      setLoadingTemplates(false);
+    }
+  }, [formData.id]);
 
   useEffect(() => {
     if (product) {
