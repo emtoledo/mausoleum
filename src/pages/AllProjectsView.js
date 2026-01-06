@@ -209,7 +209,7 @@ const AllProjectsView = () => {
           {projects.length === 0 ? (
             <div className="no-projects">
               <img src="/images/empty.png" alt="No projects found" className="no-projects-image" />
-              <p className="no-projects-quote">"A memory in stone is forever"</p>
+              <p className="no-projects-quote">Where memories take form</p>
               <p><a onClick={handleCreateNewProject}>Create Your First Project</a></p>
             </div>
           ) : (
