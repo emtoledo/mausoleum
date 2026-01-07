@@ -3403,6 +3403,16 @@ body:has(.canvas-layout) .footer-branding {
     box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
 }
 
+.approval-input-row {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+.approval-input-row .approval-input {
+    flex: 1;
+}
+
 
 .approval-signature-fields {
     display: flex;

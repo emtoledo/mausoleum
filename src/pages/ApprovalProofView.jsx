@@ -681,23 +681,25 @@ const ApprovalProofView = () => {
                         type="text"
                         value={customer.city}
                         onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
-                        className="approval-input approval-input-inline"
+                        className="approval-input"
                         placeholder="City"
                       />
-                      <input
-                        type="text"
-                        value={customer.state}
-                        onChange={(e) => setCustomer({ ...customer, state: e.target.value })}
-                        className="approval-input approval-input-inline"
-                        placeholder="State"
-                      />
-                      <input
-                        type="text"
-                        value={customer.zip_code}
-                        onChange={(e) => setCustomer({ ...customer, zip_code: e.target.value })}
-                        className="approval-input approval-input-inline"
-                        placeholder="Zip"
-                      />
+                      <div className="approval-input-row">
+                        <input
+                          type="text"
+                          value={customer.state}
+                          onChange={(e) => setCustomer({ ...customer, state: e.target.value })}
+                          className="approval-input"
+                          placeholder="State"
+                        />
+                        <input
+                          type="text"
+                          value={customer.zip_code}
+                          onChange={(e) => setCustomer({ ...customer, zip_code: e.target.value })}
+                          className="approval-input"
+                          placeholder="Zip"
+                        />
+                      </div>
                     </>
                   )}
                 </div>
