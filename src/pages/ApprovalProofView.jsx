@@ -617,6 +617,9 @@ const ApprovalProofView = () => {
                 {saving ? 'Submitting...' : 'Submit Approval'}
               </Button>
             </div>
+            <div className="approval-disclaimer">
+              <p>By submitting approval, you acknowledge that you have read and understood this disclaimer and are responsible for any errors found after approval. Please check all text and graphics carefully for any errors (i.e., spelling, colors, layout, size, etc.). We will not move your artwork into production without your written approval, and no further changes can be made once approval is provided. Colors seen on screen may vary slightly from final printed colors due to differences in color modes (RGB vs. CMYK)</p>
+            </div>
           </div>
         </div>
       </div>
