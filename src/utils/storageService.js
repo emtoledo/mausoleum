@@ -322,6 +322,7 @@ export async function deletePreviewImage(projectId, filename = 'preview.png') {
 
 /**
  * Delete all project files from Supabase Storage (approval PDF and preview image)
+ * Also attempts to delete all files in the approvals folder for this project
  * @param {string} projectId - Project ID
  * @returns {Promise<{pdfDeleted: boolean, previewDeleted: boolean}>} Status of deletions
  */
@@ -341,6 +342,36 @@ export async function deleteProjectFiles(projectId) {
 
     results.pdfDeleted = pdfResult.status === 'fulfilled' && pdfResult.value === true;
     results.previewDeleted = previewResult.status === 'fulfilled' && previewResult.value === true;
+
+    // Also try to delete any other files in the approvals folder for this project
+    // This ensures we clean up any orphaned files
+    try {
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+      if (supabaseUrl) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // List all files in the approvals/{projectId} folder
+          const { data: files, error: listError } = await supabase.storage
+            .from('project-files')
+            .list(`approvals/${projectId}`);
+
+          if (!listError && files && files.length > 0) {
+            // Delete all files in the folder
+            const filePaths = files.map(file => `approvals/${projectId}/${file.name}`);
+            const { error: removeError } = await supabase.storage
+              .from('project-files')
+              .remove(filePaths);
+
+            if (!removeError) {
+              console.log(`Deleted ${filePaths.length} file(s) from approvals/${projectId}/`);
+            }
+          }
+        }
+      }
+    } catch (folderCleanupError) {
+      // Don't fail if folder cleanup fails - main files are already deleted
+      console.warn('Error cleaning up approvals folder:', folderCleanupError);
+    }
 
     console.log('Project files deletion results:', {
       projectId,

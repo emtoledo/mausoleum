@@ -12,6 +12,7 @@ body {
     position: relative;
     margin: 0;
     padding: 0;
+    overflow: hidden; /* Prevent body scroll, let main-content handle scrolling */
 }
 
 a {
@@ -1125,16 +1126,18 @@ body:has(.canvas-layout) .footer-branding {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    background: white;
-    border-bottom: 1px solid #e0e0e0;
-    position: sticky;
+    padding: 16px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e1e5e9;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 100;
     width: 100%;
     box-sizing: border-box;
-    position: -webkit-sticky;
-    position: sticky;
+    min-height: 64px;
+    flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .header-left {
@@ -1927,16 +1930,7 @@ body:has(.canvas-layout) .footer-branding {
     text-transform: uppercase;
 }
 
-/* App Header Styles */
-.app-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: #ffffff;
-    border-bottom: 1px solid #e1e5e9;
-    min-height: 64px;
-}
+/* App Header Styles - Consolidated with above definition */
 
 .header-left {
     display: flex;
@@ -2003,12 +1997,21 @@ body:has(.canvas-layout) .footer-branding {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* Prevent body scroll, let main-content handle it */
 }
 
 .main-content {
     flex: 1;
     width: 100%;
     min-height: 0;
+    padding-top: 64px; /* Account for fixed header height */
+    margin-top: 0;
+    /* Content scrolls independently, starting below the fixed header */
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Ensure content doesn't scroll beneath the header */
+    position: relative;
+    z-index: 1;
 }
 
 /* Add Option Overlay Styles */
