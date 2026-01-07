@@ -38,12 +38,17 @@ const ApprovalProofView = () => {
   const [designSnapshots, setDesignSnapshots] = useState(() => {
     // New format: object with view keys
     if (location.state?.designSnapshots) {
+      console.log('ApprovalProofView: Received designSnapshots from location.state:', location.state.designSnapshots);
+      console.log('ApprovalProofView: designSnapshots.front:', location.state.designSnapshots.front);
+      console.log('ApprovalProofView: designSnapshots.back:', location.state.designSnapshots.back);
       return location.state.designSnapshots;
     }
     // Old format: single snapshot string (backward compatibility)
     if (location.state?.designSnapshot) {
+      console.log('ApprovalProofView: Received designSnapshot (old format):', location.state.designSnapshot);
       return { front: location.state.designSnapshot };
     }
+    console.warn('ApprovalProofView: No design snapshots found in location.state');
     return null;
   });
   const [hasMultipleViews, setHasMultipleViews] = useState(location.state?.hasMultipleViews || false);
@@ -128,6 +133,24 @@ const ApprovalProofView = () => {
       
       // Wait for DOM to update with read-only version
       await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Ensure all images are fully loaded before capturing PDF
+      const images = approvalContainerRef.current.querySelectorAll('img.approval-design-image');
+      const imageLoadPromises = Array.from(images).map(img => {
+        if (img.complete) {
+          return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          // Timeout after 5 seconds
+          setTimeout(() => resolve(), 5000);
+        });
+      });
+      await Promise.all(imageLoadPromises);
+      
+      // Additional delay to ensure layout is stable
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Generate PDF from the clean read-only approval proof container
       const pdfBlob = await generateApprovalPDF(
@@ -422,24 +445,97 @@ const ApprovalProofView = () => {
         <div className="approval-proof-design">
           {designSnapshots ? (
             <div className="approval-design-images">
-              {designSnapshots.front && (
+              {/* Check if product has top view - show top snapshot or front snapshot with "Top View" label */}
+              {designSnapshots.top ? (
                 <div className="approval-design-view">
-                  <div className="approval-view-label">Front View</div>
+                  <div className="approval-view-label">Top View</div>
                   <img
-                    src={designSnapshots.front}
-                    alt="Front Design Proof"
+                    src={designSnapshots.top}
+                    alt="Top Design Proof"
                     className="approval-design-image"
+                    style={{ maxWidth: '100%', height: 'auto', objectFit: 'contain' }}
+                    onError={(e) => {
+                      console.error('Failed to load top design snapshot image:', designSnapshots.top);
+                      e.target.style.display = 'none';
+                    }}
+                    onLoad={(e) => {
+                      console.log('Top design snapshot image loaded successfully');
+                      // Ensure aspect ratio is maintained
+                      const img = e.target;
+                      if (img.naturalWidth && img.naturalHeight) {
+                        const aspectRatio = img.naturalWidth / img.naturalHeight;
+                        img.style.width = 'auto';
+                        img.style.height = 'auto';
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '500px';
+                      }
+                    }}
                   />
                 </div>
+              ) : designSnapshots.front ? (
+                <div className="approval-design-view">
+                  <div className="approval-view-label">
+                    {productData?.available_views?.includes('top') ? 'Top View' : 'Front View'}
+                  </div>
+                  <img
+                    src={designSnapshots.front}
+                    alt={productData?.available_views?.includes('top') ? 'Top Design Proof' : 'Front Design Proof'}
+                    className="approval-design-image"
+                    style={{ maxWidth: '100%', height: 'auto', objectFit: 'contain' }}
+                    onError={(e) => {
+                      console.error('Failed to load front design snapshot image:', designSnapshots.front);
+                      e.target.style.display = 'none';
+                    }}
+                    onLoad={(e) => {
+                      console.log('Front design snapshot image loaded successfully');
+                      // Ensure aspect ratio is maintained
+                      const img = e.target;
+                      if (img.naturalWidth && img.naturalHeight) {
+                        const aspectRatio = img.naturalWidth / img.naturalHeight;
+                        img.style.width = 'auto';
+                        img.style.height = 'auto';
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '500px';
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="approval-design-placeholder">
+                  <p>{productData?.available_views?.includes('top') ? 'Top' : 'Front'} view snapshot not available</p>
+                </div>
               )}
-              {designSnapshots.back && (
+              {designSnapshots.back ? (
                 <div className="approval-design-view">
                   <div className="approval-view-label">Back View</div>
                   <img
                     src={designSnapshots.back}
                     alt="Back Design Proof"
-              className="approval-design-image"
-            />
+                    className="approval-design-image"
+                    style={{ maxWidth: '100%', height: 'auto', objectFit: 'contain' }}
+                    onError={(e) => {
+                      console.error('Failed to load back design snapshot image:', designSnapshots.back);
+                      e.target.style.display = 'none';
+                    }}
+                    onLoad={(e) => {
+                      console.log('Back design snapshot image loaded successfully');
+                      // Ensure aspect ratio is maintained
+                      const img = e.target;
+                      if (img.naturalWidth && img.naturalHeight) {
+                        const aspectRatio = img.naturalWidth / img.naturalHeight;
+                        img.style.width = 'auto';
+                        img.style.height = 'auto';
+                        img.style.maxWidth = '100%';
+                        img.style.maxHeight = '500px';
+                      }
+                    }}
+                  />
+                </div>
+              ) : null}
+              {!designSnapshots.front && !designSnapshots.back && !designSnapshots.top && (
+                <div className="approval-design-placeholder">
+                  <p>Design snapshots are empty</p>
+                  <p className="text-small">Please try submitting for approval again</p>
                 </div>
               )}
             </div>

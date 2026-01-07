@@ -22,6 +22,7 @@ const AppHeader = ({
   showShareButton = true,
   isSaving = false,
   isExporting = false,
+  isSubmittingForApproval = false,
   isCanvasReady = false,
   availableViews = ['front'],
   currentView = 'front',
@@ -347,6 +348,7 @@ const AppHeader = ({
                     onApproval={onApproval}
                     isSaving={isSaving}
                     isExporting={isExporting}
+                    isSubmittingForApproval={isSubmittingForApproval}
                     isCanvasReady={isCanvasReady}
                   />
                 )}

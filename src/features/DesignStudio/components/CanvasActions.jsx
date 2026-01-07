@@ -12,6 +12,7 @@ import React from 'react';
  * @param {Function} onApproval - Callback when Approval button is clicked
  * @param {boolean} isSaving - Whether save operation is in progress
  * @param {boolean} isExporting - Whether export operation is in progress
+ * @param {boolean} isSubmittingForApproval - Whether approval submission is in progress
  * @param {boolean} isCanvasReady - Whether the canvas is initialized and ready
  * @returns {JSX.Element}
  */
@@ -21,6 +22,7 @@ const CanvasActions = ({
   onApproval,
   isSaving = false,
   isExporting = false,
+  isSubmittingForApproval = false,
   isCanvasReady = false
 }) => {
   
@@ -72,11 +74,11 @@ const CanvasActions = ({
       <button
         className="button-secondary"
         onClick={handleApproval}
-        disabled={!isCanvasReady}
-        title={!isCanvasReady ? 'Canvas is loading...' : 'Create Approval Proof'}
+        disabled={!isCanvasReady || isSubmittingForApproval || isSaving}
+        title={!isCanvasReady ? 'Canvas is loading...' : isSubmittingForApproval ? 'Saving and preparing approval...' : 'Create Approval Proof'}
         aria-label="Submit for Approval"
       >
-        <span>Submit for Approval</span>
+        <span>{isSubmittingForApproval ? 'Preparing Approval...' : 'Submit for Approval'}</span>
       </button>
 
 

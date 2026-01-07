@@ -32,9 +32,9 @@ export async function generateApprovalPDF(element, filename = 'approval-proof.pd
     // Convert canvas to image data
     const imgData = canvas.toDataURL('image/png');
 
-    // Calculate PDF dimensions (A4 size in mm)
-    const pdfWidth = 210; // A4 width in mm
-    const pdfHeight = 297; // A4 height in mm
+    // Calculate PDF dimensions (A4 landscape size in mm)
+    const pdfWidth = 297; // A4 landscape width in mm
+    const pdfHeight = 210; // A4 landscape height in mm
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
     
@@ -44,7 +44,7 @@ export async function generateApprovalPDF(element, filename = 'approval-proof.pd
     let finalHeight = pdfWidth / ratio;
 
     // If content is taller than one page, we'll need multiple pages
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdf = new jsPDF('l', 'mm', 'a4'); // 'l' = landscape orientation
     
     if (finalHeight <= pdfHeight) {
       // Content fits on one page
@@ -61,7 +61,7 @@ export async function generateApprovalPDF(element, filename = 'approval-proof.pd
       // Add additional pages if needed
       while (heightLeft > 0) {
         position = heightLeft - finalHeight;
-        pdf.addPage();
+        pdf.addPage('l', 'a4'); // Add landscape pages
         pdf.addImage(imgData, 'PNG', 0, position, finalWidth, finalHeight);
         heightLeft -= pdfHeight;
       }

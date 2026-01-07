@@ -57,6 +57,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const [selectedElement, setSelectedElement] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSubmittingForApproval, setIsSubmittingForApproval] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [showArtworkLibrary, setShowArtworkLibrary] = useState(false);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
@@ -2849,6 +2850,11 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       if (fabricInstance && productCanvasRef.current && currentProjectId) {
         try {
           console.log('Capturing preview image for project:', currentProjectId);
+          
+          // Deselect any selected objects before capturing preview
+          fabricInstance.discardActiveObject();
+          fabricInstance.renderAll();
+          
           // Capture combined canvas (product canvas + fabric canvas)
           const dataURL = await captureCombinedCanvas(fabricInstance, productCanvasRef.current, {
             format: 'image/png',
@@ -2961,6 +2967,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         if (!productCanvasRef.current) {
           throw new Error('Product canvas not available');
         }
+        
+        // Deselect any selected objects before capturing preview
+        fabricInstance.discardActiveObject();
+        fabricInstance.renderAll();
         
         const dataURL = await captureCombinedCanvas(fabricInstance, productCanvasRef.current, {
           format: 'image/png',
@@ -3121,10 +3131,22 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     }
 
     try {
+      setIsSubmittingForApproval(true);
+      
+      // Save the project first before navigating to approval view
+      console.log('DesignStudio handleApproval: Saving project before approval...');
+      if (!isSaving && fabricInstance && canvasSize.width > 0) {
+        await handleSave();
+        console.log('DesignStudio handleApproval: Project saved successfully');
+      } else {
+        console.log('DesignStudio handleApproval: Save skipped (already saving or canvas not ready)');
+      }
+      
       // Check which views have design elements
       const designElements = localDesignElements || {};
       const hasFrontElements = Array.isArray(designElements.front) && designElements.front.length > 0;
       const hasBackElements = Array.isArray(designElements.back) && designElements.back.length > 0;
+      const hasTopElements = Array.isArray(designElements.top) && designElements.top.length > 0;
       const hasBothViews = hasFrontElements && hasBackElements;
       
       // Get all objects on canvas
@@ -3188,51 +3210,112 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       
       const originalVisibility = allObjects.map(obj => storeOriginalState(obj));
       
+      // Deselect any selected objects before capturing snapshots
+      fabric.discardActiveObject();
+      fabric.renderAll();
+      
+      // Ensure product canvas is available
+      if (!productCanvasRef.current) {
+        console.error('Product canvas ref is not available for snapshot capture');
+        alert('Canvas not ready. Please wait a moment and try again.');
+        setIsSubmittingForApproval(false);
+        return;
+      }
+      
       const snapshots = {};
       
-      if (hasBothViews) {
-        // Capture front view
-        setViewVisibility('front', true);
-        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
-        snapshots.front = await captureCombinedCanvas(
-          fabric,
-          productCanvasRef.current,
-          { format: 'image/png', quality: 0.92 }
-        );
-        
-        // Capture back view
-        setViewVisibility('back', true);
-        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
-        snapshots.back = await captureCombinedCanvas(
-          fabric,
-          productCanvasRef.current,
-          { format: 'image/png', quality: 0.92 }
-        );
-      } else if (hasFrontElements) {
-        // Only front view - capture current state
-        setViewVisibility('front', true);
-        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
-        snapshots.front = await captureCombinedCanvas(
-          fabric,
-          productCanvasRef.current,
-          { format: 'image/png', quality: 0.92 }
-        );
-      } else if (hasBackElements) {
-        // Only back view - capture current state
-        setViewVisibility('back', true);
-        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
-        snapshots.back = await captureCombinedCanvas(
-          fabric,
-          productCanvasRef.current,
-          { format: 'image/png', quality: 0.92 }
-        );
-      } else {
-        // No elements - capture current state
-        snapshots[currentView] = await captureCombinedCanvas(
-          fabric,
-          productCanvasRef.current,
-          { format: 'image/png', quality: 0.92 }
-        );
+      try {
+        if (hasTopElements) {
+          // Top view - capture top view
+          console.log('Capturing top view snapshot...');
+          setViewVisibility('top', true);
+          await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+          snapshots.top = await captureCombinedCanvas(
+            fabric,
+            productCanvasRef.current,
+            { format: 'image/png', quality: 0.92 }
+          );
+          console.log('Top snapshot captured:', snapshots.top ? 'Success' : 'Failed');
+        } else if (hasBothViews) {
+          // Capture front view
+          console.log('Capturing front view snapshot...');
+          setViewVisibility('front', true);
+          await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+          snapshots.front = await captureCombinedCanvas(
+            fabric,
+            productCanvasRef.current,
+            { format: 'image/png', quality: 0.92 }
+          );
+          console.log('Front snapshot captured:', snapshots.front ? 'Success' : 'Failed');
+          
+          // Capture back view
+          console.log('Capturing back view snapshot...');
+          setViewVisibility('back', true);
+          await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+          snapshots.back = await captureCombinedCanvas(
+            fabric,
+            productCanvasRef.current,
+            { format: 'image/png', quality: 0.92 }
+          );
+          console.log('Back snapshot captured:', snapshots.back ? 'Success' : 'Failed');
+        } else if (hasFrontElements) {
+          // Only front view - capture current state
+          console.log('Capturing front view snapshot (front only)...');
+          setViewVisibility('front', true);
+          await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+          snapshots.front = await captureCombinedCanvas(
+            fabric,
+            productCanvasRef.current,
+            { format: 'image/png', quality: 0.92 }
+          );
+          console.log('Front snapshot captured:', snapshots.front ? 'Success' : 'Failed');
+        } else if (hasBackElements) {
+          // Only back view - capture current state
+          console.log('Capturing back view snapshot (back only)...');
+          setViewVisibility('back', true);
+          await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render
+          snapshots.back = await captureCombinedCanvas(
+            fabric,
+            productCanvasRef.current,
+            { format: 'image/png', quality: 0.92 }
+          );
+          console.log('Back snapshot captured:', snapshots.back ? 'Success' : 'Failed');
+        } else {
+          // No elements - capture current state
+          console.log(`Capturing current view snapshot (${currentView})...`);
+          const viewKey = currentView === 'back' ? 'back' : (currentView === 'top' ? 'top' : 'front');
+          snapshots[viewKey] = await captureCombinedCanvas(
+            fabric,
+            productCanvasRef.current,
+            { format: 'image/png', quality: 0.92 }
+          );
+          console.log(`${viewKey} snapshot captured:`, snapshots[viewKey] ? 'Success' : 'Failed');
+        }
+      } catch (captureError) {
+        console.error('Error capturing snapshots:', captureError);
+        // Try to capture at least the current view as fallback
+        try {
+          console.log('Attempting fallback capture of current view...');
+          const viewKey = currentView === 'back' ? 'back' : 'front';
+          snapshots[viewKey] = await captureCombinedCanvas(
+            fabric,
+            productCanvasRef.current,
+            { format: 'image/png', quality: 0.92 }
+          );
+          console.log('Fallback capture successful:', snapshots[viewKey] ? 'Success' : 'Failed');
+        } catch (fallbackError) {
+          console.error('Fallback capture also failed:', fallbackError);
+        }
+      }
+      
+      console.log('Final snapshots object:', Object.keys(snapshots), snapshots);
+      
+      // Ensure we have at least one snapshot before navigating
+      if (!snapshots.front && !snapshots.back && !snapshots.top) {
+        console.error('No snapshots were captured. Cannot proceed to approval view.');
+        alert('Failed to capture design snapshot. Please try again.');
+        setIsSubmittingForApproval(false);
+        return;
       }
       
       // Restore original visibility state (recursively for groups)
@@ -3263,8 +3346,10 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     } catch (error) {
       console.error('DesignStudio: Error capturing canvas for approval:', error);
       alert('Failed to capture design snapshot. Please try again.');
+    } finally {
+      setIsSubmittingForApproval(false);
     }
-  }, [fabricInstance, fabricFromHook, currentProjectId, navigate, localDesignElements, currentView]);
+  }, [fabricInstance, fabricFromHook, currentProjectId, navigate, localDesignElements, currentView, handleSave, isSaving, canvasSize]);
 
   /**
    * Handler: Close Studio
@@ -3446,6 +3531,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         onApproval: handlersRef.current.onApproval,
         isSaving,
         isExporting,
+        isSubmittingForApproval,
         isCanvasReady: canvasReady,
         projectTitle: handlersRef.current.projectTitle,
         availableViews: handlersRef.current.availableViews,
@@ -3453,7 +3539,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
         onViewChange: handlersRef.current.onViewChange
       });
     }
-  }, [onHandlersReady, isSaving, isExporting, canvasSize.width, fabricInstance, fabricFromHook, currentView, availableViews]); // Re-expose when canvas becomes ready or view changes
+  }, [onHandlersReady, isSaving, isExporting, isSubmittingForApproval, canvasSize.width, fabricInstance, fabricFromHook, currentView, availableViews]); // Re-expose when canvas becomes ready or view changes
 
   if (!initialData) {
     return (

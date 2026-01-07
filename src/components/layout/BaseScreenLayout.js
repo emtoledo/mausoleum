@@ -37,6 +37,7 @@ const BaseScreenLayout = ({ children }) => {
       // Only update if state values actually changed (not function references)
       if (prevHandlers?.isSaving !== handlers?.isSaving ||
           prevHandlers?.isExporting !== handlers?.isExporting ||
+          prevHandlers?.isSubmittingForApproval !== handlers?.isSubmittingForApproval ||
           canvasReadinessChanged ||
           projectTitleChanged ||
           currentViewChanged ||
@@ -62,6 +63,7 @@ const BaseScreenLayout = ({ children }) => {
           ...prevHandlers,
           isSaving: handlers.isSaving,
           isExporting: handlers.isExporting,
+          isSubmittingForApproval: handlers.isSubmittingForApproval,
           isCanvasReady: handlers.isCanvasReady,
           projectTitle: handlers.projectTitle,
           currentView: handlers.currentView,
@@ -99,6 +101,7 @@ const BaseScreenLayout = ({ children }) => {
         onApproval={headerHandlers?.onApproval}
         isSaving={headerHandlers?.isSaving || false}
         isExporting={headerHandlers?.isExporting || false}
+        isSubmittingForApproval={headerHandlers?.isSubmittingForApproval || false}
         isCanvasReady={headerHandlers?.isCanvasReady || false}
         pageTitle={headerHandlers?.projectTitle}
         availableViews={headerHandlers?.availableViews}
