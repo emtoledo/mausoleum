@@ -444,6 +444,15 @@ const ApprovalProofView = () => {
                     </span>
                   </div>
                   
+                  {productData?.product_number && (
+                    <div className="approval-detail-item">
+                      <span className="approval-detail-label">Product Number:</span>
+                      <span className="approval-detail-value">
+                        {productData.product_number}
+                      </span>
+                    </div>
+                  )}
+                  
                   {productData?.dimensions_for_display && (
                   <div className="approval-detail-item">
                       <span className="approval-detail-label">Product Dimensions:</span>

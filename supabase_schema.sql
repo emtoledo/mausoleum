@@ -315,6 +315,7 @@ CREATE TABLE IF NOT EXISTS user_accounts (
 CREATE TABLE IF NOT EXISTS products (
   id VARCHAR(100) PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
+  product_number VARCHAR(100),
   product_category VARCHAR(100) NOT NULL,
   preview_image_url TEXT,
   product_image_url TEXT,

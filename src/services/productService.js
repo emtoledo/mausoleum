@@ -104,6 +104,7 @@ class ProductService {
       const productData = {
         id: product.id,
         name: product.name,
+        product_number: product.productNumber || null,
         product_category: product.productCategory,
         preview_image_url: product.previewImage || null,
         product_image_url: product.imageUrl || null,
@@ -146,6 +147,7 @@ class ProductService {
     try {
       const updateData = {
         name: updates.name,
+        product_number: updates.productNumber || null,
         product_category: updates.productCategory,
         preview_image_url: updates.previewImage || null,
         product_image_url: updates.imageUrl || null,

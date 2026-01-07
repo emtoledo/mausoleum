@@ -9,6 +9,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
+    productNumber: '',
     productCategory: '',
     previewImage: '',
     imageUrl: '',
@@ -87,6 +88,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
       setFormData({
         id: product.id || '',
         name: product.name || '',
+        productNumber: product.product_number || '',
         productCategory: product.product_category || '',
         previewImage: product.preview_image_url || '',
         imageUrl: product.product_image_url || '',
@@ -243,6 +245,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
     const productData = {
       id: formData.id,
       name: formData.name,
+      productNumber: formData.productNumber || null,
       productCategory: formData.productCategory,
       previewImage: formData.previewImage || null,
       imageUrl: formData.imageUrl || null,
@@ -388,6 +391,17 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
                 onChange={handleChange}
                 required
                 placeholder="Estate Collection 1"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Product Number</label>
+              <input
+                type="text"
+                name="productNumber"
+                value={formData.productNumber}
+                onChange={handleChange}
+                placeholder="e.g., 001, A-123"
               />
             </div>
 
