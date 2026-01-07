@@ -734,6 +734,73 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             </div>
           </div>
 
+
+          <div className="form-section full-width form-section-row">
+            <div className="form-section">
+              <h4>Description for Display</h4>
+              <div className="form-group">
+                <textarea
+                  value={formData.dimensionsForDisplay}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    dimensionsForDisplay: e.target.value
+                  }))}
+                  placeholder="e.g., &lt;div&gt;Base: 66&quot; x 4&quot;&lt;/div&gt;&lt;div&gt;Vase: 6&quot; x 10&quot;&lt;/div&gt;"
+                  rows={4}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: '14px' }}
+                />
+                <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                  For display in approval documents. HTML supported.
+                </small>
+              </div>
+            </div>
+
+            <div className="form-section">
+              <h4>Edit Zones (JSON)</h4>
+              <textarea
+                value={editZonesJson}
+                onChange={(e) => {
+                  setEditZonesJson(e.target.value);
+                  handleJsonChange('editZones', e.target.value);
+                }}
+                rows={6}
+                className="json-textarea"
+                placeholder='[{"id": "main-zone", "x": 13, "y": 3.5, "width": 58, "height": 22}]'
+              />
+            </div>
+          </div>
+
+          <div className="form-section full-width form-section-row">
+            <div className="form-section">
+              <h4>Product Base (JSON)</h4>
+              <textarea
+                value={productBaseJson}
+                onChange={(e) => {
+                  setProductBaseJson(e.target.value);
+                  handleJsonChange('productBase', e.target.value);
+                }}
+                rows={6}
+                className="json-textarea"
+                placeholder='[{"id": "default-base", "x": 0, "y": 32, "width": 84, "height": 4, "material": "mat-006"}]'
+              />
+            </div>
+
+            <div className="form-section">
+              <h4>Floral (JSON)</h4>
+              <textarea
+                value={floralJson}
+                onChange={(e) => {
+                  setFloralJson(e.target.value);
+                  handleJsonChange('floral', e.target.value);
+                }}
+                rows={6}
+                className="json-textarea"
+                placeholder='[{"id": "floral1", "imageUrl": "/images/floral/floral1.png", "x": 1, "y": 8.5, "width": 10, "height": 15}]'
+              />
+            </div>
+          </div>
+
+
           <div className="form-section full-width">
             <h4>Available Templates</h4>
             <div className="form-group">
@@ -922,68 +989,7 @@ const ProductEditForm = ({ product, onSave, onCancel, onDelete }) => {
             </div>
           </div>
 
-          <div className="form-section full-width">
-            <h4>Dimensions for Display</h4>
-            <div className="form-group">
-              <label>Real world dimensions for display in approval documents</label>
-              <textarea
-                value={formData.dimensionsForDisplay}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  dimensionsForDisplay: e.target.value
-                }))}
-                placeholder="e.g., &lt;div&gt;Base: 66&quot; x 4&quot;&lt;/div&gt;&lt;div&gt;Vase: 6&quot; x 10&quot;&lt;/div&gt;"
-                rows={4}
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: '14px' }}
-              />
-              <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                HTML is supported for formatting.
-              </small>
-            </div>
 
-          </div>
-
-          <div className="form-section full-width">
-            <h4>Edit Zones (JSON)</h4>
-            <textarea
-              value={editZonesJson}
-              onChange={(e) => {
-                setEditZonesJson(e.target.value);
-                handleJsonChange('editZones', e.target.value);
-              }}
-              rows={6}
-              className="json-textarea"
-              placeholder='[{"id": "main-zone", "x": 13, "y": 3.5, "width": 58, "height": 22}]'
-            />
-          </div>
-
-          <div className="form-section full-width">
-            <h4>Product Base (JSON)</h4>
-            <textarea
-              value={productBaseJson}
-              onChange={(e) => {
-                setProductBaseJson(e.target.value);
-                handleJsonChange('productBase', e.target.value);
-              }}
-              rows={6}
-              className="json-textarea"
-              placeholder='[{"id": "default-base", "x": 0, "y": 32, "width": 84, "height": 4, "material": "mat-006"}]'
-            />
-          </div>
-
-          <div className="form-section full-width">
-            <h4>Floral (JSON)</h4>
-            <textarea
-              value={floralJson}
-              onChange={(e) => {
-                setFloralJson(e.target.value);
-                handleJsonChange('floral', e.target.value);
-              }}
-              rows={6}
-              className="json-textarea"
-              placeholder='[{"id": "floral1", "imageUrl": "/images/floral/floral1.png", "x": 1, "y": 8.5, "width": 10, "height": 15}]'
-            />
-          </div>
         </div>
       </form>
 

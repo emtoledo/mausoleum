@@ -82,6 +82,12 @@
   grid-column: 1 / -1;
 }
 
+.form-section-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
 .form-section h4 {
   margin: 0 0 15px 0;
   color: #333;

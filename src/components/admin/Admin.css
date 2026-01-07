@@ -1,20 +1,27 @@
-.products-management {
+.admin-management {
   width: 100%;
 }
 
-.products-header {
+.admin-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
 }
 
-.products-header h2 {
+.admin-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.admin-page-header h2 {
   margin: 0;
   color: #333;
 }
 
-.products-actions {
+.admin-actions {
   display: flex;
   gap: 12px;
   align-items: center;

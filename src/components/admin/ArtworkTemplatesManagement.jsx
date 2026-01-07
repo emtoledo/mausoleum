@@ -173,20 +173,15 @@ const ArtworkTemplatesManagement = () => {
   }
 
   return (
-    <div className="artwork-templates-management">
-      <div className="admin-section-header">
-        <h2>Artwork Templates</h2>
-        <p className="admin-section-description">
-          Manage reusable artwork templates created from the design studio.
-        </p>
-      </div>
+    <div className="admin-management">
+      <div className="admin-page-header">
+        <h2>Templates</h2>
+      
 
       {/* Product Filter Dropdown */}
       {products.length > 0 && (
-        <div className="artwork-templates-filter" style={{ marginBottom: '20px' }}>
-          <label htmlFor="product-filter" style={{ marginRight: '10px', fontWeight: '500' }}>
-            Filter by Product:
-          </label>
+        <div className="admin-actions">
+ 
           <select
             id="product-filter"
             value={selectedProductId}
@@ -208,13 +203,9 @@ const ArtworkTemplatesManagement = () => {
               </option>
             ))}
           </select>
-          {selectedProductId !== 'all' && (
-            <span style={{ marginLeft: '10px', color: '#666', fontSize: '14px' }}>
-              ({templates.length} template{templates.length !== 1 ? 's' : ''})
-            </span>
-          )}
         </div>
       )}
+      </div>
 
       {templates.length === 0 ? (
         <div className="admin-empty-state">
@@ -230,7 +221,7 @@ const ArtworkTemplatesManagement = () => {
           </p>
         </div>
       ) : (
-        <div className="artwork-templates-grid">
+        <div className="artwork-templates-grid admin-content">
           {templates.map((template) => (
             <div key={template.id} className="artwork-template-card">
               <div className="artwork-template-preview">

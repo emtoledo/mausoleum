@@ -155,10 +155,10 @@ const ProductsManagement = () => {
   }
 
   return (
-    <div className="products-management">
-      <div className="products-header">
-        <h2>Products Management</h2>
-        <div className="products-actions">
+    <div className="admin-management">
+      <div className="admin-page-header">
+        <h2>Products</h2>
+        <div className="admin-actions">
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -199,7 +199,7 @@ const ProductsManagement = () => {
       )}
 
       {!showAddForm && !selectedProduct && (
-        <div className="products-table-container">
+        <div className="products-table-container admin-content">
           <table className="products-table">
             <thead>
               <tr>

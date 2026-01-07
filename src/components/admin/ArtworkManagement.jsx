@@ -126,10 +126,10 @@ const ArtworkManagement = () => {
   }
 
   return (
-    <div className="products-management">
-      <div className="products-header">
-        <h2>Artwork Management</h2>
-        <div className="products-actions">
+    <div className="admin-management">
+      <div className="admin-page-header">
+        <h2>Artwork</h2>
+        <div className="admin-actions">
 
         <label>
         
@@ -184,7 +184,7 @@ const ArtworkManagement = () => {
                     onClick={() => handleArtworkClick(item.id)}
                     className={`artwork-card ${!item.is_active ? 'inactive' : ''}`}
                   >
-                    <div className="artwork-card-image-container">
+                    <div className="artwork-card-image-container admin-content">
                       {item.image_url ? (
                         <img
                           src={item.image_url}
