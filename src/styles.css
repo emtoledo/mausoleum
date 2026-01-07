@@ -3135,6 +3135,47 @@ body:has(.canvas-layout) .footer-branding {
     position: relative;
 }
 
+/* PDF Mode - Clean document view */
+.approval-proof-container.approval-pdf-mode {
+    background-color: #ffffff;
+    padding: 20px;
+    margin: 0;
+}
+
+.approval-pdf-mode .approval-proof-header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.approval-pdf-mode .approval-proof-title {
+    margin-bottom: 0;
+}
+
+.approval-readonly-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #000;
+    margin-top: 5px;
+}
+
+.approval-readonly-text div {
+    margin-bottom: 4px;
+}
+
+.approval-signature-display {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.approval-signature-display img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
 .approval-proof-header {
     display: flex;
     justify-content: space-between;

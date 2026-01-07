@@ -53,6 +53,7 @@ const ApprovalProofView = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [isPdfMode, setIsPdfMode] = useState(false); // Read-only mode for PDF generation
   const approvalContainerRef = useRef(null);
 
   useEffect(() => {
@@ -122,11 +123,20 @@ const ApprovalProofView = () => {
     try {
       setSaving(true);
       
-      // Generate PDF from the approval proof container
+      // Switch to PDF mode (read-only, no inputs/buttons)
+      setIsPdfMode(true);
+      
+      // Wait for DOM to update with read-only version
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Generate PDF from the clean read-only approval proof container
       const pdfBlob = await generateApprovalPDF(
         approvalContainerRef.current,
         `approval-proof-${projectId}.pdf`
       );
+      
+      // Switch back to normal mode
+      setIsPdfMode(false);
 
       // Try to upload to Supabase Storage, fallback to base64 if storage not available
       let pdfUrl = null;
@@ -371,34 +381,41 @@ const ApprovalProofView = () => {
   const colorNames = getColorNames();
 
   return (
-    <div className="approval-proof-container" ref={approvalContainerRef}>
-      <div className="approval-proof-header">
-        <h1 className="approval-proof-title">ARLINGTON MEMORIAL PARK</h1>
-        <div className="approval-proof-actions">
-          <Button
-            variant="secondary"
-            onClick={handlePrint}
-            className="approval-action-btn"
-          >
-            Print
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={handleEmail}
-            className="approval-action-btn"
-            disabled={!customer.email}
-          >
-            Email
-          </Button>
-          <button
-            onClick={handleClose}
-            className="approval-close-btn"
-            aria-label="Close"
-          >
-            ×
-          </button>
+    <div className={`approval-proof-container ${isPdfMode ? 'approval-pdf-mode' : ''}`} ref={approvalContainerRef}>
+      {!isPdfMode && (
+        <div className="approval-proof-header">
+          <h1 className="approval-proof-title">ARLINGTON MEMORIAL PARK</h1>
+          <div className="approval-proof-actions">
+            <Button
+              variant="secondary"
+              onClick={handlePrint}
+              className="approval-action-btn"
+            >
+              Print
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleEmail}
+              className="approval-action-btn"
+              disabled={!customer.email}
+            >
+              Email
+            </Button>
+            <button
+              onClick={handleClose}
+              className="approval-close-btn"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+      {isPdfMode && (
+        <div className="approval-proof-header">
+          <h1 className="approval-proof-title">ARLINGTON MEMORIAL PARK</h1>
+        </div>
+      )}
 
       <div className="approval-proof-content">
         {/* Left: Design Snapshot(s) */}
@@ -510,60 +527,83 @@ const ApprovalProofView = () => {
 
                   <div className="approval-detail-item">
                     <span className="approval-detail-label">Customer:</span>
-                    <input
-                        type="text"
-                        value={customer.name}
-                        onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                        className="approval-input"
-                        placeholder="Customer Name"
-                      />
-                    <input
-                        type="tel"
-                        value={customer.phone}
-                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                        className="approval-input"
-                        placeholder="Phone Number"
-                      />
-                    <input
-                        type="email"
-                        value={customer.email}
-                        onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-                        className="approval-input"
-                        placeholder="Email Address"
-                      />
+                    {isPdfMode ? (
+                      <div className="approval-readonly-text">
+                        <div>{customer.name || ''}</div>
+                        <div>{customer.phone || ''}</div>
+                        <div>{customer.email || ''}</div>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={customer.name}
+                          onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                          className="approval-input"
+                          placeholder="Customer Name"
+                        />
+                        <input
+                          type="tel"
+                          value={customer.phone}
+                          onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                          className="approval-input"
+                          placeholder="Phone Number"
+                        />
+                        <input
+                          type="email"
+                          value={customer.email}
+                          onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                          className="approval-input"
+                          placeholder="Email Address"
+                        />
+                      </>
+                    )}
                 </div>
 
       
                 <div className="approval-detail-item">
                   <span className="approval-detail-label">Address:</span>
-                  <input
-                    type="text"
-                    value={customer.address_line1}
-                    onChange={(e) => setCustomer({ ...customer, address_line1: e.target.value })}
-                    className="approval-input"
-                    placeholder="Address"
-                  />
-                  <input
-                    type="text"
-                    value={customer.city}
-                    onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
-                    className="approval-input approval-input-inline"
-                    placeholder="City"
-                  />
-                  <input
-                    type="text"
-                    value={customer.state}
-                    onChange={(e) => setCustomer({ ...customer, state: e.target.value })}
-                    className="approval-input approval-input-inline"
-                    placeholder="State"
-                  />
-                  <input
-                    type="text"
-                    value={customer.zip_code}
-                    onChange={(e) => setCustomer({ ...customer, zip_code: e.target.value })}
-                    className="approval-input approval-input-inline"
-                    placeholder="Zip"
-                  />
+                  {isPdfMode ? (
+                    <div className="approval-readonly-text">
+                      <div>{customer.address_line1 || ''}</div>
+                      <div>
+                        {[customer.city, customer.state, customer.zip_code]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={customer.address_line1}
+                        onChange={(e) => setCustomer({ ...customer, address_line1: e.target.value })}
+                        className="approval-input"
+                        placeholder="Address"
+                      />
+                      <input
+                        type="text"
+                        value={customer.city}
+                        onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
+                        className="approval-input approval-input-inline"
+                        placeholder="City"
+                      />
+                      <input
+                        type="text"
+                        value={customer.state}
+                        onChange={(e) => setCustomer({ ...customer, state: e.target.value })}
+                        className="approval-input approval-input-inline"
+                        placeholder="State"
+                      />
+                      <input
+                        type="text"
+                        value={customer.zip_code}
+                        onChange={(e) => setCustomer({ ...customer, zip_code: e.target.value })}
+                        className="approval-input approval-input-inline"
+                        placeholder="Zip"
+                      />
+                    </>
+                  )}
                 </div>
 
              
@@ -581,23 +621,31 @@ const ApprovalProofView = () => {
             <div style={{ display: 'flex', gap: '20px', justifyContent: 'space-between' }}>                
                 <div className="approval-signature-field">
                   <label className="approval-field-label">Name:</label>
-                  <input
-                    type="text"
-                    value={signerName}
-                    onChange={(e) => setSignerName(e.target.value)}
-                    className="approval-field-input"
-                    placeholder="Signer Name"
-                  />
+                  {isPdfMode ? (
+                    <div className="approval-readonly-text">{signerName}</div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={signerName}
+                      onChange={(e) => setSignerName(e.target.value)}
+                      className="approval-field-input"
+                      placeholder="Signer Name"
+                    />
+                  )}
                 </div>
 
                 <div className="approval-signature-field">
                   <label className="approval-field-label">Date:</label>
-                  <input
-                    type="date"
-                    value={signDate}
-                    onChange={(e) => setSignDate(e.target.value)}
-                    className="approval-field-input"
-                  />
+                  {isPdfMode ? (
+                    <div className="approval-readonly-text">{signDate}</div>
+                  ) : (
+                    <input
+                      type="date"
+                      value={signDate}
+                      onChange={(e) => setSignDate(e.target.value)}
+                      className="approval-field-input"
+                    />
+                  )}
                 </div>
 
               </div>
@@ -605,27 +653,39 @@ const ApprovalProofView = () => {
               
               <div className="approval-signature-field">
                 <label className="approval-field-label">Signature:</label>
-                <SignaturePad
-                  onSignatureChange={handleSignatureChange}
-                  width={600}
-                  height={120}
-                  backgroundColor="#FFFFFF"
-                  penColor="#000000"
-                  penWidth={2}
-                />
+                {isPdfMode && signature ? (
+                  <div className="approval-signature-display">
+                    <img 
+                      src={signature} 
+                      alt="Signature" 
+                      style={{ maxWidth: '600px', maxHeight: '120px', border: '1px solid #ddd' }}
+                    />
+                  </div>
+                ) : !isPdfMode ? (
+                  <SignaturePad
+                    onSignatureChange={handleSignatureChange}
+                    width={600}
+                    height={120}
+                    backgroundColor="#FFFFFF"
+                    penColor="#000000"
+                    penWidth={2}
+                  />
+                ) : null}
               </div>
             </div>
 
-            <div className="approval-submit-actions">
-              <Button
-                variant="primary"
-                onClick={handleSubmitApproval}
-                disabled={!signature || !signerName.trim() || saving}
-                className="approval-submit-btn"
-              >
-                {saving ? 'Submitting...' : 'Submit Approval'}
-              </Button>
-            </div>
+            {!isPdfMode && (
+              <div className="approval-submit-actions">
+                <Button
+                  variant="primary"
+                  onClick={handleSubmitApproval}
+                  disabled={!signature || !signerName.trim() || saving}
+                  className="approval-submit-btn"
+                >
+                  {saving ? 'Submitting...' : 'Submit Approval'}
+                </Button>
+              </div>
+            )}
             <div className="approval-disclaimer">
               <p>By submitting approval, you acknowledge that you are responsible for any errors found after approval. Please check all text and graphics carefully for any errors (i.e., spelling, colors, layout, size, etc.). 
                 No further changes can be made once approval is provided. Colors seen on screen may vary slightly from final production colors due to differences in screen color modes. Small dimensional changes may occur in production to allow for proper sand blasting.</p>
