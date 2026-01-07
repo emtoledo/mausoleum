@@ -10,6 +10,8 @@ import * as fabric from 'fabric';
 import { FabricImage } from 'fabric';
 import { pixelsToInches, inchesToPixels, calculateScale } from '../utils/unitConverter';
 import { colorData } from '../../../data/ColorData';
+import { fontData } from '../../../data/FontData';
+import { loadFontByFamily } from '../../../utils/fontLoader';
 
 /**
  * @param {fabric.Object} selectedElement - Currently selected Fabric.js object
@@ -736,9 +738,17 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
     }
   };
 
-  const handleFontFamilyChange = (e) => {
+  const handleFontFamilyChange = async (e) => {
     const newFont = e.target.value;
     setFontFamily(newFont);
+    
+    // Ensure font is loaded before applying it
+    try {
+      await loadFontByFamily(newFont);
+    } catch (error) {
+      console.warn(`Could not load font ${newFont}:`, error);
+    }
+    
     updateFabricObject('fontFamily', newFont);
   };
 
@@ -1926,16 +1936,11 @@ const OptionsPanel = ({ selectedElement, onUpdateElement, onDeleteElement, onCen
               value={fontFamily}
               onChange={handleFontFamilyChange}
             >
-              <option value="Times New Roman">Times New Roman</option>
-              <option value="Arial">Arial</option>
-              <option value="Helvetica">Helvetica</option>
-              <option value="Helvetica Neue">Helvetica Neue</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Geneva">Geneva</option>
-              <option value="Avenir">Avenir</option>
-              <option value="Palatino">Palatino</option>
-              <option value="New York">New York</option>
-              <option value="Academy Engraved LET">Academy Engraved LET</option>
+              {fontData.map(font => (
+                <option key={font.id} value={font.fontFamily}>
+                  {font.name}
+                </option>
+              ))}
             </select>
           </div>
 

@@ -8,6 +8,7 @@
 import opentype from 'opentype.js';
 import * as maker from 'makerjs';
 import * as fabric from 'fabric';
+import { getFontMap } from '../../../data/FontData';
 
 // Module-level cache to store loaded fonts
 const fontCache = new Map();
@@ -279,16 +280,9 @@ async function svgToMakerModel(svgUrl, widthInches, heightInches) {
 
 /**
  * Font mapping for opentype.js
+ * Generated from FontData.js
  */
-const fontMap = {
-  'Arial': 'Arial.ttf',
-  'Times New Roman': 'Times New Roman.ttf',
-  'Helvetica': 'Helvetica.ttc',
-  'Georgia': 'Georgia.ttf',
-  'Courier New': 'CourierNew.ttf',
-  'Verdana': 'Verdana.ttf',
-  'New York': 'NewYork.ttf'
-};
+const fontMap = getFontMap();
 
 /**
  * Loads a font from /public/fonts/ directory
