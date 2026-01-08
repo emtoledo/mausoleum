@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import IntroFlowLayout from '../components/layout/IntroFlowLayout';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
+import { useLocation } from '../context/LocationContext';
+import { buildLocationPath } from '../utils/navigation';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { locationSlug } = useParams();
   const { login, isAuthenticated } = useAuth();
+  const { locationConfig, currentLocation, loading: locationLoading } = useLocation();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -72,7 +76,8 @@ const LoginPage = () => {
       
       if (result.success) {
         // Navigate directly to AllProjectsView after successful login
-        navigate('/projects');
+        const projectsPath = buildLocationPath('/projects', locationSlug);
+        navigate(projectsPath);
       } else {
         setErrors({ general: result.error || 'Login failed' });
         setLoading(false);
@@ -84,10 +89,14 @@ const LoginPage = () => {
   };
 
 
+  // Use location config if available, otherwise fallback to default
+  const brandTitle = locationConfig?.brandTitle || 'ARLINGTON MEMORIAL';
+
+
   return (
     <IntroFlowLayout>
       <div className="login-container">
-        <div className="brand-title">ARLINGTON MEMORIAL</div>
+        <div className="brand-title">{brandTitle}</div>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <Input

@@ -146,7 +146,7 @@ const MasterAdminPanel = () => {
           onClick={() => setActiveTab('hierarchy')}
           disabled
         >
-          Locations (coming soon)
+          Locations
         </button>   
 
       </div>

@@ -9,6 +9,7 @@
 CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_account_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  location_id UUID REFERENCES locations(id) ON DELETE CASCADE, -- Location this project belongs to
   title VARCHAR(255) NOT NULL,
   status VARCHAR(50) DEFAULT 'draft',
   approval_pdf_url TEXT, -- URL to the approved PDF stored in Supabase Storage
@@ -98,6 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_project_approvals_project_id ON project_approvals
 CREATE INDEX IF NOT EXISTS idx_project_details_project_id ON project_details(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_details_product_id ON project_details(product_id);
 CREATE INDEX IF NOT EXISTS idx_projects_user_account_id ON projects(user_account_id);
+CREATE INDEX IF NOT EXISTS idx_projects_location_id ON projects(location_id);
 
 -- ============================================
 -- Row Level Security (RLS) Policies
@@ -295,10 +297,20 @@ CREATE TABLE IF NOT EXISTS locations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   parent_company_id UUID REFERENCES parent_companies(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
+  slug VARCHAR(100) UNIQUE, -- URL-friendly identifier (e.g., "arlington-memorial")
   address TEXT,
+  brand_title VARCHAR(255), -- Brand title for login/signup pages
+  projects_title VARCHAR(255), -- Title for projects list page
+  approval_proof_title VARCHAR(255), -- Title for approval proof documents
+  background_video_url TEXT, -- URL to background video for login/signup
+  is_active BOOLEAN DEFAULT true, -- Whether location is active
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Indexes for locations
+CREATE INDEX IF NOT EXISTS idx_locations_slug ON locations(slug);
+CREATE INDEX IF NOT EXISTS idx_locations_active ON locations(is_active);
 
 -- User Accounts (extends auth.users with hierarchy)
 CREATE TABLE IF NOT EXISTS user_accounts (
@@ -314,6 +326,7 @@ CREATE TABLE IF NOT EXISTS user_accounts (
 -- Products Catalog (for master admin management)
 CREATE TABLE IF NOT EXISTS products (
   id VARCHAR(100) PRIMARY KEY,
+  location_id UUID REFERENCES locations(id) ON DELETE CASCADE, -- Location this product belongs to (null = available to all)
   name VARCHAR(255) NOT NULL,
   product_number VARCHAR(100),
   product_category VARCHAR(100) NOT NULL,
@@ -341,10 +354,12 @@ CREATE TABLE IF NOT EXISTS products (
 -- Indexes for products
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(product_category);
 CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);
+CREATE INDEX IF NOT EXISTS idx_products_location_id ON products(location_id);
 
 -- Artwork Catalog (for master admin management)
 CREATE TABLE IF NOT EXISTS artwork (
   id VARCHAR(100) PRIMARY KEY,
+  location_id UUID REFERENCES locations(id) ON DELETE CASCADE, -- Location this artwork belongs to (null = available to all)
   name VARCHAR(255) NOT NULL,
   category VARCHAR(100) NOT NULL,
   image_url TEXT NOT NULL,
@@ -358,6 +373,7 @@ CREATE TABLE IF NOT EXISTS artwork (
 -- Indexes for artwork
 CREATE INDEX IF NOT EXISTS idx_artwork_category ON artwork(category);
 CREATE INDEX IF NOT EXISTS idx_artwork_active ON artwork(is_active);
+CREATE INDEX IF NOT EXISTS idx_artwork_location_id ON artwork(location_id);
 
 -- RLS for master_admins
 ALTER TABLE master_admins ENABLE ROW LEVEL SECURITY;

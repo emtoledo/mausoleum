@@ -17,6 +17,7 @@ const EditModeView = ({ onHandlersReady }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productConfig, setProductConfig] = useState(null);
   const [artwork, setArtwork] = useState([]);
+  const [artworkLoading, setArtworkLoading] = useState(true); // Track artwork loading separately
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [designStudioHandlers, setDesignStudioHandlers] = useState(null);
@@ -35,6 +36,7 @@ const EditModeView = ({ onHandlersReady }) => {
 
   const loadArtwork = async () => {
     try {
+      setArtworkLoading(true);
       const result = await artworkService.getAllArtwork(false); // Only active artwork
       if (result.success) {
         // Transform database format to match expected artwork format
@@ -67,6 +69,8 @@ const EditModeView = ({ onHandlersReady }) => {
       console.error('Error loading artwork:', err);
       // Fallback to empty array if loading fails
       setArtwork([]);
+    } finally {
+      setArtworkLoading(false);
     }
   };
 
@@ -379,10 +383,12 @@ const EditModeView = ({ onHandlersReady }) => {
     handleBack();
   };
 
-  if (loading) {
+  if (loading || artworkLoading) {
     return (
       <div className="canvas-layout">
-        <div className="loading-message">Loading product...</div>
+        <div className="loading-message">
+          {loading ? 'Loading project...' : 'Loading artwork library...'}
+        </div>
       </div>
     );
   }

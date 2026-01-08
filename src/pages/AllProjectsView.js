@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -7,26 +7,33 @@ import Modal from '../components/ui/Modal';
 import { useProjects } from '../hooks/useProjects';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import { useProjectFlow } from '../context/ProjectFlowContext';
+import { useLocation } from '../context/LocationContext';
+import { buildLocationPath } from '../utils/navigation';
 import templateService from '../services/templateService';
 
 const AllProjectsView = () => {
   const navigate = useNavigate();
+  const { locationSlug, projectId } = useParams();
   const { projects, loading, error, refreshProjects } = useProjects();
   const { deleteProject, updateProject } = useProjectMutations();
   const { openWizard } = useProjectFlow();
+  const { locationConfig, currentLocation } = useLocation();
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, project: null });
   const [editModal, setEditModal] = useState({ isOpen: false, project: null });
   const [editValues, setEditValues] = useState({ name: '', status: '' });
+
 
 
   const handleProjectClick = (project) => {
     console.log('AllProjectsView - Project clicked:', project);
     // If project is approved, navigate to approved view instead of edit mode
     if (project.status === 'approved') {
-      navigate(`/projects/${project.id}/approved`);
+      const approvedPath = buildLocationPath(`/projects/${project.id}/approved`, locationSlug);
+      navigate(approvedPath);
     } else {
       // Navigate directly to edit mode since each project has only one template
-      navigate(`/projects/${project.id}/edit`);
+      const editPath = buildLocationPath(`/projects/${project.id}/edit`, locationSlug);
+      navigate(editPath);
     }
   };
 
@@ -195,7 +202,7 @@ const AllProjectsView = () => {
     <div className="all-projects-container">
       <div className="projects-content">
         <div className="projects-header">
-          <h1 className="projects-title">ARLINGTON MEMORIAL</h1>
+          <h1 className="projects-title">{locationConfig?.projectsTitle || 'ARLINGTON MEMORIAL'}</h1>
           <Button 
             variant="primary"
             onClick={handleCreateNewProject}
