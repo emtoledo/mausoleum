@@ -13,8 +13,10 @@ import TemplateSelectionForm from './steps/TemplateSelectionForm';
 
 const ProjectCreationWizard = () => {
   const navigate = useNavigate();
+  const { locationSlug } = useParams();
   const { isWizardOpen, closeWizard } = useProjectFlow();
   const { createProject } = useProjectMutations();
+  const { currentLocation } = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [wizardData, setWizardData] = useState({});
   const [isCreating, setIsCreating] = useState(false);
@@ -72,10 +74,12 @@ const ProjectCreationWizard = () => {
       const projectData = {
         title: finalWizardData.projectName,
         selectedTemplate: selectedProduct, // Pass the full product object (still called selectedTemplate for API compatibility)
-        selectedTemplateId: finalWizardData.selectedTemplateId
+        selectedTemplateId: finalWizardData.selectedTemplateId,
+        locationId: currentLocation?.id || null // Include location_id for project scoping
       };
 
       console.log('ProjectCreationWizard - Creating project with data:', projectData);
+      console.log('ProjectCreationWizard - Location ID:', currentLocation?.id);
       
       // Create the project
       const result = await createProject(projectData);
@@ -90,7 +94,8 @@ const ProjectCreationWizard = () => {
         
         // Navigate directly to DesignStudio (no templateId needed since each project has one product)
         // Pass flag to indicate this is a new project creation (for auto-loading default template)
-        navigate(`/projects/${result.data.id}/edit`, { 
+        const editPath = buildLocationPath(`/projects/${result.data.id}/edit`, locationSlug);
+        navigate(editPath, { 
           state: { isNewProject: true } 
         });
       } else {
