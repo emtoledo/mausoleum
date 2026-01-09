@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import IntroFlowLayout from '../components/layout/IntroFlowLayout';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
+import { buildLocationPath } from '../utils/navigation';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
+  const { locationSlug } = useParams();
   const { signUp, isAuthenticated } = useAuth();
   
   const [formData, setFormData] = useState({
@@ -21,9 +23,10 @@ const SignUpPage = () => {
   // Redirect to projects if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/projects', { replace: true });
+      const projectsPath = buildLocationPath('/projects', locationSlug);
+      navigate(projectsPath, { replace: true });
     }
-  }, [isAuthenticated]); // Remove navigate from dependencies - it's stable
+  }, [isAuthenticated, locationSlug]); // Remove navigate from dependencies - it's stable
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -84,7 +87,8 @@ const SignUpPage = () => {
       
       if (result.success) {
         // Navigate directly to AllProjectsView after successful sign-up
-        navigate('/projects');
+        const projectsPath = buildLocationPath('/projects', locationSlug);
+        navigate(projectsPath);
       } else {
         setErrors({ general: result.error || 'Sign up failed' });
         setLoading(false);
@@ -160,7 +164,7 @@ const SignUpPage = () => {
           </Button>
 
           <div className="signup-link">
-            <p>Already have an account? <Link to="/login">Login</Link></p>
+            <p>Already have an account? <Link to={buildLocationPath('/login', locationSlug)}>Login</Link></p>
           </div>
         </form>
       </div>

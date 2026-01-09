@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { buildLocationPath } from '../utils/navigation';
 
 const AccountSettingsView = () => {
   const navigate = useNavigate();
+  const { locationSlug } = useParams();
   const { user, logout } = useAuth();
   
   const [name, setName] = useState('');
@@ -93,7 +95,8 @@ const AccountSettingsView = () => {
         console.warn('Service role key not available. Cannot delete account via API.');
         alert('Account deletion requires server-side setup. Signing you out. Please contact support to permanently delete your account.');
         await logout();
-        navigate('/login', { replace: true });
+        const loginPath = buildLocationPath('/login', locationSlug);
+        navigate(loginPath, { replace: true });
         return;
       }
 
@@ -117,7 +120,8 @@ const AccountSettingsView = () => {
 
       // Sign out and redirect to login
       await logout();
-      navigate('/login', { replace: true });
+      const loginPath = buildLocationPath('/login', locationSlug);
+      navigate(loginPath, { replace: true });
     } catch (error) {
       console.error('Error deleting account:', error);
       alert(`Error deleting account: ${error.message}. Please contact support if this issue persists.`);

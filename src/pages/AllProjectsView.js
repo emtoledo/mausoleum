@@ -258,7 +258,8 @@ const AllProjectsView = () => {
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/projects/${project.id}/approved`);
+                        const approvedPath = buildLocationPath(`/projects/${project.id}/approved`, locationSlug);
+                        navigate(approvedPath);
                       }}
                       className="view-approved-btn"
                     >

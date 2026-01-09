@@ -23,9 +23,10 @@ const LoginPage = () => {
   // Redirect to projects if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/projects');
+      const projectsPath = buildLocationPath('/projects', locationSlug);
+      navigate(projectsPath);
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, locationSlug]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -136,7 +137,7 @@ const LoginPage = () => {
           </Button>
 
           <div className="signup-link">
-            <p>Don't have an account? <Link to="/signup">Create New Account</Link></p>
+            <p>Don't have an account? <Link to={buildLocationPath('/signup', locationSlug)}>Create New Account</Link></p>
           </div>
         </form>
       </div>

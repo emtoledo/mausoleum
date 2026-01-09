@@ -10,9 +10,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import Button from '../components/ui/Button';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import { buildLocationPath } from '../utils/navigation';
 
 const ApprovedView = () => {
-  const { projectId } = useParams();
+  const { projectId, locationSlug } = useParams();
   const navigate = useNavigate();
   const { getProject, deleteProject } = useProjectMutations();
   
@@ -75,7 +76,8 @@ const ApprovedView = () => {
   };
 
   const handleBackToProjects = () => {
-    navigate('/projects');
+    const projectsPath = buildLocationPath('/projects', locationSlug);
+    navigate(projectsPath);
   };
 
   const handleDeleteProject = () => {
@@ -90,7 +92,8 @@ const ApprovedView = () => {
       const result = await deleteProject(projectId);
       if (result.success) {
         // Navigate back to projects list after successful deletion
-        navigate('/projects');
+        const projectsPath = buildLocationPath('/projects', locationSlug);
+        navigate(projectsPath);
       } else {
         alert('Error deleting project. Please try again.');
         setDeleteConfirm({ isOpen: false });

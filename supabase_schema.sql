@@ -425,7 +425,14 @@ CREATE POLICY "Master admins can manage parent companies"
 ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Anyone can view active locations" ON locations;
 DROP POLICY IF EXISTS "Master admins can manage locations" ON locations;
+
+-- Allow anyone (including unauthenticated users) to read active locations
+-- This is needed for the login page to display location-specific branding
+CREATE POLICY "Anyone can view active locations"
+  ON locations FOR SELECT
+  USING (is_active = true);
 
 CREATE POLICY "Master admins can manage locations"
   ON locations FOR ALL

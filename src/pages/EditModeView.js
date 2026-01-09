@@ -6,9 +6,10 @@ import DesignStudio from '../features/DesignStudio/DesignStudio';
 import { materials } from '../data/MaterialsData.js';
 import artworkService from '../services/artworkService';
 import productService from '../services/productService';
+import { buildLocationPath } from '../utils/navigation';
 
 const EditModeView = ({ onHandlersReady }) => {
-  const { projectId } = useParams();
+  const { projectId, locationSlug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { getProject, updateProject } = useProjectMutations();
@@ -85,7 +86,8 @@ const EditModeView = ({ onHandlersReady }) => {
         
         // If project is approved, redirect to approved view (cannot edit approved projects)
         if (result.data.status === 'approved') {
-          navigate(`/projects/${projectId}/approved`);
+          const approvedPath = buildLocationPath(`/projects/${projectId}/approved`, locationSlug);
+          navigate(approvedPath);
           return;
         }
         
@@ -217,11 +219,13 @@ const EditModeView = ({ onHandlersReady }) => {
     };
 
   const handleBack = () => {
-    navigate('/projects');
+    const projectsPath = buildLocationPath('/projects', locationSlug);
+    navigate(projectsPath);
   };
 
   const handleProjectTitleClick = () => {
-    navigate('/projects');
+    const projectsPath = buildLocationPath('/projects', locationSlug);
+    navigate(projectsPath);
   };
 
   // Prepare initial data for Design Studio - memoized to prevent unnecessary recalculations

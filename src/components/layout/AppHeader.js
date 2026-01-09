@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import ProfileDropdown from '../ui/ProfileDropdown';
 import { useAuth } from '../../hooks/useAuth';
 import { useProjectFlow } from '../../context/ProjectFlowContext';
+import { buildLocationPath } from '../../utils/navigation';
 import dataService from '../../services/dataService';
 import CanvasActions from '../../features/DesignStudio/components/CanvasActions';
 
@@ -188,7 +189,8 @@ const AppHeader = ({
 
   const handleAllProjects = () => {
     console.log('AppHeader - All Projects clicked');
-    navigate('/projects');
+    const projectsPath = buildLocationPath('/projects', params.locationSlug);
+    navigate(projectsPath);
   };
 
   const handleCreateNewProject = () => {
@@ -199,7 +201,8 @@ const AppHeader = ({
   const handleAccountSettings = () => {
     console.log('AppHeader - Account Settings clicked');
     setIsProfileDropdownOpen(false);
-    navigate('/account-settings');
+    const settingsPath = buildLocationPath('/account-settings', params.locationSlug);
+    navigate(settingsPath);
   };
 
   const handleLogOut = () => {

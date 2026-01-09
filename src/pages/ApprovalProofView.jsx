@@ -14,9 +14,10 @@ import Button from '../components/ui/Button';
 import { colorData } from '../data/ColorData';
 import { generateApprovalPDF } from '../utils/pdfGenerator';
 import { uploadApprovalPDF, pdfBlobToBase64 } from '../utils/storageService';
+import { buildLocationPath } from '../utils/navigation';
 
 const ApprovalProofView = () => {
-  const { projectId } = useParams();
+  const { projectId, locationSlug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { getProject, updateProject } = useProjectMutations();
@@ -194,7 +195,8 @@ const ApprovalProofView = () => {
       console.log('Approval submitted:', approvalData);
 
       // Navigate to approved view
-      navigate(`/projects/${projectId}/approved`);
+      const approvedPath = buildLocationPath(`/projects/${projectId}/approved`, locationSlug);
+      navigate(approvedPath);
     } catch (err) {
       console.error('Error submitting approval:', err);
       alert('Failed to submit approval. Please try again.');
@@ -224,7 +226,8 @@ const ApprovalProofView = () => {
   };
 
   const handleClose = () => {
-    navigate(`/projects/${projectId}/edit`);
+    const editPath = buildLocationPath(`/projects/${projectId}/edit`, locationSlug);
+    navigate(editPath);
   };
 
   // Format dimensions for display
@@ -250,7 +253,7 @@ const ApprovalProofView = () => {
     return (
       <div className="approval-proof-container">
         <div className="error-message">Error: {error || 'Project not found'}</div>
-        <Button onClick={() => navigate('/projects')}>Back to Projects</Button>
+        <Button onClick={() => navigate(buildLocationPath('/projects', locationSlug))}>Back to Projects</Button>
       </div>
     );
   }
