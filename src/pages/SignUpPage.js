@@ -11,7 +11,7 @@ const SignUpPage = () => {
   const navigate = useNavigate();
   const { locationSlug } = useParams();
   const { signUp, isAuthenticated } = useAuth();
-  const { locationConfig } = useLocation();
+  const { locationConfig, currentLocation } = useLocation();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -85,7 +85,11 @@ const SignUpPage = () => {
     setLoading(true);
     
     try {
-      const result = await signUp(formData.email, formData.password, formData.name);
+      // Pass location ID from current location context
+      const locationId = currentLocation?.id || null;
+      console.log('SignUpPage - Signing up with location:', locationId, currentLocation?.name);
+      
+      const result = await signUp(formData.email, formData.password, formData.name, locationId);
       
       if (result.success) {
         // Navigate directly to AllProjectsView after successful sign-up

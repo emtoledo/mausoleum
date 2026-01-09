@@ -7,8 +7,31 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [userAccount, setUserAccount] = useState(null); // Additional user data from user_accounts table
   const [loading, setLoading] = useState(true);
   const [useSupabaseAuth, setUseSupabaseAuth] = useState(false);
+
+  // Load user account data from user_accounts table
+  const loadUserAccount = async (userId) => {
+    if (!userId) {
+      setUserAccount(null);
+      return;
+    }
+
+    try {
+      const result = await userService.getUserAccount(userId);
+      if (result.success) {
+        setUserAccount(result.data);
+        console.log('User account loaded:', result.data);
+      } else {
+        console.warn('Could not load user account:', result.error);
+        setUserAccount(null);
+      }
+    } catch (error) {
+      console.error('Error loading user account:', error);
+      setUserAccount(null);
+    }
+  };
 
   // Check if Supabase is configured
   useEffect(() => {
@@ -26,6 +49,8 @@ export const AuthProvider = ({ children }) => {
           if (session && !error) {
             setIsAuthenticated(true);
             setUser(session.user);
+            // Load user account data
+            await loadUserAccount(session.user.id);
           }
         } catch (error) {
           console.error('Error checking Supabase session:', error);
@@ -48,13 +73,16 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for auth state changes (Supabase)
     if (useSupabaseAuth) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session) {
           setIsAuthenticated(true);
           setUser(session.user);
+          // Load user account data on auth change
+          await loadUserAccount(session.user.id);
         } else {
           setIsAuthenticated(false);
           setUser(null);
+          setUserAccount(null);
         }
         setLoading(false);
       });
@@ -106,7 +134,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signUp = async (email, password, name) => {
+  const signUp = async (email, password, name, locationId = null) => {
     try {
       if (useSupabaseAuth) {
         // Determine the redirect URL for email confirmation
@@ -129,7 +157,8 @@ export const AuthProvider = ({ children }) => {
           options: {
             emailRedirectTo: getRedirectUrl(),
             data: {
-              full_name: name
+              full_name: name,
+              location_id: locationId
             }
           }
         });
@@ -146,6 +175,23 @@ export const AuthProvider = ({ children }) => {
             });
           }
           
+          // Create user_account entry with location
+          console.log('Creating user account with location:', locationId);
+          const userAccountResult = await userService.createUserAccount(
+            data.user.id,
+            email,
+            name,
+            locationId,
+            'user' // Default role
+          );
+          
+          if (!userAccountResult.success) {
+            console.warn('Failed to create user account:', userAccountResult.error);
+            // Don't fail the signup, the account was created in auth
+          } else {
+            console.log('User account created successfully:', userAccountResult.data);
+          }
+          
           setIsAuthenticated(true);
           setUser(data.user);
           return { success: true, user: data.user };
@@ -158,7 +204,8 @@ export const AuthProvider = ({ children }) => {
           const userData = { 
             email, 
             id: Date.now().toString(),
-            name: name
+            name: name,
+            locationId: locationId
           };
           
           setIsAuthenticated(true);
@@ -203,10 +250,12 @@ export const AuthProvider = ({ children }) => {
   const value = {
     isAuthenticated,
     user,
+    userAccount, // Additional user data including location_id and role
     loading,
     login,
     signUp,
-    logout
+    logout,
+    refreshUserAccount: () => user?.id ? loadUserAccount(user.id) : Promise.resolve()
   };
 
   return (
