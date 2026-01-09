@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation as useRouterLocation } from 'react-router-dom';
 import { useProjectMutations } from '../hooks/useProjectMutations';
 import productService from '../services/productService';
 import SignaturePad from '../components/ui/SignaturePad';
@@ -15,11 +15,13 @@ import { colorData } from '../data/ColorData';
 import { generateApprovalPDF } from '../utils/pdfGenerator';
 import { uploadApprovalPDF, pdfBlobToBase64 } from '../utils/storageService';
 import { buildLocationPath } from '../utils/navigation';
+import { useLocation } from '../context/LocationContext';
 
 const ApprovalProofView = () => {
   const { projectId, locationSlug } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerLocation = useRouterLocation();
+  const { locationConfig } = useLocation();
   const { getProject, updateProject } = useProjectMutations();
   
   const [project, setProject] = useState(null);
@@ -38,21 +40,21 @@ const ApprovalProofView = () => {
   // Support both old format (single snapshot) and new format (multiple snapshots)
   const [designSnapshots, setDesignSnapshots] = useState(() => {
     // New format: object with view keys
-    if (location.state?.designSnapshots) {
-      console.log('ApprovalProofView: Received designSnapshots from location.state:', location.state.designSnapshots);
-      console.log('ApprovalProofView: designSnapshots.front:', location.state.designSnapshots.front);
-      console.log('ApprovalProofView: designSnapshots.back:', location.state.designSnapshots.back);
-      return location.state.designSnapshots;
+    if (routerLocation.state?.designSnapshots) {
+      console.log('ApprovalProofView: Received designSnapshots from routerLocation.state:', routerLocation.state.designSnapshots);
+      console.log('ApprovalProofView: designSnapshots.front:', routerLocation.state.designSnapshots.front);
+      console.log('ApprovalProofView: designSnapshots.back:', routerLocation.state.designSnapshots.back);
+      return routerLocation.state.designSnapshots;
     }
     // Old format: single snapshot string (backward compatibility)
-    if (location.state?.designSnapshot) {
-      console.log('ApprovalProofView: Received designSnapshot (old format):', location.state.designSnapshot);
-      return { front: location.state.designSnapshot };
+    if (routerLocation.state?.designSnapshot) {
+      console.log('ApprovalProofView: Received designSnapshot (old format):', routerLocation.state.designSnapshot);
+      return { front: routerLocation.state.designSnapshot };
     }
-    console.warn('ApprovalProofView: No design snapshots found in location.state');
+    console.warn('ApprovalProofView: No design snapshots found in routerLocation.state');
     return null;
   });
-  const [hasMultipleViews, setHasMultipleViews] = useState(location.state?.hasMultipleViews || false);
+  const [hasMultipleViews, setHasMultipleViews] = useState(routerLocation.state?.hasMultipleViews || false);
   const [signature, setSignature] = useState(null);
   const [signerName, setSignerName] = useState('');
   const [signDate, setSignDate] = useState(new Date().toISOString().split('T')[0]);
@@ -410,7 +412,7 @@ const ApprovalProofView = () => {
     <div className={`approval-proof-container ${isPdfMode ? 'approval-pdf-mode' : ''}`} ref={approvalContainerRef}>
       {!isPdfMode && (
         <div className="approval-proof-header">
-          <h1 className="approval-proof-title">ARLINGTON MEMORIAL PARK</h1>
+          <h1 className="approval-proof-title">{locationConfig?.approvalProofTitle || 'ARLINGTON MEMORIAL PARK'}</h1>
           <div className="approval-proof-actions">
             <Button
               variant="secondary"
@@ -439,7 +441,7 @@ const ApprovalProofView = () => {
       )}
       {isPdfMode && (
         <div className="approval-proof-header">
-          <h1 className="approval-proof-title">ARLINGTON MEMORIAL PARK</h1>
+          <h1 className="approval-proof-title">{locationConfig?.approvalProofTitle || 'ARLINGTON MEMORIAL PARK'}</h1>
         </div>
       )}
 

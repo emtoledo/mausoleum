@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Modal from '../ui/Modal';
 import { useProjectFlow } from '../../context/ProjectFlowContext';
 import { useProjectMutations } from '../../hooks/useProjectMutations';
+import { useLocation } from '../../context/LocationContext';
+import { buildLocationPath } from '../../utils/navigation';
 
 // Import step components
 import NewMemorialForm from './steps/NewMemorialForm';

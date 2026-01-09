@@ -116,30 +116,34 @@ const AppHeader = ({
       return pageTitle;
     }
     
-    // Otherwise, use route-based logic
-    switch (path) {
-      case '/projects':
-        return 'All Projects';
-      case '/account-settings':
-        return 'Account Settings';
-      case '/selection':
-        return 'Valhalla Memorial';
-      case '/login':
-        return 'Login';
-      default:
-        // For project edit routes, show "Edit Memorial" as fallback
-        // (actual project title will be passed via pageTitle prop from Design Studio)
-        if (path.startsWith('/projects/') && path.includes('/edit')) {
-          return 'Edit Memorial';
-        }
-        if (path.startsWith('/projects/') && path.includes('/templates')) {
-          return 'Template Selection';
-        }
-        if (path.startsWith('/projects/')) {
-          return 'Project Details';
-        }
-        return 'Valhalla Memorial';
+    // Use path segment matching to support location-prefixed routes
+    // (e.g., /arlington-memorial/projects matches /projects)
+    if (path === '/projects' || path.endsWith('/projects')) {
+      return 'All Projects';
     }
+    if (path === '/account-settings' || path.endsWith('/account-settings')) {
+      return 'Account Settings';
+    }
+    if (path === '/selection' || path.endsWith('/selection')) {
+      return 'Valhalla Memorial';
+    }
+    if (path === '/login' || path.endsWith('/login')) {
+      return 'Login';
+    }
+    
+    // For project edit routes, show "Edit Memorial" as fallback
+    // (actual project title will be passed via pageTitle prop from Design Studio)
+    if (path.includes('/projects/') && path.includes('/edit')) {
+      return 'Edit Memorial';
+    }
+    if (path.includes('/projects/') && path.includes('/templates')) {
+      return 'Template Selection';
+    }
+    if (path.includes('/projects/')) {
+      return 'Project Details';
+    }
+    
+    return 'Valhalla Memorial';
   };
 
   const handleProfileClick = () => {

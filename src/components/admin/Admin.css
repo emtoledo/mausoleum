@@ -267,3 +267,369 @@
   border-radius: 8px;
   border: 1px solid #dee2e6;
 }
+
+/* ==================== */
+/* Locations Management */
+/* ==================== */
+
+.locations-management {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.admin-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.admin-management-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.admin-management-content {
+  display: flex;
+  gap: 30px;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-list {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-form-panel {
+  width: 450px;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+/* Admin Table Styles */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.admin-table thead {
+  background-color: #f8f9fa;
+}
+
+.admin-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.admin-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.admin-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.admin-table tbody tr.selected {
+  background-color: #e3f2fd;
+}
+
+.admin-table tbody tr.inactive {
+  opacity: 0.6;
+}
+
+/* Location-specific table cells */
+.location-name strong {
+  color: #333;
+}
+
+.location-slug code {
+  background-color: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #666;
+}
+
+.location-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Admin Buttons */
+.admin-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.admin-btn.primary {
+  background-color: #008FF0;
+  color: white;
+}
+
+.admin-btn.primary:hover {
+  background-color: #0077cc;
+}
+
+.admin-btn.secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.admin-btn.secondary:hover {
+  background-color: #5a6268;
+}
+
+.admin-btn.danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.admin-btn.danger:hover {
+  background-color: #c82333;
+}
+
+.admin-btn.small {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.admin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Status Badge improvements */
+.status-badge {
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.status-badge:hover {
+  opacity: 0.8;
+}
+
+/* Admin Edit Form */
+.admin-edit-form {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.admin-edit-form .form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.admin-edit-form .form-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.admin-edit-form .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  line-height: 1;
+  padding: 0;
+}
+
+.admin-edit-form .close-btn:hover {
+  color: #333;
+}
+
+.admin-edit-form form {
+  padding: 20px;
+}
+
+.admin-edit-form .form-section {
+  margin-bottom: 24px;
+}
+
+.admin-edit-form .form-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.admin-edit-form .form-group {
+  margin-bottom: 16px;
+}
+
+.admin-edit-form .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.admin-edit-form .form-group input[type="text"],
+.admin-edit-form .form-group input[type="email"],
+.admin-edit-form .form-group input[type="url"],
+.admin-edit-form .form-group textarea,
+.admin-edit-form .form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+
+.admin-edit-form .form-group input:focus,
+.admin-edit-form .form-group textarea:focus,
+.admin-edit-form .form-group select:focus {
+  outline: none;
+  border-color: #008FF0;
+}
+
+.admin-edit-form .form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.admin-edit-form .form-help {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #888;
+}
+
+.admin-edit-form .form-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Checkbox group */
+.admin-edit-form .checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.admin-edit-form .checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+/* Slug input wrapper */
+.slug-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.slug-input-wrapper .slug-prefix {
+  padding: 10px 12px;
+  background-color: #f5f5f5;
+  color: #666;
+  border-right: 1px solid #ddd;
+  font-family: monospace;
+}
+
+.slug-input-wrapper input {
+  flex: 1;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.slug-input-wrapper input:focus {
+  outline: none;
+}
+
+/* Form Actions */
+.admin-edit-form .form-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+  margin-top: 24px;
+}
+
+.admin-edit-form .form-actions .admin-btn.danger {
+  margin-left: auto;
+}
+
+/* Empty State */
+.admin-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px dashed #ddd;
+}
+
+.admin-empty-state p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.admin-empty-state p:first-child {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+/* Loading and Error States */
+.admin-loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.admin-error {
+  text-align: center;
+  padding: 40px 20px;
+  color: #721c24;
+  background: #f8d7da;
+  border-radius: 8px;
+}
+
+.admin-error p {
+  margin: 0 0 16px 0;
+}

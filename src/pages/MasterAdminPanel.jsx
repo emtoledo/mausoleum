@@ -4,6 +4,7 @@ import productService from '../services/productService';
 import ProductsManagement from '../components/admin/ProductsManagement';
 import ArtworkManagement from '../components/admin/ArtworkManagement';
 import ArtworkTemplatesManagement from '../components/admin/ArtworkTemplatesManagement';
+import LocationsManagement from '../components/admin/LocationsManagement';
 import './MasterAdminPanel.css';
 
 // Expose productService to window for console access (development only)
@@ -134,17 +135,16 @@ const MasterAdminPanel = () => {
         </button>  
 
         <button
-          className={`admin-tab ${activeTab === 'hierarchy' ? 'active' : ''}`}
-          onClick={() => setActiveTab('hierarchy')}
+          className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
           disabled
         >
           Users (coming soon)
         </button>
 
         <button
-          className={`admin-tab ${activeTab === 'hierarchy' ? 'active' : ''}`}
-          onClick={() => setActiveTab('hierarchy')}
-          disabled
+          className={`admin-tab ${activeTab === 'locations' ? 'active' : ''}`}
+          onClick={() => setActiveTab('locations')}
         >
           Locations
         </button>   
@@ -155,8 +155,9 @@ const MasterAdminPanel = () => {
         {activeTab === 'products' && <ProductsManagement />}
         {activeTab === 'artwork' && <ArtworkManagement />}
         {activeTab === 'templates' && <ArtworkTemplatesManagement />}
-        {activeTab === 'hierarchy' && (
-          <div className="coming-soon">Hierarchy management coming soon...</div>
+        {activeTab === 'locations' && <LocationsManagement />}
+        {activeTab === 'users' && (
+          <div className="coming-soon">User management coming soon...</div>
         )}
       </div>
     </div>

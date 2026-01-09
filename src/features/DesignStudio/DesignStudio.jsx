@@ -7,6 +7,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { buildLocationPath } from '../../utils/navigation';
 import { FabricImage, FabricText, IText } from 'fabric';
 import * as fabric from 'fabric';
 // Import fabric namespace with alias to avoid shadowing when 'fabric' is used as canvas variable
@@ -43,8 +44,9 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
   const navigate = useNavigate();
   const params = useParams();
   
-  // Get projectId from props or params
+  // Get projectId and locationSlug from props or params
   const currentProjectId = projectId || params?.projectId;
+  const locationSlug = params?.locationSlug;
   
   // Canvas refs
   const productCanvasRef = useRef(null);
@@ -3340,7 +3342,8 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
       fabric.renderAll();
 
       // Navigate to approval view with snapshots in state
-      navigate(`/projects/${currentProjectId}/approval`, {
+      const approvalPath = buildLocationPath(`/projects/${currentProjectId}/approval`, locationSlug);
+      navigate(approvalPath, {
         state: { designSnapshots: snapshots, hasMultipleViews: hasBothViews }
       });
     } catch (error) {
@@ -3349,7 +3352,7 @@ const DesignStudio = ({ initialData, materials = [], artwork = [], onSave, onClo
     } finally {
       setIsSubmittingForApproval(false);
     }
-  }, [fabricInstance, fabricFromHook, currentProjectId, navigate, localDesignElements, currentView, handleSave, isSaving, canvasSize]);
+  }, [fabricInstance, fabricFromHook, currentProjectId, navigate, localDesignElements, currentView, handleSave, isSaving, canvasSize, locationSlug]);
 
   /**
    * Handler: Close Studio

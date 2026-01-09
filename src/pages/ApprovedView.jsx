@@ -72,7 +72,8 @@ const ApprovedView = () => {
 
   const handleExportDXF = async () => {
     // Navigate to edit view where DXF export is available
-    navigate(`/projects/${projectId}/edit`);
+    const editPath = buildLocationPath(`/projects/${projectId}/edit`, locationSlug);
+    navigate(editPath);
   };
 
   const handleBackToProjects = () => {

@@ -4,12 +4,14 @@ import IntroFlowLayout from '../components/layout/IntroFlowLayout';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
+import { useLocation } from '../context/LocationContext';
 import { buildLocationPath } from '../utils/navigation';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
   const { locationSlug } = useParams();
   const { signUp, isAuthenticated } = useAuth();
+  const { locationConfig } = useLocation();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -102,7 +104,7 @@ const SignUpPage = () => {
   return (
     <IntroFlowLayout>
       <div className="login-container">
-        <div className="brand-title">ARLINGTON MEMORIAL</div>
+        <div className="brand-title">{locationConfig?.brandTitle || 'ARLINGTON MEMORIAL'}</div>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <Input

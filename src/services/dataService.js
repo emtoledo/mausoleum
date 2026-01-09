@@ -10,12 +10,14 @@ class DataService {
   }
 
   // Get all projects (from Supabase or localStorage)
-  async getAllProjects() {
+  // @param {string} locationId - Optional location ID to filter projects by
+  // @param {boolean} isMasterAdmin - Whether the current user is a master admin
+  async getAllProjects(locationId = null, isMasterAdmin = false) {
     if (this.useSupabase) {
-      return await supabaseService.getAllProjects();
+      return await supabaseService.getAllProjects(locationId, isMasterAdmin);
     }
     
-    // Fallback to localStorage
+    // Fallback to localStorage (no location filtering for localStorage)
     try {
       const projects = localStorage.getItem(this.storageKey);
       return projects ? JSON.parse(projects) : [];

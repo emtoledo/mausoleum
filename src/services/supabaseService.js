@@ -18,8 +18,10 @@ class SupabaseService {
 
   /**
    * Get all projects for the current user
+   * @param {string} locationId - Optional location ID to filter projects by
+   * @param {boolean} isMasterAdmin - Whether the current user is a master admin
    */
-  async getAllProjects() {
+  async getAllProjects(locationId = null, isMasterAdmin = false) {
     // Fallback to localStorage if Supabase not configured
     if (!this.isConfigured()) {
       console.log('Supabase not configured, using localStorage fallback');
@@ -41,14 +43,29 @@ class SupabaseService {
 
       const user = session.user;
 
-      const { data, error } = await supabase
+      // Build query with location filtering
+      let query = supabase
         .from('projects')
         .select(`
           *,
           project_details (*)
-        `)
-        .eq('user_account_id', user.id)
-        .order('updated_at', { ascending: false });
+        `);
+      
+      // If viewing within a specific location, filter by location_id
+      if (locationId) {
+        console.log('Filtering projects by location_id:', locationId);
+        query = query.eq('location_id', locationId);
+      }
+      
+      // If not a master admin, only show user's own projects
+      // Master admins can see all projects (but still filtered by location if specified)
+      if (!isMasterAdmin) {
+        query = query.eq('user_account_id', user.id);
+      }
+      
+      query = query.order('updated_at', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Supabase query error, falling back to localStorage:', error);
@@ -57,7 +74,7 @@ class SupabaseService {
 
       // If no data, return empty array (not an error)
       if (!data || data.length === 0) {
-        console.log('No projects found in Supabase, returning empty array');
+        console.log('No projects found in Supabase for location:', locationId);
         return [];
       }
 
@@ -231,14 +248,22 @@ class SupabaseService {
         throw new Error('Please confirm your email address before creating projects. Check your inbox for the confirmation email.');
       }
 
-      // Create project
+      // Create project with location_id if provided
+      const projectInsert = {
+        user_account_id: user.id,
+        title: projectData.title,
+        status: 'draft'
+      };
+      
+      // Add location_id if provided
+      if (projectData.locationId) {
+        projectInsert.location_id = projectData.locationId;
+        console.log('Creating project with location_id:', projectData.locationId);
+      }
+      
       const { data: project, error: projectError } = await supabase
         .from('projects')
-        .insert({
-          user_account_id: user.id,
-          title: projectData.title,
-          status: 'draft'
-        })
+        .insert(projectInsert)
         .select()
         .single();
 
