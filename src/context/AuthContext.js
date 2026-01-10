@@ -9,7 +9,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userAccount, setUserAccount] = useState(null); // Additional user data from user_accounts table
   const [loading, setLoading] = useState(true);
-  const [useSupabaseAuth, setUseSupabaseAuth] = useState(false);
+  
+  // Check if Supabase is configured (compute once, not state)
+  const useSupabaseAuth = !!(process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY);
 
   // Load user account data from user_accounts table
   const loadUserAccount = async (userId) => {
@@ -23,6 +25,10 @@ export const AuthProvider = ({ children }) => {
       if (result.success) {
         setUserAccount(result.data);
         console.log('User account loaded:', result.data);
+      } else if (result.notFound) {
+        // User account doesn't exist yet - this is expected for users created before this feature
+        // Don't warn, just set to null
+        setUserAccount(null);
       } else {
         console.warn('Could not load user account:', result.error);
         setUserAccount(null);
@@ -33,52 +39,53 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Check if Supabase is configured
-  useEffect(() => {
-    const isConfigured = !!(process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY);
-    setUseSupabaseAuth(isConfigured);
-  }, []);
-
   // Initialize auth state
   useEffect(() => {
+    let isMounted = true;
+    
     const initializeAuth = async () => {
-      if (useSupabaseAuth) {
-        // Check Supabase session
-        try {
+      try {
+        if (useSupabaseAuth) {
+          // Check Supabase session
           const { data: { session }, error } = await supabase.auth.getSession();
-          if (session && !error) {
+          if (isMounted && session && !error) {
             setIsAuthenticated(true);
             setUser(session.user);
-            // Load user account data
-            await loadUserAccount(session.user.id);
+            // Load user account data (don't await - let it load in background)
+            loadUserAccount(session.user.id);
           }
-        } catch (error) {
-          console.error('Error checking Supabase session:', error);
+        } else {
+          // Fallback to localStorage
+          const savedAuth = localStorage.getItem('isLoggedIn');
+          const savedUser = localStorage.getItem('user');
+          
+          if (isMounted && savedAuth === 'true' && savedUser) {
+            setIsAuthenticated(true);
+            setUser(JSON.parse(savedUser));
+          }
         }
-      } else {
-        // Fallback to localStorage
-        const savedAuth = localStorage.getItem('isLoggedIn');
-        const savedUser = localStorage.getItem('user');
-        
-        if (savedAuth === 'true' && savedUser) {
-          setIsAuthenticated(true);
-          setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error('Error checking auth session:', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
         }
       }
-      
-      setLoading(false);
     };
 
     initializeAuth();
 
     // Listen for auth state changes (Supabase)
+    let subscription = null;
     if (useSupabaseAuth) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!isMounted) return;
+        
         if (session) {
           setIsAuthenticated(true);
           setUser(session.user);
-          // Load user account data on auth change
-          await loadUserAccount(session.user.id);
+          // Load user account data (don't await - let it load in background)
+          loadUserAccount(session.user.id);
         } else {
           setIsAuthenticated(false);
           setUser(null);
@@ -86,11 +93,15 @@ export const AuthProvider = ({ children }) => {
         }
         setLoading(false);
       });
-
-      return () => {
-        subscription.unsubscribe();
-      };
+      subscription = data.subscription;
     }
+
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [useSupabaseAuth]);
 
   const login = async (email, password) => {

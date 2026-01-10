@@ -5,7 +5,11 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import ConfirmModal from '../ui/ConfirmModal';
 
-const ArtworkTemplatesManagement = () => {
+/**
+ * ArtworkTemplatesManagement component
+ * @param {string} locationId - Optional location ID to scope templates (null = master admin view)
+ */
+const ArtworkTemplatesManagement = ({ locationId = null }) => {
   const [templates, setTemplates] = useState([]);
   const [allTemplates, setAllTemplates] = useState([]); // Store all templates for filtering
   const [products, setProducts] = useState([]); // Products that have templates
@@ -20,7 +24,7 @@ const ArtworkTemplatesManagement = () => {
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [locationId]);
 
   // Load products that have associated templates
   useEffect(() => {
@@ -74,7 +78,7 @@ const ArtworkTemplatesManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      const result = await artworkTemplateService.getAllTemplates();
+      const result = await artworkTemplateService.getAllTemplates(null, locationId);
       if (result.success) {
         const loadedTemplates = result.data || [];
         setAllTemplates(loadedTemplates);

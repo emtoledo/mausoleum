@@ -3,7 +3,11 @@ import artworkService from '../../services/artworkService';
 import ArtworkEditForm from './ArtworkEditForm';
 import './Admin.css';
 
-const ArtworkManagement = () => {
+/**
+ * ArtworkManagement component
+ * @param {string} locationId - Optional location ID to scope artwork (null = master admin view)
+ */
+const ArtworkManagement = ({ locationId = null }) => {
   const [artwork, setArtwork] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
@@ -15,13 +19,13 @@ const ArtworkManagement = () => {
   useEffect(() => {
     loadArtwork();
     loadCategories();
-  }, []);
+  }, [locationId]);
 
   const loadArtwork = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await artworkService.getAllArtwork(true); // Include inactive
+      const result = await artworkService.getAllArtwork(true, locationId); // Include inactive, filter by location
       if (result.success) {
         // Sort artwork by category, then by name
         const sortedArtwork = (result.data || []).sort((a, b) => {

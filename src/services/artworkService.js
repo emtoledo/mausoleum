@@ -8,8 +8,10 @@ import { supabase } from '../lib/supabase';
 class ArtworkService {
   /**
    * Get all artwork from database
+   * @param {boolean} includeInactive - Include inactive artwork
+   * @param {string} locationId - Optional location ID to filter by (null = global/all locations)
    */
-  async getAllArtwork(includeInactive = false) {
+  async getAllArtwork(includeInactive = false, locationId = null) {
     try {
       let query = supabase
         .from('artwork')
@@ -19,6 +21,12 @@ class ArtworkService {
 
       if (!includeInactive) {
         query = query.eq('is_active', true);
+      }
+
+      // Filter by location if specified
+      // Artwork with null location_id is global (available to all locations)
+      if (locationId) {
+        query = query.or(`location_id.eq.${locationId},location_id.is.null`);
       }
 
       const { data, error } = await query;

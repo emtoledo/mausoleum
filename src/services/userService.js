@@ -66,20 +66,37 @@ class UserService {
         return { success: false, error: 'User ID is required' };
       }
 
+      // First try to get user account without location join (simpler query)
       const { data, error } = await supabase
         .from('user_accounts')
-        .select(`
-          *,
-          location:locations(*)
-        `)
+        .select('*')
         .eq('id', userId)
         .single();
 
       if (error) {
         if (error.code === 'PGRST116') {
-          return { success: false, error: 'User account not found' };
+          // User account doesn't exist - this is expected for users created before this feature
+          return { success: false, error: 'User account not found', notFound: true };
         }
         throw error;
+      }
+
+      // If user has a location_id, fetch location data separately
+      if (data.location_id) {
+        try {
+          const { data: locationData } = await supabase
+            .from('locations')
+            .select('*')
+            .eq('id', data.location_id)
+            .single();
+          
+          if (locationData) {
+            data.location = locationData;
+          }
+        } catch (locError) {
+          // Location fetch failed, but we still have user data
+          console.warn('Could not fetch location for user:', locError);
+        }
       }
 
       return { success: true, data };

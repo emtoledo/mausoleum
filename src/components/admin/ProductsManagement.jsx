@@ -3,7 +3,11 @@ import productService from '../../services/productService';
 import ProductEditForm from './ProductEditForm';
 import './Admin.css';
 
-const ProductsManagement = () => {
+/**
+ * ProductsManagement component
+ * @param {string} locationId - Optional location ID to scope products (null = master admin view)
+ */
+const ProductsManagement = ({ locationId = null }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -15,13 +19,13 @@ const ProductsManagement = () => {
   useEffect(() => {
     loadProducts();
     loadCategories();
-  }, []);
+  }, [locationId]);
 
   const loadProducts = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await productService.getAllProducts(true); // Include inactive
+      const result = await productService.getAllProducts(true, locationId); // Include inactive, filter by location
       if (result.success) {
         // Sort products by extracting the number from the name (same as product selection)
         // Handles patterns like "Estate 1", "Estate Collection 2", etc.
@@ -184,6 +188,7 @@ const ProductsManagement = () => {
       {showAddForm && !selectedProduct && (
         <ProductEditForm
           product={null}
+          locationId={locationId}
           onSave={handleSaveProduct}
           onCancel={handleCloseForm}
         />
@@ -192,6 +197,7 @@ const ProductsManagement = () => {
       {selectedProduct && !showAddForm && (
         <ProductEditForm
           product={selectedProduct}
+          locationId={locationId}
           onSave={handleSaveProduct}
           onCancel={handleCloseForm}
           onDelete={handleDeleteProduct}

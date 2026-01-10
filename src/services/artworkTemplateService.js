@@ -8,10 +8,11 @@ import productService from './productService';
 
 class ArtworkTemplateService {
   /**
-   * Get all artwork templates, optionally filtered by product_id
+   * Get all artwork templates, optionally filtered by product_id and location_id
    * @param {string} productId - Optional product ID to filter templates by
+   * @param {string} locationId - Optional location ID to filter by (null = global/all locations)
    */
-  async getAllTemplates(productId = null) {
+  async getAllTemplates(productId = null, locationId = null) {
     try {
       let query = supabase
         .from('artwork_templates')
@@ -20,6 +21,12 @@ class ArtworkTemplateService {
       // Filter by product_id if provided
       if (productId) {
         query = query.eq('product_id', productId);
+      }
+      
+      // Filter by location if specified
+      // Templates with null location_id are global (available to all locations)
+      if (locationId) {
+        query = query.or(`location_id.eq.${locationId},location_id.is.null`);
       }
       
       const { data, error } = await query.order('created_at', { ascending: false });

@@ -54,8 +54,10 @@ class ProductService {
 
   /**
    * Get all products from database
+   * @param {boolean} includeInactive - Include inactive products
+   * @param {string} locationId - Optional location ID to filter by (null = global/all locations)
    */
-  async getAllProducts(includeInactive = false) {
+  async getAllProducts(includeInactive = false, locationId = null) {
     try {
       let query = supabase
         .from('products')
@@ -65,6 +67,12 @@ class ProductService {
 
       if (!includeInactive) {
         query = query.eq('is_active', true);
+      }
+
+      // Filter by location if specified
+      // Products with null location_id are global (available to all locations)
+      if (locationId) {
+        query = query.or(`location_id.eq.${locationId},location_id.is.null`);
       }
 
       const { data, error } = await query;

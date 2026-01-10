@@ -20,6 +20,7 @@ import ApprovalProofView from './pages/ApprovalProofView';
 import ApprovedView from './pages/ApprovedView';
 import AccountSettingsView from './pages/AccountSettingsView';
 import MasterAdminPanel from './pages/MasterAdminPanel';
+import LocationAdminPanel from './pages/LocationAdminPanel';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Protected Route Component
@@ -179,6 +180,15 @@ const App = () => {
                     <BaseScreenLayout>
                       <AccountSettingsView />
                     </BaseScreenLayout>
+                  </LocationRoute>
+                </ProtectedRoute>
+              } />
+              
+              {/* Location Admin Route */}
+              <Route path="/:locationSlug/admin" element={
+                <ProtectedRoute>
+                  <LocationRoute>
+                    <LocationAdminPanel />
                   </LocationRoute>
                 </ProtectedRoute>
               } />
