@@ -15,6 +15,21 @@ const ProductsManagement = ({ locationId = null }) => {
   const [error, setError] = useState(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [categories, setCategories] = useState([]);
+  
+  // Location admins can only edit their own location's products, not global products
+  const isLocationAdmin = locationId !== null;
+  
+  // Check if a product can be edited by the current user
+  const canEditProduct = (product) => {
+    if (!isLocationAdmin) return true; // Master admin can edit all
+    // Location admin can only edit products that belong to their location
+    return product.location_id === locationId;
+  };
+  
+  // Check if product is global (available to all locations)
+  const isGlobalProduct = (product) => {
+    return product.location_id === null;
+  };
 
   useEffect(() => {
     loadProducts();
@@ -71,11 +86,18 @@ const ProductsManagement = ({ locationId = null }) => {
     }
   };
 
-  const handleProductClick = async (productId) => {
+  const handleProductClick = async (productId, product) => {
+    // Check if location admin is trying to edit global product
+    if (isLocationAdmin && isGlobalProduct(product)) {
+      setError('Global products cannot be edited by location admins. Contact a master admin to make changes.');
+      return;
+    }
+    
     const result = await productService.getProductById(productId);
     if (result.success) {
       setSelectedProduct(result.data);
       setShowAddForm(false);
+      setError(null);
     }
   };
 
@@ -224,36 +246,46 @@ const ProductsManagement = ({ locationId = null }) => {
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((product) => (
-                  <tr
-                    key={product.id}
-                    onClick={() => handleProductClick(product.id)}
-                    className="product-row"
-                  >
-                    <td>
-                      {product.preview_image_url ? (
-                        <img
-                          src={product.preview_image_url}
-                          alt={product.name}
-                          className="product-preview-thumb"
-                        />
-                      ) : (
-                        <div className="no-preview">No Image</div>
-                      )}
-                    </td>
-                 
-                    <td className="product-name">{product.name}</td>
-                    <td>{product.product_category}</td>
-                    <td>
-                      {product.real_world_width}" × {product.real_world_height}"
-                    </td>
-                    <td>
-                      <span className={`status-badge ${product.is_active ? 'active' : 'inactive'}`}>
-                        {product.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                filteredProducts.map((product) => {
+                  const isGlobal = isGlobalProduct(product);
+                  const canEdit = canEditProduct(product);
+                  
+                  return (
+                    <tr
+                      key={product.id}
+                      onClick={() => canEdit && handleProductClick(product.id, product)}
+                      className={`product-row ${isGlobal && isLocationAdmin ? 'global-readonly' : ''}`}
+                      style={!canEdit ? { cursor: 'not-allowed', opacity: 0.7 } : {}}
+                      title={!canEdit ? 'Global product - read only' : 'Click to edit'}
+                    >
+                      <td>
+                        {product.preview_image_url ? (
+                          <img
+                            src={product.preview_image_url}
+                            alt={product.name}
+                            className="product-preview-thumb"
+                          />
+                        ) : (
+                          <div className="no-preview">No Image</div>
+                        )}
+                      </td>
+                   
+                      <td className="product-name">
+                        {product.name}
+                        {isGlobal && <span className="global-indicator">🌐 Global</span>}
+                      </td>
+                      <td>{product.product_category}</td>
+                      <td>
+                        {product.real_world_width}" × {product.real_world_height}"
+                      </td>
+                      <td>
+                        <span className={`status-badge ${product.is_active ? 'active' : 'inactive'}`}>
+                          {product.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

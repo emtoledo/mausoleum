@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation as useRouterLocation, useParams } from 'react-router-dom';
 import ProfileDropdown from '../ui/ProfileDropdown';
 import { useAuth } from '../../hooks/useAuth';
 import { useProjectFlow } from '../../context/ProjectFlowContext';
+import { useLocation } from '../../context/LocationContext';
 import { buildLocationPath } from '../../utils/navigation';
 import dataService from '../../services/dataService';
 import CanvasActions from '../../features/DesignStudio/components/CanvasActions';
@@ -34,13 +35,18 @@ const AppHeader = ({
     console.log('AppHeader: currentView prop changed to:', currentView, 'availableViews:', availableViews);
   }, [currentView, availableViews]);
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerLocation = useRouterLocation();
   const params = useParams();
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = React.useState(false);
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const viewDropdownRef = useRef(null);
-  const { logout, isAuthenticated, user } = useAuth();
+  const { logout, isAuthenticated, user, userAccount } = useAuth();
   const { openWizard } = useProjectFlow();
+  const { isMasterAdmin, currentLocation } = useLocation();
+  
+  // Check if user has admin access (master admin or location admin)
+  const isLocationAdmin = userAccount?.role === 'admin' && userAccount?.location_id === currentLocation?.id;
+  const hasAdminAccess = isMasterAdmin || isLocationAdmin;
   
   // Get first letter of user's first name for avatar
   const getAvatarInitial = () => {
@@ -66,7 +72,7 @@ const AppHeader = ({
   const avatarInitial = getAvatarInitial();
 
   // Auto-detect if we're in EditModeView
-  const isEditMode = location.pathname.includes('/edit');
+  const isEditMode = routerLocation.pathname.includes('/edit');
   
   // Get current template info for EditMode
   const getCurrentTemplateInfo = () => {
@@ -108,7 +114,7 @@ const AppHeader = ({
 
   // Function to get page title based on current route
   const getPageTitle = () => {
-    const path = location.pathname;
+    const path = routerLocation.pathname;
     
     // Only use pageTitle prop when we're actually in Design Studio (edit mode)
     // This prevents stale project titles from showing on other pages
@@ -207,6 +213,19 @@ const AppHeader = ({
     setIsProfileDropdownOpen(false);
     const settingsPath = buildLocationPath('/account-settings', params.locationSlug);
     navigate(settingsPath);
+  };
+
+  const handleAdminTools = () => {
+    console.log('AppHeader - Admin Tools clicked');
+    setIsProfileDropdownOpen(false);
+    
+    // Master admins go to /admin (global admin panel)
+    // Location admins go to /:locationSlug/admin
+    if (isMasterAdmin) {
+      navigate('/admin');
+    } else if (isLocationAdmin && params.locationSlug) {
+      navigate(`/${params.locationSlug}/admin`);
+    }
   };
 
   const handleLogOut = () => {
@@ -376,6 +395,8 @@ const AppHeader = ({
             isOpen={isProfileDropdownOpen}
             onClose={handleCloseDropdown}
             onAccountSettings={handleAccountSettings}
+            onAdminTools={handleAdminTools}
+            showAdminTools={hasAdminAccess}
             onLogOut={handleLogOut}
           />
         </div>

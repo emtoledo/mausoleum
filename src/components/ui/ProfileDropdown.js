@@ -3,7 +3,9 @@ import React from 'react';
 const ProfileDropdown = ({ 
   isOpen, 
   onClose, 
-  onAccountSettings, 
+  onAccountSettings,
+  onAdminTools,
+  showAdminTools = false,
   onLogOut 
 }) => {
   if (!isOpen) return null;
@@ -15,6 +17,11 @@ const ProfileDropdown = ({
         <div className="dropdown-item" onClick={onAccountSettings}>
           <span className="dropdown-text">Account Settings</span>
         </div>
+        {showAdminTools && (
+          <div className="dropdown-item" onClick={onAdminTools}>
+            <span className="dropdown-text">Admin Tools</span>
+          </div>
+        )}
         <div className="dropdown-item" onClick={onLogOut}>
           <span className="dropdown-text">Log Out</span>
         </div>

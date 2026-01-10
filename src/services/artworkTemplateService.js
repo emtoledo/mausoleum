@@ -68,7 +68,13 @@ class ArtworkTemplateService {
    * @param {Object} templateData.customizations - Customizations object
    * @param {Blob} previewBlob - Preview image blob
    */
-  async createTemplate(templateData, previewBlob) {
+  /**
+   * Create a new artwork template
+   * @param {Object} templateData - Template data
+   * @param {Blob} previewBlob - Preview image blob
+   * @param {string} locationId - Optional location ID (null = global template)
+   */
+  async createTemplate(templateData, previewBlob, locationId = null) {
     try {
       // Check if user is master admin
       const isAdmin = await productService.isMasterAdmin();
@@ -92,6 +98,7 @@ class ArtworkTemplateService {
           customizations: templateData.customizations || {},
           product_id: templateData.productId || null,
           material_id: templateData.materialId || null,
+          location_id: locationId || templateData.locationId || null,
           created_by: user.id
         })
         .select()
@@ -200,6 +207,11 @@ class ArtworkTemplateService {
    * @param {string} templateId - Template ID
    * @param {Object} updates - Updates to apply
    */
+  /**
+   * Update an artwork template
+   * @param {string} templateId - Template ID
+   * @param {Object} updates - Template updates
+   */
   async updateTemplate(templateId, updates) {
     try {
       // Check if user is master admin
@@ -212,6 +224,7 @@ class ArtworkTemplateService {
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.designElements !== undefined) updateData.design_elements = updates.designElements;
       if (updates.customizations !== undefined) updateData.customizations = updates.customizations;
+      if (updates.locationId !== undefined) updateData.location_id = updates.locationId;
 
       const { data, error } = await supabase
         .from('artwork_templates')

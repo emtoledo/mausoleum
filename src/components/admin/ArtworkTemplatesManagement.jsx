@@ -21,6 +21,21 @@ const ArtworkTemplatesManagement = ({ locationId = null }) => {
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, template: null });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Location admins can only edit their own location's templates, not global templates
+  const isLocationAdmin = locationId !== null;
+  
+  // Check if a template can be edited by the current user
+  const canEditTemplate = (template) => {
+    if (!isLocationAdmin) return true; // Master admin can edit all
+    // Location admin can only edit templates that belong to their location
+    return template.location_id === locationId;
+  };
+  
+  // Check if template is global (available to all locations)
+  const isGlobalTemplate = (template) => {
+    return template.location_id === null;
+  };
 
   useEffect(() => {
     loadTemplates();
@@ -100,6 +115,11 @@ const ArtworkTemplatesManagement = ({ locationId = null }) => {
   };
 
   const handleOpenEdit = (template) => {
+    // Check if location admin is trying to edit global template
+    if (isLocationAdmin && isGlobalTemplate(template)) {
+      alert('Global templates cannot be edited by location admins. Contact a master admin to make changes.');
+      return;
+    }
     setEditModal({ isOpen: true, template });
     setEditName(template.name || '');
   };
@@ -133,6 +153,11 @@ const ArtworkTemplatesManagement = ({ locationId = null }) => {
   };
 
   const handleDeleteClick = (template) => {
+    // Check if location admin is trying to delete global template
+    if (isLocationAdmin && isGlobalTemplate(template)) {
+      alert('Global templates cannot be deleted by location admins. Contact a master admin to make changes.');
+      return;
+    }
     setDeleteConfirm({ isOpen: true, template });
   };
 
@@ -226,54 +251,74 @@ const ArtworkTemplatesManagement = ({ locationId = null }) => {
         </div>
       ) : (
         <div className="artwork-templates-grid admin-content">
-          {templates.map((template) => (
-            <div key={template.id} className="artwork-template-card">
-              <div className="artwork-template-preview">
-                {template.preview_image_url ? (
-                  <img
-                    src={template.preview_image_url}
-                    alt={template.name}
-                    className="template-preview-image"
-                  />
-                ) : (
-                  <div className="template-preview-placeholder">No Preview</div>
+          {templates.map((template) => {
+            const isGlobal = isGlobalTemplate(template);
+            const canEdit = canEditTemplate(template);
+            
+            return (
+              <div 
+                key={template.id} 
+                className={`artwork-template-card ${isGlobal && isLocationAdmin ? 'global-readonly' : ''}`}
+                style={{ position: 'relative' }}
+              >
+                {isGlobal && (
+                  <div className="global-badge" title="Available to all locations">
+                    🌐 Global
+                  </div>
                 )}
-              </div>
-              <div className="artwork-template-info">
-                <h3 className="artwork-template-name">{template.name}</h3>
-                {template.product_id && (
-                  <p className="artwork-template-meta" style={{ fontWeight: '500', color: '#008FF0' }}>
-                    Product: {products.find(p => p.id === template.product_id)?.name || template.product_id}
+                <div className="artwork-template-preview">
+                  {template.preview_image_url ? (
+                    <img
+                      src={template.preview_image_url}
+                      alt={template.name}
+                      className="template-preview-image"
+                    />
+                  ) : (
+                    <div className="template-preview-placeholder">No Preview</div>
+                  )}
+                </div>
+                <div className="artwork-template-info">
+                  <h3 className="artwork-template-name">{template.name}</h3>
+                  {template.product_id && (
+                    <p className="artwork-template-meta" style={{ fontWeight: '500', color: '#008FF0' }}>
+                      Product: {products.find(p => p.id === template.product_id)?.name || template.product_id}
+                    </p>
+                  )}
+                  <p className="artwork-template-meta">
+                    Created: {new Date(template.created_at).toLocaleDateString()}
                   </p>
-                )}
-                <p className="artwork-template-meta">
-                  Created: {new Date(template.created_at).toLocaleDateString()}
-                </p>
-                <p className="artwork-template-meta">
-                  Elements: {Array.isArray(template.design_elements) ? template.design_elements.length : 0}
-                </p>
+                  <p className="artwork-template-meta">
+                    Elements: {Array.isArray(template.design_elements) ? template.design_elements.length : 0}
+                  </p>
+                </div>
+                <div className="artwork-template-actions">
+                  {canEdit ? (
+                    <>
+                      <Button
+                        variant="danger"
+                        size="small"
+                        className="button--secondary"
+                        onClick={() => handleDeleteClick(template)}
+                      >
+                        Delete
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={() => handleOpenEdit(template)}
+                      >
+                        Edit
+                      </Button>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
+                      Read only
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="artwork-template-actions">
- 
-                <Button
-                  variant="danger"
-                  size="small"
-                  className="button--secondary"
-                  onClick={() => handleDeleteClick(template)}
-                >
-                  Delete
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="small"
-                  onClick={() => handleOpenEdit(template)}
-                >
-                  Edit
-                </Button>
-
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

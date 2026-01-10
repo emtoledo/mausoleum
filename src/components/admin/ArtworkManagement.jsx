@@ -15,6 +15,21 @@ const ArtworkManagement = ({ locationId = null }) => {
   const [error, setError] = useState(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [categories, setCategories] = useState([]);
+  
+  // Location admins can only edit their own location's artwork, not global artwork
+  const isLocationAdmin = locationId !== null;
+  
+  // Check if an artwork item can be edited by the current user
+  const canEditArtwork = (artworkItem) => {
+    if (!isLocationAdmin) return true; // Master admin can edit all
+    // Location admin can only edit artwork that belongs to their location
+    return artworkItem.location_id === locationId;
+  };
+  
+  // Check if artwork is global (available to all locations)
+  const isGlobalArtwork = (artworkItem) => {
+    return artworkItem.location_id === null;
+  };
 
   useEffect(() => {
     loadArtwork();
@@ -53,7 +68,13 @@ const ArtworkManagement = ({ locationId = null }) => {
     }
   };
 
-  const handleArtworkClick = async (artworkId) => {
+  const handleArtworkClick = async (artworkId, artworkItem) => {
+    // Check if location admin is trying to edit global artwork
+    if (isLocationAdmin && isGlobalArtwork(artworkItem)) {
+      setError('Global artwork cannot be edited by location admins. Contact a master admin to make changes.');
+      return;
+    }
+    
     const result = await artworkService.getArtworkById(artworkId);
     if (result.success) {
       setSelectedArtwork(result.data);
@@ -70,11 +91,16 @@ const ArtworkManagement = ({ locationId = null }) => {
     try {
       let result;
       if (selectedArtwork) {
+        // Check permissions before updating
+        if (!canEditArtwork(selectedArtwork)) {
+          setError('You do not have permission to edit this artwork.');
+          return;
+        }
         // Update existing
         result = await artworkService.updateArtwork(selectedArtwork.id, artworkData);
       } else {
-        // Create new
-        result = await artworkService.createArtwork(artworkData);
+        // Create new - pass locationId for location admins
+        result = await artworkService.createArtwork(artworkData, locationId);
       }
 
       if (result.success) {
@@ -182,38 +208,50 @@ const ArtworkManagement = ({ locationId = null }) => {
               </div>
             ) : (
               <div className="artwork-cards-grid">
-                {filteredArtwork.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleArtworkClick(item.id)}
-                    className={`artwork-card ${!item.is_active ? 'inactive' : ''}`}
-                  >
-                    <div className="artwork-card-image-container admin-content">
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="artwork-card-thumb"
-                          onError={(e) => {
-                            e.target.src = '/images/empty.png';
-                          }}
-                        />
-                      ) : (
-                        <div className="artwork-card-placeholder">No Image</div>
+                {filteredArtwork.map((item) => {
+                  const isGlobal = isGlobalArtwork(item);
+                  const canEdit = canEditArtwork(item);
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => canEdit && handleArtworkClick(item.id, item)}
+                      className={`artwork-card ${!item.is_active ? 'inactive' : ''} ${isGlobal && isLocationAdmin ? 'global-readonly' : ''}`}
+                      style={!canEdit ? { cursor: 'not-allowed', opacity: 0.7 } : {}}
+                      title={!canEdit ? 'Global artwork - read only' : 'Click to edit'}
+                    >
+                      {isGlobal && (
+                        <div className="global-badge" title="Available to all locations">
+                          🌐 Global
+                        </div>
                       )}
+                      <div className="artwork-card-image-container admin-content">
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="artwork-card-thumb"
+                            onError={(e) => {
+                              e.target.src = '/images/empty.png';
+                            }}
+                          />
+                        ) : (
+                          <div className="artwork-card-placeholder">No Image</div>
+                        )}
+                      </div>
+                      <div className="artwork-card-name">{item.name}</div>
+                      <div className="artwork-card-meta">
+                        <span className="artwork-card-category">{item.category}</span>
+                        {item.default_width && (
+                          <span className="artwork-card-width">{item.default_width}"</span>
+                        )}
+                        <span className={`status-badge ${item.is_active ? 'active' : 'inactive'}`}>
+                          {item.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="artwork-card-name">{item.name}</div>
-                    <div className="artwork-card-meta">
-                      <span className="artwork-card-category">{item.category}</span>
-                      {item.default_width && (
-                        <span className="artwork-card-width">{item.default_width}"</span>
-                      )}
-                      <span className={`status-badge ${item.is_active ? 'active' : 'inactive'}`}>
-                        {item.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

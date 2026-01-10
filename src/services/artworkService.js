@@ -122,7 +122,12 @@ class ArtworkService {
   /**
    * Create a new artwork
    */
-  async createArtwork(artwork) {
+  /**
+   * Create new artwork
+   * @param {Object} artwork - Artwork data
+   * @param {string} locationId - Optional location ID (null = global artwork)
+   */
+  async createArtwork(artwork, locationId = null) {
     try {
       const artworkData = {
         id: artwork.id,
@@ -134,6 +139,7 @@ class ArtworkService {
         min_width: artwork.minWidth || null,
         is_active: artwork.isActive !== undefined ? artwork.isActive : true,
         featured: artwork.featured !== undefined ? artwork.featured : false,
+        location_id: locationId || artwork.locationId || null,
         updated_at: new Date().toISOString()
       };
 
@@ -154,6 +160,11 @@ class ArtworkService {
   /**
    * Update an existing artwork
    */
+  /**
+   * Update artwork
+   * @param {string} artworkId - Artwork ID
+   * @param {Object} updates - Artwork updates
+   */
   async updateArtwork(artworkId, updates) {
     try {
       const updateData = {
@@ -167,6 +178,11 @@ class ArtworkService {
         featured: updates.featured !== undefined ? updates.featured : false,
         updated_at: new Date().toISOString()
       };
+      
+      // Only update location_id if explicitly provided
+      if (updates.locationId !== undefined) {
+        updateData.location_id = updates.locationId;
+      }
 
       const { data, error } = await supabase
         .from('artwork')

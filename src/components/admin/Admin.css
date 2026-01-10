@@ -633,3 +633,69 @@
 .admin-error p {
   margin: 0 0 16px 0;
 }
+
+/* Global Resource Badge */
+.global-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+/* Position relative for cards with global badge */
+.artwork-card {
+  position: relative;
+}
+
+.product-row.global-readonly,
+.artwork-card.global-readonly,
+.artwork-template-card.global-readonly {
+  background-color: #f9f9fc;
+  border-left: 3px solid #667eea;
+}
+
+.product-row.global-readonly:hover {
+  background-color: #f0f0f8;
+  cursor: not-allowed;
+}
+
+.artwork-card.global-readonly:hover {
+  transform: none;
+  border-color: #667eea;
+  cursor: not-allowed;
+}
+
+/* Global indicator in table rows */
+.global-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+/* Readonly overlay message */
+.readonly-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(102, 126, 234, 0.9);
+  color: white;
+  text-align: center;
+  padding: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}

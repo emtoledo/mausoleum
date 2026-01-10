@@ -107,7 +107,12 @@ class ProductService {
   /**
    * Create a new product
    */
-  async createProduct(product) {
+  /**
+   * Create a new product
+   * @param {Object} product - Product data
+   * @param {string} locationId - Optional location ID (null = global product)
+   */
+  async createProduct(product, locationId = null) {
     try {
       const productData = {
         id: product.id,
@@ -128,6 +133,7 @@ class ProductService {
         floral: product.floral || [],
         dimensions_for_display: product.dimensionsForDisplay || null,
         available_views: product.availableViews || ['front'],
+        location_id: locationId || product.locationId || null,
         available_templates: Array.isArray(product.availableTemplates) ? product.availableTemplates : [],
         default_template_id: product.defaultTemplateId && product.defaultTemplateId.trim() ? product.defaultTemplateId.trim() : null,
         is_active: product.isActive !== undefined ? product.isActive : true,
@@ -151,6 +157,11 @@ class ProductService {
   /**
    * Update an existing product
    */
+  /**
+   * Update a product
+   * @param {string} productId - Product ID
+   * @param {Object} updates - Product updates
+   */
   async updateProduct(productId, updates) {
     try {
       const updateData = {
@@ -172,6 +183,7 @@ class ProductService {
         dimensions_for_display: updates.dimensionsForDisplay || null,
         available_views: updates.availableViews || ['front'],
         available_templates: updates.availableTemplates || [],
+        location_id: updates.locationId !== undefined ? updates.locationId : undefined,
         default_template_id: updates.defaultTemplateId || null,
         is_active: updates.isActive !== undefined ? updates.isActive : true,
         updated_at: new Date().toISOString()
