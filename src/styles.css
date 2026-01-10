@@ -2006,6 +2006,7 @@ body:has(.canvas-layout) .footer-branding {
     min-height: 0;
     padding-top: 64px; /* Account for fixed header height */
     margin-top: 0;
+    background: #f8f9fa;
     /* Content scrolls independently, starting below the fixed header */
     overflow-y: auto;
     overflow-x: hidden;
@@ -2134,11 +2135,7 @@ body:has(.canvas-layout) .footer-branding {
 /* All Projects View Styles */
 .all-projects-container {
     width: 100%;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
     background: #f8f9fa;
-    overflow-y: auto;
 }
 
 .projects-content {
@@ -2147,7 +2144,6 @@ body:has(.canvas-layout) .footer-branding {
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
-    min-height: 0; /* Allow content to shrink and enable scrolling */
 }
 
 .projects-header {
@@ -2155,6 +2151,7 @@ body:has(.canvas-layout) .footer-branding {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 40px;
+    flex-shrink: 0; /* Prevent header from shrinking when list scrolls */
 }
 
 .projects-title {
@@ -2185,6 +2182,29 @@ body:has(.canvas-layout) .footer-branding {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    overflow-y: auto;
+    padding-right: 8px; /* Space for scrollbar */
+    /* Calculate max height: viewport - header(64px) - padding(80px) - projects-header(~100px) */
+    max-height: calc(100vh - 200px);
+}
+
+/* Custom scrollbar for projects list */
+.projects-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.projects-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.projects-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.projects-list::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }
 
 .project-card {
