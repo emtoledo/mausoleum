@@ -279,15 +279,139 @@ class UserService {
    */
   async updateUserRole(userId, role) {
     try {
-      const validRoles = ['user', 'admin', 'sales'];
+      const validRoles = ['user', 'admin', 'sales', 'master_admin'];
       if (!validRoles.includes(role)) {
-        return { success: false, error: 'Invalid role. Must be one of: user, admin, sales' };
+        return { success: false, error: 'Invalid role. Must be one of: user, admin, sales, master_admin' };
       }
 
       return await this.updateUserAccount(userId, { role });
     } catch (error) {
       console.error('Error updating user role:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get all users (master admin only)
+   * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+   */
+  async getAllUsers() {
+    try {
+      const { data, error } = await supabase
+        .from('user_accounts')
+        .select('*, location:locations(id, name, slug)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Check which users are master admins
+      const { data: masterAdmins } = await supabase
+        .from('master_admins')
+        .select('id, email');
+
+      const masterAdminIds = new Set((masterAdmins || []).map(ma => ma.id));
+
+      // Add master admin flag to users
+      const usersWithMasterFlag = (data || []).map(user => ({
+        ...user,
+        is_master_admin: masterAdminIds.has(user.id)
+      }));
+
+      return { success: true, data: usersWithMasterFlag };
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Add user as master admin
+   * @param {string} userId - User ID
+   * @param {string} email - User's email
+   * @param {string} name - User's name
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async addMasterAdmin(userId, email, name) {
+    try {
+      if (!userId || !email) {
+        return { success: false, error: 'User ID and email are required' };
+      }
+
+      const { data, error } = await supabase
+        .from('master_admins')
+        .insert({
+          id: userId,
+          email: email,
+          name: name || email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          return { success: false, error: 'User is already a master admin' };
+        }
+        throw error;
+      }
+
+      // Also update user_accounts role to master_admin
+      await this.updateUserAccount(userId, { role: 'master_admin' });
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error adding master admin:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Remove user from master admins
+   * @param {string} userId - User ID
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async removeMasterAdmin(userId) {
+    try {
+      if (!userId) {
+        return { success: false, error: 'User ID is required' };
+      }
+
+      const { error } = await supabase
+        .from('master_admins')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      // Update user_accounts role back to user
+      await this.updateUserAccount(userId, { role: 'user' });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error removing master admin:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Check if user is a master admin
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>}
+   */
+  async checkIsMasterAdmin(userId) {
+    try {
+      if (!userId) return false;
+
+      const { data, error } = await supabase
+        .from('master_admins')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      return !error && !!data;
+    } catch (error) {
+      return false;
     }
   }
 }

@@ -5,6 +5,7 @@ import ProductsManagement from '../components/admin/ProductsManagement';
 import ArtworkManagement from '../components/admin/ArtworkManagement';
 import ArtworkTemplatesManagement from '../components/admin/ArtworkTemplatesManagement';
 import LocationsManagement from '../components/admin/LocationsManagement';
+import UsersManagement from '../components/admin/UsersManagement';
 import './MasterAdminPanel.css';
 
 // Expose productService to window for console access (development only)
@@ -137,9 +138,8 @@ const MasterAdminPanel = () => {
         <button
           className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => setActiveTab('users')}
-          disabled
         >
-          Users (coming soon)
+          Users
         </button>
 
         <button
@@ -156,9 +156,7 @@ const MasterAdminPanel = () => {
         {activeTab === 'artwork' && <ArtworkManagement />}
         {activeTab === 'templates' && <ArtworkTemplatesManagement />}
         {activeTab === 'locations' && <LocationsManagement />}
-        {activeTab === 'users' && (
-          <div className="coming-soon">User management coming soon...</div>
-        )}
+        {activeTab === 'users' && <UsersManagement />}
       </div>
     </div>
 

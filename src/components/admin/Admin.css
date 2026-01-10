@@ -336,7 +336,6 @@
 
 .admin-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #eee;
   vertical-align: middle;
 }
 
@@ -698,4 +697,129 @@
   padding: 6px;
   font-size: 11px;
   font-weight: 500;
+}
+
+/* ==================== */
+/* Users Management */
+/* ==================== */
+
+.users-management .admin-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 150px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.users-table .user-row {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.users-table .user-row:hover {
+  background-color: #f8f9fa;
+}
+
+.users-table .user-row.selected {
+  background-color: #e3f2fd;
+}
+
+.users-table .user-name strong {
+  color: #333;
+}
+
+.users-table .user-email {
+  color: #666;
+  font-size: 13px;
+}
+
+.users-table .user-location {
+  font-size: 13px;
+}
+
+.users-table .user-date {
+  font-size: 12px;
+  color: #888;
+}
+
+/* Role Badges */
+.role-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.role-badge.master-admin {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.role-badge.location-admin {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.role-badge.sales {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.role-badge.user {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+/* Form Select Styling */
+.form-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #008FF0;
+}
+
+.form-select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* User stats summary */
+.users-stats {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.users-stat {
+  text-align: center;
+}
+
+.users-stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+.users-stat-label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
