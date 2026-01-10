@@ -765,12 +765,12 @@
   color: #155724;
 }
 
-.role-badge.sales {
-  background-color: #fff3cd;
-  color: #856404;
+.role-badge.project-manager {
+  background-color: #cce5ff;
+  color: #004085;
 }
 
-.role-badge.user {
+.role-badge.sales {
   background-color: #e9ecef;
   color: #495057;
 }

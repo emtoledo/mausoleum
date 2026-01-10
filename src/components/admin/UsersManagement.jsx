@@ -145,15 +145,15 @@ const UsersManagement = () => {
   const getRoleBadgeClass = (user) => {
     if (user.is_master_admin) return 'role-badge master-admin';
     if (user.role === 'admin') return 'role-badge location-admin';
-    if (user.role === 'sales') return 'role-badge sales';
-    return 'role-badge user';
+    if (user.role === 'project_manager') return 'role-badge project-manager';
+    return 'role-badge sales';
   };
 
   const getRoleDisplay = (user) => {
     if (user.is_master_admin) return 'Master Admin';
     if (user.role === 'admin') return 'Location Admin';
-    if (user.role === 'sales') return 'Sales';
-    return 'User';
+    if (user.role === 'project_manager') return 'Project Manager';
+    return 'Sales';
   };
 
   if (loading) {
@@ -185,8 +185,8 @@ const UsersManagement = () => {
             <option value="all">All Roles</option>
             <option value="master_admin">Master Admins</option>
             <option value="admin">Location Admins</option>
+            <option value="project_manager">Project Managers</option>
             <option value="sales">Sales</option>
-            <option value="user">Users</option>
           </select>
         </div>
       </div>
@@ -228,7 +228,9 @@ const UsersManagement = () => {
                     </td>
                     <td className="user-email">{user.email}</td>
                     <td className="user-location">
-                      {user.location?.name || (
+                      {user.is_master_admin ? (
+                        <span style={{ color: '#667eea', fontWeight: '500' }}>Global</span>
+                      ) : user.location?.name || (
                         <span style={{ color: '#999', fontStyle: 'italic' }}>No location</span>
                       )}
                     </td>
@@ -269,8 +271,7 @@ const UsersManagement = () => {
                 )}
 
                 <div className="form-section">
-                  <h4>User Information</h4>
-                  
+           
                   <div className="form-group">
                     <label>Name</label>
                     <input
@@ -303,7 +304,7 @@ const UsersManagement = () => {
                 </div>
 
                 <div className="form-section">
-                  <h4>Role & Location</h4>
+
 
                   <div className="form-group">
                     <label>Role</label>
@@ -312,8 +313,8 @@ const UsersManagement = () => {
                       onChange={(e) => handleRoleChange(e.target.value)}
                       className="form-select"
                     >
-                      <option value="user">User</option>
                       <option value="sales">Sales</option>
+                      <option value="project_manager">Project Manager</option>
                       <option value="admin">Location Admin</option>
                       <option value="master_admin">Master Admin</option>
                     </select>
@@ -322,31 +323,27 @@ const UsersManagement = () => {
                         ? 'Master admins have full access to all locations and the master admin panel.'
                         : selectedUser.role === 'admin'
                         ? 'Location admins can manage products, artwork, and templates for their assigned location.'
-                        : selectedUser.role === 'sales'
-                        ? 'Sales users can create and manage projects.'
-                        : 'Regular users can create and manage their own projects.'}
+                        : selectedUser.role === 'project_manager'
+                        ? 'Project managers can create and manage projects in their location.'
+                        : 'Sales users can create and manage their own projects.'}
                     </span>
                   </div>
 
-                  <div className="form-group">
-                    <label>Assigned Location</label>
-                    <select
-                      value={selectedUser.location_id || ''}
-                      onChange={(e) => handleLocationChange(e.target.value)}
-                      className="form-select"
-                      disabled={selectedUser.role === 'master_admin' || selectedUser.is_master_admin}
-                    >
-                      <option value="">No Location (Global Access)</option>
-                      {locations.map(loc => (
-                        <option key={loc.id} value={loc.id}>{loc.name}</option>
-                      ))}
-                    </select>
-                    {(selectedUser.role === 'master_admin' || selectedUser.is_master_admin) && (
-                      <span className="form-help">
-                        Master admins have access to all locations.
-                      </span>
-                    )}
-                  </div>
+                  {selectedUser.role !== 'master_admin' && !selectedUser.is_master_admin && (
+                    <div className="form-group">
+                      <label>Assigned Location</label>
+                      <select
+                        value={selectedUser.location_id || ''}
+                        onChange={(e) => handleLocationChange(e.target.value)}
+                        className="form-select"
+                      >
+                        <option value="">No Location</option>
+                        {locations.map(loc => (
+                          <option key={loc.id} value={loc.id}>{loc.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-actions">

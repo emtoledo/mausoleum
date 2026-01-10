@@ -12,10 +12,10 @@ class UserService {
    * @param {string} email - User's email
    * @param {string} fullName - User's full name
    * @param {string} locationId - Location UUID to assign user to
-   * @param {string} role - User role (user, admin, sales)
+   * @param {string} role - User role (sales, project_manager, admin, master_admin)
    * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
    */
-  async createUserAccount(userId, email, fullName, locationId = null, role = 'user') {
+  async createUserAccount(userId, email, fullName, locationId = null, role = 'sales') {
     try {
       if (!userId || !email) {
         return { success: false, error: 'User ID and email are required' };
@@ -197,12 +197,12 @@ class UserService {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          return { success: true, role: 'user' }; // Default role
+          return { success: true, role: 'sales' }; // Default role
         }
         throw error;
       }
 
-      return { success: true, role: data.role || 'user' };
+      return { success: true, role: data.role || 'sales' };
     } catch (error) {
       console.error('Error fetching user role:', error);
       return { success: false, error: error.message };
@@ -274,14 +274,14 @@ class UserService {
   /**
    * Update user role
    * @param {string} userId - User ID
-   * @param {string} role - New role (user, admin, sales)
+   * @param {string} role - New role (sales, project_manager, admin, master_admin)
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async updateUserRole(userId, role) {
     try {
-      const validRoles = ['user', 'admin', 'sales', 'master_admin'];
+      const validRoles = ['sales', 'project_manager', 'admin', 'master_admin'];
       if (!validRoles.includes(role)) {
-        return { success: false, error: 'Invalid role. Must be one of: user, admin, sales, master_admin' };
+        return { success: false, error: 'Invalid role. Must be one of: sales, project_manager, admin, master_admin' };
       }
 
       return await this.updateUserAccount(userId, { role });
@@ -304,17 +304,20 @@ class UserService {
 
       if (error) throw error;
 
-      // Check which users are master admins
-      const { data: masterAdmins } = await supabase
-        .from('master_admins')
-        .select('id, email');
+      // Get all master admin IDs using the SECURITY DEFINER function
+      const { data: masterAdminIds, error: maError } = await supabase
+        .rpc('get_all_master_admin_ids');
 
-      const masterAdminIds = new Set((masterAdmins || []).map(ma => ma.id));
+      if (maError) {
+        console.warn('Could not fetch master admin IDs:', maError);
+      }
+
+      const masterAdminIdSet = new Set((masterAdminIds || []).map(ma => ma.id));
 
       // Add master admin flag to users
       const usersWithMasterFlag = (data || []).map(user => ({
         ...user,
-        is_master_admin: masterAdminIds.has(user.id)
+        is_master_admin: masterAdminIdSet.has(user.id)
       }));
 
       return { success: true, data: usersWithMasterFlag };
@@ -326,6 +329,7 @@ class UserService {
 
   /**
    * Add user as master admin
+   * Uses a SECURITY DEFINER function to bypass RLS
    * @param {string} userId - User ID
    * @param {string} email - User's email
    * @param {string} name - User's name
@@ -337,20 +341,15 @@ class UserService {
         return { success: false, error: 'User ID and email are required' };
       }
 
-      const { data, error } = await supabase
-        .from('master_admins')
-        .insert({
-          id: userId,
-          email: email,
-          name: name || email,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      // Use the SECURITY DEFINER function to add master admin
+      const { data, error } = await supabase.rpc('add_master_admin', {
+        target_user_id: userId,
+        target_email: email,
+        target_name: name || email
+      });
 
       if (error) {
-        if (error.code === '23505') {
+        if (error.message?.includes('already')) {
           return { success: false, error: 'User is already a master admin' };
         }
         throw error;
@@ -368,6 +367,7 @@ class UserService {
 
   /**
    * Remove user from master admins
+   * Uses a SECURITY DEFINER function to bypass RLS
    * @param {string} userId - User ID
    * @returns {Promise<{success: boolean, error?: string}>}
    */
@@ -377,15 +377,15 @@ class UserService {
         return { success: false, error: 'User ID is required' };
       }
 
-      const { error } = await supabase
-        .from('master_admins')
-        .delete()
-        .eq('id', userId);
+      // Use the SECURITY DEFINER function to remove master admin
+      const { error } = await supabase.rpc('remove_master_admin', {
+        target_user_id: userId
+      });
 
       if (error) throw error;
 
-      // Update user_accounts role back to user
-      await this.updateUserAccount(userId, { role: 'user' });
+      // Update user_accounts role back to sales
+      await this.updateUserAccount(userId, { role: 'sales' });
 
       return { success: true };
     } catch (error) {

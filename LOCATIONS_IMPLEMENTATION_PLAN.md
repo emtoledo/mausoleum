@@ -310,7 +310,7 @@ async createUserAccount(userId, email, fullName, locationId, role = 'user') {
 
 ---
 
-## Phase 10: RLS Policy Updates ✅
+## Phase 10: RLS Policy Updates
 
 ### 10.1 Projects RLS
 ```sql
@@ -334,7 +334,7 @@ CREATE POLICY "Users can view location projects"
 
 ---
 
-## Phase 11: Migration Strategy ✅
+## Phase 11: Migration Strategy
 
 ### 11.1 Data Migration Script
 **File**: `migrations/add_locations_support.sql`
@@ -433,3 +433,17 @@ CREATE POLICY "Users can view location projects"
 - URL structure: Consider keeping `/admin` for master admin, `/:slug/admin` for location admin
 - Video storage: Background videos should be stored in Supabase Storage under `locations/{locationId}/background-video.mp4`
 
+### Global vs Location-Specific Resources (Implemented in Phase 9)
+
+**Resource Visibility:**
+- **Master Admins** (`/admin`): Can view and edit ALL resources (global and location-specific)
+- **Location Admins** (`/:locationSlug/admin`): Can view global + their location's resources
+
+**Resource Editability:**
+- **Global resources** (`location_id = NULL`): Only master admins can create/edit/delete
+- **Location-specific resources**: Location admins can manage their own location's resources
+
+**UI Indicators:**
+- Global resources show a "🌐 Global" badge
+- Global resources appear with reduced opacity and "Read only" for location admins
+- Clicking a global resource as location admin shows an error message

@@ -193,7 +193,7 @@ export const AuthProvider = ({ children }) => {
             email,
             name,
             locationId,
-            'user' // Default role
+            'sales' // Default role
           );
           
           if (!userAccountResult.success) {
